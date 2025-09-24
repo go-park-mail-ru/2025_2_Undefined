@@ -8,7 +8,7 @@ import (
 )
 
 type UserRepo struct {
-	users map[string]*models.User //храним по email
+	users map[string]*models.User //храним по phone
 	mutex sync.RWMutex
 }
 
@@ -22,11 +22,11 @@ func (r *UserRepo) Create(user *models.User) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	if _, exists := r.users[user.Email]; exists {
-		return errors.New("user with this email already exists")
+	if _, exists := r.users[user.PhoneNumber]; exists {
+		return errors.New("user with this phone already exists")
 	}
 
-	r.users[user.Email] = user
+	r.users[user.PhoneNumber] = user
 	return nil
 }
 
@@ -46,12 +46,11 @@ func (r *UserRepo) GetByPhone(phone string) (*models.User, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	for _, user := range r.users {
-		if user.PhoneNumber == phone {
-			return user, nil
-		}
+	user, exists := r.users[phone]
+	if !exists {
+		return nil, errors.New("user not found")
 	}
-	return nil, errors.New("user not found")
+	return user, nil
 }
 
 func (r *UserRepo) GetByUsername(username string) (*models.User, error) {
@@ -70,22 +69,23 @@ func (r *UserRepo) GetByEmail(email string) (*models.User, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
-	user, exists := r.users[email]
-	if !exists {
-		return nil, errors.New("user not found")
+	for _, user := range r.users {
+		if user.Email == email {
+			return user, nil
+		}
 	}
-	return user, nil
+	return nil, errors.New("user not found")
 }
 
 func (r *UserRepo) Update(updatedUser *models.User) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	_, exists := r.users[updatedUser.Email]
+	_, exists := r.users[updatedUser.PhoneNumber]
 	if !exists {
 		return errors.New("user not found")
 	}
 
-	r.users[updatedUser.Email] = updatedUser
+	r.users[updatedUser.PhoneNumber] = updatedUser
 	return nil
 }

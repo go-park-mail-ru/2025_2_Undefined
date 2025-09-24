@@ -3,10 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
+	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
 )
 
@@ -30,15 +31,25 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.authService.Register(&req)
+	token, err := h.authService.Register(&req)
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	if token == "" {
+		http.Error(w, `{"error": "token is empty"}`, http.StatusBadRequest)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     domains.TokenCookieName,
+		Value:    token,
+		HttpOnly: true,
+		Path:     "/",
+	})
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -48,69 +59,70 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Email == "" || req.Password == "" {
-		http.Error(w, `{"error": "Email and password are required"}`, http.StatusBadRequest)
+	if req.PhoneNumber == "" || req.Password == "" {
+		http.Error(w, `{"error": "Phone and password are required"}`, http.StatusBadRequest)
 		return
 	}
 
-	resp, err := h.authService.Login(&req)
+	token, err := h.authService.Login(&req)
 	if err != nil {
 		http.Error(w, `{"error": "Invalid credentials"}`, http.StatusUnauthorized)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	http.SetCookie(w, &http.Cookie{
+		Name:     domains.TokenCookieName,
+		Value:    token,
+		HttpOnly: true,
+		Path:     "/",
+	})
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	// Извлекаем токен из заголовка
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, `{"error": "Authorization header required"}`, http.StatusUnauthorized)
+	jwtCookie, err := r.Cookie(domains.TokenCookieName)
+	if err != nil {
+		http.Error(w, `{"error": "JWT token required"}`, http.StatusUnauthorized)
 		return
 	}
-
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		http.Error(w, `{"error": "Invalid authorization header format"}`, http.StatusUnauthorized)
+	err = h.authService.Logout(jwtCookie.Value)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusUnauthorized)
 		return
 	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     domains.TokenCookieName,
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Now().UTC().AddDate(0, 0, -1),
+		HttpOnly: true,
+		Secure:   true,
+	})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out successfully"})
+}
 
-	tokenString := parts[1]
-	if tokenString == "" {
-		http.Error(w, `{"error": "Empty token"}`, http.StatusUnauthorized)
+func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	jwtCookie, err := r.Cookie(domains.TokenCookieName)
+	if err != nil {
+		http.Error(w, `{"error": "JWT token required"}`, http.StatusUnauthorized)
 		return
 	}
-
-	// Добавляем токен в blacklist
-	if err := h.authService.Logout(tokenString); err != nil {
+	jwttoken := jwt.NewTokenator()
+	claims, err := jwttoken.ParseJWT(jwtCookie.Value)
+	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusUnauthorized)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Logged out successfully",
-	})
-}
-
-func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*UserModels.User)
-	if !ok || user == nil {
+	user, err := h.authService.GetUserById(claims.UserID)
+	if err != nil {
 		http.Error(w, `{"error": "User not found"}`, http.StatusUnauthorized)
 		return
 	}
 
-	publicUser := UserModels.PublicUser{
-		ID:          user.ID,
-		Name:        user.Name,
-		Username:    user.Username,
-		Bio:         user.Bio,
-		AccountType: user.AccountType,
-		CreatedAt:   user.CreatedAt,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(publicUser)
+	json.NewEncoder(w).Encode(user)
+
 }

@@ -3,39 +3,43 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 )
 
-func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Handler {
+// Ключи для хранения в контексте
+type contextKey string
+
+// AuthMiddleware создает middleware для проверки аутентификации
+func AuthMiddleware(tokenator *jwt.Tokenator, blacktokenRepo BlackToken.TokenRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, `{"error": "Authorization header required"}`, http.StatusUnauthorized)
-				return
-			}
-
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, `{"error": "Invalid authorization header"}`, http.StatusUnauthorized)
-				return
-			}
-
-			user, err := authService.ValidateToken(parts[1])
+			// Получаем токен из куки
+			cookie, err := r.Cookie(domains.TokenCookieName)
 			if err != nil {
-				http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusUnauthorized)
+				http.Error(w, "Token cookie is required", http.StatusUnauthorized)
 				return
 			}
 
-			if user == nil {
-				http.Error(w, `{"error": "User account not found"}`, http.StatusUnauthorized)
+			// Проверяем, не в черном списке ли токен
+			if blacktokenRepo.IsInBlacklist(cookie.Value) {
+				http.Error(w, "Token is blacklisted", http.StatusUnauthorized)
 				return
 			}
 
-			// Добавляем пользователя в контекст
-			ctx := context.WithValue(r.Context(), "user", user)
+			// Парсим токен
+			claims, err := tokenator.ParseJWT(cookie.Value)
+			if err != nil {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			// Добавляем данные в контекст
+			ctx := context.WithValue(r.Context(), domains.UserIDKey{}, claims.UserID)
+
+			// Передаем запрос дальше
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -6,9 +6,10 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	handlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/middleware"
 	inmemory "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/inmemory"
-	tokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
+	blackTokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
 	"github.com/gorilla/mux"
 )
@@ -17,9 +18,10 @@ func main() {
 	cfg := config.NewConfig()
 
 	userRepo := inmemory.NewUserRepo()
-	tokenRepo := tokenRep.NewTokenRepo()
+	blackTokenRepo := blackTokenRep.NewTokenRepo()
+	tokenator := jwt.NewTokenator()
 
-	authService := service.NewAuthService(userRepo, tokenRepo, cfg.JWTSecret, cfg.JWTTTL)
+	authService := service.NewAuthService(userRepo, *tokenator, blackTokenRepo)
 
 	authHandler := handlers.NewAuthHandler(authService)
 
@@ -31,7 +33,7 @@ func main() {
 
 	// Protected routes
 	api := r.PathPrefix("/api/v1").Subrouter()
-	api.Use(middleware.AuthMiddleware(authService))
+	api.Use(middleware.AuthMiddleware(tokenator, blackTokenRepo))
 
 	api.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	api.HandleFunc("/me", authHandler.GetCurrentUser).Methods("GET")
