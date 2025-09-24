@@ -4,49 +4,47 @@ import (
 	"errors"
 	"time"
 
+	Token "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	TokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
+	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 	UserRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
-	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	userRepo  UserRep.UserRepository
-	tokenRepo TokenRep.TokenRepository
-	jwtSecret string
-	jwtTTL    time.Duration
+	userRepo   UserRep.UserRepository
+	token      Token.Tokenator
+	blacktoken BlackToken.TokenRepository
 }
 
-func NewAuthService(userRepo UserRep.UserRepository, tokenRepo TokenRep.TokenRepository, jwtSecret string, jwtTTL time.Duration) *AuthService {
+func NewAuthService(userRepo UserRep.UserRepository, tokenRepo Token.Tokenator, blacktokenRepo BlackToken.TokenRepository) *AuthService {
 	return &AuthService{
-		userRepo:  userRepo,
-		tokenRepo: tokenRepo,
-		jwtSecret: jwtSecret,
-		jwtTTL:    jwtTTL,
+		userRepo:   userRepo,
+		token:      tokenRepo,
+		blacktoken: blacktokenRepo,
 	}
 }
 
-func (s *AuthService) Register(req *AuthModels.RegisterRequest) (*AuthModels.AuthResponse, error) {
+func (s *AuthService) Register(req *AuthModels.RegisterRequest) (string, error) {
 	existing, _ := s.userRepo.GetByEmail(req.Email)
 	if existing != nil {
-		return nil, errors.New("user with this email already exists")
+		return "", errors.New("user with this email already exists")
 	}
 	existing, _ = s.userRepo.GetByPhone(req.PhoneNumber)
 	if existing != nil {
-		return nil, errors.New("user with this phone already exists")
+		return "", errors.New("user with this phone already exists")
 	}
 
 	existing, _ = s.userRepo.GetByUsername(req.Username)
 	if existing != nil {
-		return nil, errors.New("user with this username already exists")
+		return "", errors.New("user with this username already exists")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	user := &UserModels.User{
@@ -62,98 +60,51 @@ func (s *AuthService) Register(req *AuthModels.RegisterRequest) (*AuthModels.Aut
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// Генерация JWT токена
-	token, err := s.generateJWT(user)
+	token, err := s.token.CreateJWT(user.ID.String())
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &AuthModels.AuthResponse{
-		Token: token,
-		User: UserModels.PublicUser{
-			ID:          user.ID,
-			Name:        user.Name,
-			Username:    user.Username,
-			AccountType: user.AccountType,
-			CreatedAt:   user.CreatedAt,
-		},
-	}, nil
+	return token, nil
 }
 
-func (s *AuthService) Login(req *AuthModels.LoginRequest) (*AuthModels.AuthResponse, error) {
+func (s *AuthService) Login(req *AuthModels.LoginRequest) (string, error) {
 
-	user, err := s.userRepo.GetByEmail(req.Email)
+	user, err := s.userRepo.GetByPhone(req.PhoneNumber)
 	if err != nil || user == nil {
-		return nil, errors.New("invalid credentials")
+		return "", errors.New("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return nil, errors.New("invalid credentials")
+		return "", errors.New("invalid credentials")
 	}
 
 	// Генерация JWT токена
-	token, err := s.generateJWT(user)
+	token, err := s.token.CreateJWT(user.ID.String())
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &AuthModels.AuthResponse{
-		Token: token,
-		User: UserModels.PublicUser{
-			ID:          user.ID,
-			Name:        user.Name,
-			Username:    user.Username,
-			AccountType: user.AccountType,
-			CreatedAt:   user.CreatedAt,
-		},
-	}, nil
+	return token, nil
 }
 
 func (s *AuthService) Logout(tokenString string) error {
-	_, err := s.ValidateToken(tokenString)
+	_, err := s.token.ParseJWT(tokenString)
 	if err != nil {
 		return errors.New("invalid or expired token")
 	}
 
-	if s.tokenRepo.IsInBlacklist(tokenString) {
-		return errors.New("token already invalidated")
-	}
-
-	return s.tokenRepo.AddToBlacklist(tokenString)
+	return s.blacktoken.AddToBlacklist(tokenString)
 }
 
-func (s *AuthService) generateJWT(user *UserModels.User) (string, error) {
-	expiresAt := time.Now().Add(s.jwtTTL)
-
-	claims := jwt.MapClaims{
-		"user_id": user.ID.String(),
-		"exp":     expiresAt.Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.jwtSecret))
-}
-
-func (s *AuthService) ValidateToken(tokenString string) (*UserModels.User, error) {
-	if s.tokenRepo.IsInBlacklist(tokenString) {
-		return nil, errors.New("token is blacklisted")
-	}
-
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(s.jwtSecret), nil
-	})
-
+func (s *AuthService) GetUserById(id string) (*UserModels.User, error) {
+	user, err := s.userRepo.GetByID(id)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("error get user by id")
 	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userID := claims["user_id"].(string)
-		return s.userRepo.GetByID(userID)
-	}
-
-	return nil, errors.New("invalid token")
+	return user, nil
 }
