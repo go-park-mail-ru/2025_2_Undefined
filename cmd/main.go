@@ -5,12 +5,15 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
-	handlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
+	authHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
+	chatsHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/middleware"
 	inmemory "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/inmemory"
 	blackTokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
+	authServicePkg "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
+	chatsServicePkg "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/chats"
+
 	"github.com/gorilla/mux"
 )
 
@@ -18,12 +21,17 @@ func main() {
 	cfg := config.NewConfig()
 
 	userRepo := inmemory.NewUserRepo()
+	chatsRepo := inmemory.NewChatsRepo()
 	blackTokenRepo := blackTokenRep.NewTokenRepo()
 	tokenator := jwt.NewTokenator()
 
-	authService := service.NewAuthService(userRepo, *tokenator, blackTokenRepo)
+	inmemory.FillWithFakeData(userRepo, chatsRepo)
 
-	authHandler := handlers.NewAuthHandler(authService)
+	authService := authServicePkg.NewAuthService(userRepo, *tokenator, blackTokenRepo)
+	chatsService := chatsServicePkg.NewChatsService(chatsRepo)
+
+	authHandler := authHandlers.NewAuthHandler(authService)
+	chatsHandler := chatsHandlers.NewChatsHandler(chatsService)
 
 	r := mux.NewRouter()
 
@@ -37,6 +45,9 @@ func main() {
 
 	api.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	api.HandleFunc("/me", authHandler.GetCurrentUser).Methods("GET")
+	api.HandleFunc("/chats", chatsHandler.GetChats).Methods("GET")
+	api.HandleFunc("/chats", chatsHandler.PostChats).Methods("POST")
+	api.HandleFunc("/chats/{chatId}", chatsHandler.GetInformationAboutChat).Methods("GET")
 
 	// CORS middleware для фронтенда
 	r.Use(func(next http.Handler) http.Handler {
