@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	Token "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
@@ -46,6 +47,7 @@ func (s *AuthService) Register(req *AuthModels.RegisterRequest) (string, error) 
 	if err != nil {
 		return "", err
 	}
+	fmt.Println(string(hashedPassword))
 
 	user := &UserModels.User{
 		ID:           uuid.New(),
