@@ -8,4 +8,5 @@ var (
 	ErrBadRequest            = errors.New("bad request")
 	ErrInvalidCredentials    = errors.New("invalid credentials")
 	ErrRequiredFieldsMissing = errors.New("required fields are missing")
+	ErrUserNotFound          = errors.New("user not found")
 )

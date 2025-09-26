@@ -5,67 +5,117 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
-	authHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
-	chatsHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/chats"
+
+	AuthHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
+	ChatHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/middleware"
 	inmemory "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/inmemory"
 	blackTokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
-	authServicePkg "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
-	chatsServicePkg "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/chats"
-
-	"github.com/gorilla/mux"
+	AuthService "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
+	ChatService "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/chats"
 )
 
 func main() {
+
 	cfg := config.NewConfig()
 
 	userRepo := inmemory.NewUserRepo()
-	chatsRepo := inmemory.NewChatsRepo()
+	chatRepo := inmemory.NewChatsRepo()
+
 	blackTokenRepo := blackTokenRep.NewTokenRepo()
 	tokenator := jwt.NewTokenator()
 
-	inmemory.FillWithFakeData(userRepo, chatsRepo)
+	authService := AuthService.NewAuthService(userRepo, *tokenator, blackTokenRepo)
+	chatService := ChatService.NewChatsService(chatRepo)
 
-	authService := authServicePkg.NewAuthService(userRepo, *tokenator, blackTokenRepo)
-	chatsService := chatsServicePkg.NewChatsService(chatsRepo)
+	authHandler := AuthHandlers.NewAuthHandler(authService)
+	chatsHandler := ChatHandlers.NewChatsHandler(chatService)
 
-	authHandler := authHandlers.NewAuthHandler(authService)
-	chatsHandler := chatsHandlers.NewChatsHandler(chatsService)
+	authMiddleware := middleware.AuthMiddleware(tokenator, blackTokenRepo)
 
-	r := mux.NewRouter()
-
-	// Public routes
-	r.HandleFunc("/api/v1/register", authHandler.Register).Methods("POST")
-	r.HandleFunc("/api/v1/login", authHandler.Login).Methods("POST")
-
-	// Protected routes
-	api := r.PathPrefix("/api/v1").Subrouter()
-	api.Use(middleware.AuthMiddleware(tokenator, blackTokenRepo))
-
-	api.HandleFunc("/logout", authHandler.Logout).Methods("POST")
-	api.HandleFunc("/me", authHandler.GetCurrentUser).Methods("GET")
-	api.HandleFunc("/chats", chatsHandler.GetChats).Methods("GET")
-	api.HandleFunc("/chats", chatsHandler.PostChats).Methods("POST")
-	api.HandleFunc("/chats/{chatId}", chatsHandler.GetInformationAboutChat).Methods("GET")
-
-	// CORS middleware для фронтенда
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
+	// Создаем хендлеры для каждого маршрута с проверкой методов
+	registerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			utils.SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		authHandler.Register(w, r)
 	})
 
+	loginHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			utils.SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		authHandler.Login(w, r)
+	})
+
+	logoutHandlerWithAuth := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			utils.SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		authHandler.Logout(w, r)
+	}))
+
+	meHandlerWithAuth := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			utils.SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		authHandler.GetCurrentUser(w, r)
+	}))
+
+	chatsUniversalHandler := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case "GET":
+			chatsHandler.GetChats(w, r)
+		case "POST":
+			chatsHandler.PostChats(w, r)
+		default:
+			utils.SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		}
+	}))
+
+	chatInfoHandler := authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			utils.SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		chatsHandler.GetInformationAboutChat(w, r)
+	}))
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/v1/register", registerHandler)
+	mux.Handle("/api/v1/login", loginHandler)
+	mux.Handle("/api/v1/logout", logoutHandlerWithAuth)
+	mux.Handle("/api/v1/me", meHandlerWithAuth)
+
+	mux.Handle("/api/v1/chats", chatsUniversalHandler)
+
+	mux.Handle("/api/v1/chats/", chatInfoHandler)
+
+	handler := corsMiddleware(mux)
+
 	log.Printf("Server starting on port %s", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, r))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
+}
+
+// настройка CORS для фронта
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
 }

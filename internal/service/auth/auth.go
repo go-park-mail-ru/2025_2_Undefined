@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	Token "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
@@ -47,7 +46,6 @@ func (s *AuthService) Register(req *AuthModels.RegisterRequest) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(string(hashedPassword))
 
 	user := &UserModels.User{
 		ID:           uuid.New(),
@@ -103,7 +101,7 @@ func (s *AuthService) Logout(tokenString string) error {
 	return s.blacktoken.AddToBlacklist(tokenString)
 }
 
-func (s *AuthService) GetUserById(id string) (*UserModels.User, error) {
+func (s *AuthService) GetUserById(id uuid.UUID) (*UserModels.User, error) {
 	user, err := s.userRepo.GetByID(id)
 	if err != nil {
 		return nil, errors.New("error get user by id")

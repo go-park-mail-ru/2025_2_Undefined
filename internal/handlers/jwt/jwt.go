@@ -58,3 +58,7 @@ func (t *Tokenator) ParseJWT(tokenString string) (*JWTClaims, error) {
 
 	return nil, errors.New("Invalid token")
 }
+
+func (t *Tokenator) GetTokenLifeSpan() time.Duration {
+	return t.tokenLifeSpan
+}

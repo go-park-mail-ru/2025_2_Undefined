@@ -1,11 +1,13 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
+	cookieUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/cookie"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 )
 
@@ -19,28 +21,28 @@ func AuthMiddleware(tokenator *jwt.Tokenator, blacktokenRepo BlackToken.TokenRep
 			// Получаем токен из куки
 			cookie, err := r.Cookie(domains.TokenCookieName)
 			if err != nil {
-				http.Error(w, "Token cookie is required", http.StatusUnauthorized)
+				cookieUtils.Unset(w, domains.TokenCookieName)
+				utils.SendError(w, http.StatusUnauthorized, "JWT token required")
 				return
 			}
 
 			// Проверяем, не в черном списке ли токен
 			if blacktokenRepo.IsInBlacklist(cookie.Value) {
-				http.Error(w, "Token is blacklisted", http.StatusUnauthorized)
+				cookieUtils.Unset(w, domains.TokenCookieName)
+				utils.SendError(w, http.StatusUnauthorized, "Token is blacklisted")
 				return
 			}
 
 			// Парсим токен
-			claims, err := tokenator.ParseJWT(cookie.Value)
+			_, err = tokenator.ParseJWT(cookie.Value)
 			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				cookieUtils.Unset(w, domains.TokenCookieName)
+				utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}
 
-			// Добавляем данные в контекст
-			ctx := context.WithValue(r.Context(), domains.UserIDKey{}, claims.UserID)
-
 			// Передаем запрос дальше
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r)
 		})
 	}
 }

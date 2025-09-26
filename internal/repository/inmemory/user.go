@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/google/uuid"
 )
 
 type UserRepo struct {
@@ -30,12 +31,12 @@ func (r *UserRepo) Create(user *models.User) error {
 	return nil
 }
 
-func (r *UserRepo) GetByID(id string) (*models.User, error) {
+func (r *UserRepo) GetByID(id uuid.UUID) (*models.User, error) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
 	for _, user := range r.users {
-		if user.ID.String() == id {
+		if user.ID == id {
 			return user, nil
 		}
 	}
