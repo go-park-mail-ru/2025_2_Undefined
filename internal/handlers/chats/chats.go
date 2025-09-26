@@ -10,17 +10,22 @@ import (
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/chats"
 	"github.com/google/uuid"
 )
 
-type ChatsHandler struct {
-	chatService service.ChatsService
+type ChatsServiceInterface interface {
+	GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
+	CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error)
+	GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error)
 }
 
-func NewChatsHandler(chatService *service.ChatsService) *ChatsHandler {
+type ChatsHandler struct {
+	chatService ChatsServiceInterface
+}
+
+func NewChatsHandler(chatService ChatsServiceInterface) *ChatsHandler {
 	return &ChatsHandler{
-		chatService: *chatService,
+		chatService: chatService,
 	}
 }
 
