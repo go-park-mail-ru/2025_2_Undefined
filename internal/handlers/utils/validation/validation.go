@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"log"
 	"regexp"
 	"strings"
 	"unicode"
@@ -32,7 +31,6 @@ func ValidateAndNormalizePhone(phone string) (string, bool) {
 			return phone, false
 		}
 	}
-	log.Print("+7" + cleanPhone)
 	return "+7" + cleanPhone, true
 }
 
