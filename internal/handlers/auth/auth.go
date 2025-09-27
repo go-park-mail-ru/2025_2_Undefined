@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/validation"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
@@ -31,6 +32,32 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if req.PhoneNumber == "" || req.Email == "" || req.Username == "" || req.Password == "" || req.Name == "" {
 		utils.SendError(w, http.StatusBadRequest, "All fields are required")
+		return
+	}
+	normalizedPhone, isValid := validation.ValidateAndNormalizePhone(req.PhoneNumber)
+	if !isValid {
+		utils.SendError(w, http.StatusBadRequest, "Invalid phone number format")
+		return
+	}
+	req.PhoneNumber = normalizedPhone
+
+	if !validation.ValidateEmail(req.Email) {
+		utils.SendError(w, http.StatusBadRequest, "Invalid email format")
+		return
+	}
+
+	if !validation.ValidatePassword(req.Password) {
+		utils.SendError(w, http.StatusBadRequest, "Only Latin letters, numbers and special characters are allowed in the password")
+		return
+	}
+
+	if !validation.ValidateUsername(req.Username) {
+		utils.SendError(w, http.StatusBadRequest, "Invalid username format")
+		return
+	}
+
+	if !validation.ValidateName(req.Name) {
+		utils.SendError(w, http.StatusBadRequest, "Invalid name format")
 		return
 	}
 
@@ -58,6 +85,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if req.PhoneNumber == "" || req.Password == "" {
 		utils.SendError(w, http.StatusBadRequest, errs.ErrRequiredFieldsMissing.Error())
+		return
+	}
+
+	normalizedPhone, isValid := validation.ValidateAndNormalizePhone(req.PhoneNumber)
+	if !isValid {
+		utils.SendError(w, http.StatusBadRequest, "Invalid phone number format")
+		return
+	}
+	req.PhoneNumber = normalizedPhone
+
+	if !validation.ValidatePassword(req.Password) {
+		utils.SendError(w, http.StatusBadRequest, "Only Latin letters, numbers and special characters are allowed in the password")
 		return
 	}
 
