@@ -124,7 +124,7 @@ func (r *ChatsRepo) CreateChat(chat models.Chat, usersInfo []models.UserInfo) er
 			ID:        id,
 			ChatID:    userInfo.ChatID,
 			UserID:    userInfo.UserID,
-			Text:      fmt.Sprintf("Пользователь %s вступил в чат", id.String()), // fix
+			Text:      fmt.Sprintf("Пользователь %s вступил в чат", userInfo.UserID.String()), // fix
 			CreatedAt: time.Now(),
 			Type:      models.SystemMessage,
 		}

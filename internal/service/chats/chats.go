@@ -5,15 +5,15 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
-	repository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/inmemory"
+	repositoryInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
 	"github.com/google/uuid"
 )
 
 type ChatsService struct {
-	chatsRepo *repository.ChatsRepo
+	chatsRepo repositoryInterface.ChatsRepository
 }
 
-func NewChatsService(chatsRepo *repository.ChatsRepo) *ChatsService {
+func NewChatsService(chatsRepo repositoryInterface.ChatsRepository) *ChatsService {
 	return &ChatsService{
 		chatsRepo: chatsRepo,
 	}
