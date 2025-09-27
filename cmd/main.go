@@ -97,6 +97,15 @@ func main() {
 
 	mux.Handle("/api/v1/chats/", chatInfoHandler)
 
+	fs := http.FileServer(http.Dir("frontend"))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, "frontend/index.html")
+		} else {
+			fs.ServeHTTP(w, r)
+		}
+    })
+
 	handler := corsMiddleware(mux)
 
 	log.Printf("Server starting on port %s", cfg.Port)
@@ -106,16 +115,12 @@ func main() {
 // настройка CORS для фронта
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
 }
