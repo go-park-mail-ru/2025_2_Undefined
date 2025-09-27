@@ -19,10 +19,10 @@ type AuthService struct {
 	blacktoken BlackToken.TokenRepository
 }
 
-func NewAuthService(userRepo UserRep.UserRepository, tokenRepo Token.Tokenator, blacktokenRepo BlackToken.TokenRepository) *AuthService {
+func NewAuthService(userRepo UserRep.UserRepository, tokenRepo *Token.Tokenator, blacktokenRepo BlackToken.TokenRepository) *AuthService {
 	return &AuthService{
 		userRepo:   userRepo,
-		token:      tokenRepo,
+		token:      *tokenRepo,
 		blacktoken: blacktokenRepo,
 	}
 }

@@ -27,7 +27,7 @@ func main() {
 	blackTokenRepo := blackTokenRep.NewTokenRepo()
 	tokenator := jwt.NewTokenator()
 
-	authService := AuthService.NewAuthService(userRepo, *tokenator, blackTokenRepo)
+	authService := AuthService.NewAuthService(userRepo, tokenator, blackTokenRepo)
 	chatService := ChatService.NewChatsService(chatRepo)
 
 	authHandler := AuthHandlers.NewAuthHandler(authService)

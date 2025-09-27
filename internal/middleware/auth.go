@@ -11,9 +11,6 @@ import (
 	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 )
 
-// Ключи для хранения в контексте
-type contextKey string
-
 // AuthMiddleware создает middleware для проверки аутентификации
 func AuthMiddleware(tokenator *jwt.Tokenator, blacktokenRepo BlackToken.TokenRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
