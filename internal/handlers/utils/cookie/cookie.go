@@ -23,7 +23,6 @@ func Set(w http.ResponseWriter, token, name string) {
 		SameSite: http.SameSiteStrictMode,
 		HttpOnly: true,
 		Expires:  time.Now().UTC().Add(tokenLifeSpan),
-		Secure:   true,
 	})
 }
 
@@ -34,6 +33,5 @@ func Unset(w http.ResponseWriter, name string) {
 		Path:     "/",
 		Expires:  time.Now().UTC().AddDate(0, 0, -1),
 		HttpOnly: true,
-		Secure:   true,
 	})
 }
