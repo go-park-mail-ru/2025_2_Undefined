@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -654,4 +655,93 @@ func TestAuthHandler_Logout_BlacklistError(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_Register_MultipleValidationErrors(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	// Создаем запрос с множественными ошибками валидации
+	registerReq := AuthModels.RegisterRequest{
+		PhoneNumber: "invalid-phone", // Невалидный номер телефона
+		Email:       "invalid-email", // Невалидный email
+		Username:    "",              // Пустой username
+		Name:        "",              // Пустое имя
+		Password:    "123",           // Слишком короткий пароль
+	}
+
+	body, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var validationResponse dto.ValidationErrorsDTO
+	err := json.NewDecoder(resp.Body).Decode(&validationResponse)
+	assert.NoError(t, err)
+
+	// Проверяем, что вернулся правильный тип ответа
+	assert.Equal(t, "Ошибка валидации", validationResponse.Message)
+	assert.True(t, len(validationResponse.Errors) > 1, "Should return multiple validation errors")
+
+	// Проверяем, что есть ошибки для всех проблемных полей
+	errorFields := make(map[string]bool)
+	for _, errorDTO := range validationResponse.Errors {
+		errorFields[errorDTO.Field] = true
+	}
+
+	expectedFields := []string{"phone_number", "email", "username", "name", "password"}
+	for _, field := range expectedFields {
+		assert.True(t, errorFields[field], "Should have validation error for field: %s", field)
+	}
+}
+
+func TestAuthHandler_Login_MultipleValidationErrors(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	// Создаем запрос с множественными ошибками валидации
+	loginReq := AuthModels.LoginRequest{
+		PhoneNumber: "invalid-phone", // Невалидный номер телефона
+		Password:    "кириллица",     // Невалидный пароль (содержит кириллицу)
+	}
+
+	body, _ := json.Marshal(loginReq)
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var validationResponse dto.ValidationErrorsDTO
+	err := json.NewDecoder(resp.Body).Decode(&validationResponse)
+	assert.NoError(t, err)
+
+	// Проверяем, что вернулся правильный тип ответа
+	assert.Equal(t, "Ошибка валидации", validationResponse.Message)
+	assert.True(t, len(validationResponse.Errors) > 1, "Should return multiple validation errors")
+
+	// Проверяем, что есть ошибки для всех проблемных полей
+	errorFields := make(map[string]bool)
+	for _, errorDTO := range validationResponse.Errors {
+		errorFields[errorDTO.Field] = true
+	}
+
+	assert.True(t, errorFields["phone_number"], "Should have validation error for phone_number")
+	assert.True(t, errorFields["password"], "Should have validation error for password")
 }

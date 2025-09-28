@@ -44,7 +44,7 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	// ! Получаем id пользователя из JWT токена
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "JWT token required"}`)
+		utils.SendError(w, http.StatusUnauthorized, `{"error": "JWT token требуется"}`)
 		return
 	}
 	jwttoken := jwt.NewTokenator()
@@ -126,18 +126,18 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 	// ! Получаем id пользователя из JWT токена
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "JWT token required"}`)
+		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
 	jwttoken := jwt.NewTokenator()
 	claims, err := jwttoken.ParseJWT(jwtCookie.Value)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "`+err.Error()+`"}`)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 	userUUID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "`+err.Error()+`"}`)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 

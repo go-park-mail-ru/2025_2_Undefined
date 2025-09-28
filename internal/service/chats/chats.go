@@ -126,7 +126,7 @@ func (s *ChatsService) CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UU
 
 	err := s.chatsRepo.CreateChat(chat, users)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("failed to create chat: %w", err)
+		return uuid.Nil, fmt.Errorf("не удалось создать чат: %w", err)
 	}
 	return chat.ID, nil
 }

@@ -4,8 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
 	Token "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/validation"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 	UserRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
@@ -27,24 +30,42 @@ func NewAuthService(userRepo UserRep.UserRepository, tokenRepo *Token.Tokenator,
 	}
 }
 
-func (s *AuthService) Register(req *AuthModels.RegisterRequest) (string, error) {
+func (s *AuthService) Register(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO) {
+	errorsValidation := make([]errs.ValidationError, 0)
+
 	existing, _ := s.userRepo.GetByEmail(req.Email)
 	if existing != nil {
-		return "", errors.New("user with this email already exists")
+		errorsValidation = append(errorsValidation, errs.ValidationError{
+			Field:   "email",
+			Message: "пользователь с таким email уже существует",
+		})
 	}
 	existing, _ = s.userRepo.GetByPhone(req.PhoneNumber)
 	if existing != nil {
-		return "", errors.New("user with this phone already exists")
+		errorsValidation = append(errorsValidation, errs.ValidationError{
+			Field:   "phone_number",
+			Message: "пользователь с таким телефоном уже существует",
+		})
 	}
 
 	existing, _ = s.userRepo.GetByUsername(req.Username)
 	if existing != nil {
-		return "", errors.New("user with this username already exists")
+		errorsValidation = append(errorsValidation, errs.ValidationError{
+			Field:   "username",
+			Message: "пользователь с таким именем пользователя уже существует",
+		})
+	}
+
+	if len(errorsValidation) > 0 {
+		err := validation.ConvertToValidationErrorsDTO(errorsValidation)
+		return "", &err
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", err
+		return "", &dto.ValidationErrorsDTO{
+			Message: err.Error(),
+		}
 	}
 
 	user := &UserModels.User{
@@ -60,13 +81,17 @@ func (s *AuthService) Register(req *AuthModels.RegisterRequest) (string, error) 
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		return "", err
+		return "", &dto.ValidationErrorsDTO{
+			Message: err.Error(),
+		}
 	}
 
 	// Генерация JWT токена
 	token, err := s.token.CreateJWT(user.ID.String())
 	if err != nil {
-		return "", err
+		return "", &dto.ValidationErrorsDTO{
+			Message: err.Error(),
+		}
 	}
 
 	return token, nil
@@ -76,11 +101,11 @@ func (s *AuthService) Login(req *AuthModels.LoginRequest) (string, error) {
 
 	user, err := s.userRepo.GetByPhone(req.PhoneNumber)
 	if err != nil || user == nil {
-		return "", errors.New("invalid credentials")
+		return "", errors.New("неверные учетные данные")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return "", errors.New("invalid credentials")
+		return "", errors.New("неверные учетные данные")
 	}
 
 	// Генерация JWT токена
@@ -95,7 +120,7 @@ func (s *AuthService) Login(req *AuthModels.LoginRequest) (string, error) {
 func (s *AuthService) Logout(tokenString string) error {
 	_, err := s.token.ParseJWT(tokenString)
 	if err != nil {
-		return errors.New("invalid or expired token")
+		return errors.New("недействительный или истекший токен")
 	}
 
 	return s.blacktoken.AddToBlacklist(tokenString)
@@ -104,7 +129,7 @@ func (s *AuthService) Logout(tokenString string) error {
 func (s *AuthService) GetUserById(id uuid.UUID) (*UserModels.User, error) {
 	user, err := s.userRepo.GetByID(id)
 	if err != nil {
-		return nil, errors.New("error get user by id")
+		return nil, errors.New("ошибка получения пользователя по id")
 	}
 	return user, nil
 }
