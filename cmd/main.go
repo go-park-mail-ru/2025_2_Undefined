@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
+	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	AuthHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
 	ChatHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/chats"
@@ -17,6 +19,19 @@ import (
 	ChatService "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/chats"
 )
 
+// @title           Undefined team API documentation of project Telegram
+// @version         1.0
+// @description     API сервер для чат-приложения в стиле Telegram. Позволяет регистрировать пользователей, управлять чатами и обмениваться сообщениями.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   Undefined Team
+// @contact.url    https://github.com/go-park-mail-ru/2025_2_Undefined
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /api/v1
 func main() {
 
 	cfg := config.NewConfig()
@@ -94,12 +109,14 @@ func main() {
 	mux.Handle("/api/v1/me", meHandlerWithAuth)
 
 	mux.Handle("/api/v1/chats", chatsUniversalHandler)
-
 	mux.Handle("/api/v1/chats/", chatInfoHandler)
+
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	handler := corsMiddleware(mux)
 
 	log.Printf("Server starting on port %s", cfg.Port)
+	log.Printf("Swagger UI available at: http://localhost:%s/swagger/", cfg.Port)
 	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }
 
