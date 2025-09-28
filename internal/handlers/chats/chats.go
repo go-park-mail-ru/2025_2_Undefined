@@ -29,6 +29,17 @@ func NewChatsHandler(chatService ChatsServiceInterface) *ChatsHandler {
 	}
 }
 
+// GetChats получает список всех чатов пользователя
+// @Summary      Получить список чатов
+// @Description  Возвращает список всех чатов текущего пользователя с информацией о последнем сообщении
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200  {array}   dto.ChatViewInformationDTO  "Список чатов"
+// @Failure      400  {object}  dto.ErrorDTO                "Некорректный запрос"
+// @Failure      401  {object}  dto.ErrorDTO                "Неавторизованный доступ"
+// @Router       /chats [get]
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	// ! Получаем id пользователя из JWT токена
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
@@ -56,6 +67,18 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	utils.SendJSONResponse(w, http.StatusOK, chats)
 }
 
+// PostChats создает новый чат
+// @Summary      Создать новый чат
+// @Description  Создает новый чат с указанными участниками и настройками
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        chat  body      dto.ChatCreateInformationDTO  true  "Данные для создания чата"
+// @Success      201   {object}  dto.IdDTO                     "ID созданного чата"
+// @Failure      400   {object}  dto.ErrorDTO                  "Некорректный запрос"
+// @Failure      401   {object}  dto.ErrorDTO                  "Неавторизованный доступ"
+// @Router       /chats [post]
 func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 
 	chatDTO := &dto.ChatCreateInformationDTO{}
@@ -74,6 +97,18 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 	utils.SendJSONResponse(w, http.StatusCreated, dto.IdDTO{ID: idOfCreatedChat})
 }
 
+// GetInformationAboutChat получает детальную информацию о чате
+// @Summary      Получить информацию о чате
+// @Description  Возвращает детальную информацию о конкретном чате, включая сообщения и участников
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        chatId  path      string  true  "ID чата"  format(uuid)
+// @Success      200     {object}  dto.ChatDetailedInformationDTO  "Детальная информация о чате"
+// @Failure      400     {object}  dto.ErrorDTO                    "Некорректный запрос"
+// @Failure      401     {object}  dto.ErrorDTO                    "Неавторизованный доступ"
+// @Router       /chats/{chatId} [get]
 func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Request) {
 	// Получаем id чата из пути
 	parts := strings.Split(r.URL.Path, "/")

@@ -13,7 +13,7 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
+	ID           uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
 	Email        string    `json:"email" validate:"required,email"`
 	PhoneNumber  string    `json:"phone_number"`
 	PasswordHash string    `json:"-"`
