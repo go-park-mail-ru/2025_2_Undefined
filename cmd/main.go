@@ -113,6 +113,15 @@ func main() {
 
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
+	fs := http.FileServer(http.Dir("frontend-build"))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, "frontend-build/index.html")
+		} else {
+			fs.ServeHTTP(w, r)
+		}
+	})
+
 	handler := corsMiddleware(mux)
 
 	log.Printf("Server starting on port %s", cfg.Port)
