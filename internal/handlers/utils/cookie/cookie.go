@@ -23,6 +23,7 @@ func Set(w http.ResponseWriter, token, name string) {
 		SameSite: http.SameSiteStrictMode,
 		HttpOnly: true,
 		Expires:  time.Now().UTC().Add(tokenLifeSpan),
+		Secure:   true,
 	})
 }
 
