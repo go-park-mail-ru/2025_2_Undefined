@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/cookie"
@@ -33,7 +34,7 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 // @Produce      json
 // @Param        user  body  models.RegisterRequest  true  "Данные для регистрации"
 // @Success      201   "Пользователь успешно зарегистрирован"
-// @Failure      400   {object}  dto.ErrorDTO  "Некорректный запрос"
+// @Failure      400   {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Router       /register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req AuthModels.RegisterRequest
@@ -42,45 +43,24 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.PhoneNumber == "" || req.Email == "" || req.Username == "" || req.Password == "" || req.Name == "" {
-		utils.SendError(w, http.StatusBadRequest, "All fields are required")
-		return
-	}
-	normalizedPhone, isValid := validation.ValidateAndNormalizePhone(req.PhoneNumber)
-	if !isValid {
-		utils.SendError(w, http.StatusBadRequest, "Invalid phone number format")
-		return
-	}
-	req.PhoneNumber = normalizedPhone
-
-	if !validation.ValidateEmail(req.Email) {
-		utils.SendError(w, http.StatusBadRequest, "Invalid email format")
-		return
-	}
-
-	if !validation.ValidatePassword(req.Password) {
-		utils.SendError(w, http.StatusBadRequest, "Only Latin letters, numbers and special characters are allowed in the password")
-		return
-	}
-
-	if !validation.ValidateUsername(req.Username) {
-		utils.SendError(w, http.StatusBadRequest, "Invalid username format")
-		return
-	}
-
-	if !validation.ValidateName(req.Name) {
-		utils.SendError(w, http.StatusBadRequest, "Invalid name format")
+	// Валидируем все поля и собираем все ошибки
+	validationErrors := validation.ValidateRegisterRequest(&req)
+	if len(validationErrors) > 0 {
+		validationDTO := validation.ConvertToValidationErrorsDTO(validationErrors)
+		utils.SendValidationErrors(w, http.StatusBadRequest, validationDTO)
 		return
 	}
 
 	token, err := h.authService.Register(&req)
 	if err != nil {
-		utils.SendError(w, http.StatusBadRequest, err.Error())
+		utils.SendValidationErrors(w, http.StatusBadRequest, *err)
 		return
 	}
 
 	if token == "" {
-		utils.SendError(w, http.StatusBadRequest, "token is empty")
+		utils.SendValidationErrors(w, http.StatusBadRequest, dto.ValidationErrorsDTO{
+			Message: "token отсутствует",
+		})
 		return
 	}
 
@@ -96,7 +76,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        credentials  body  models.LoginRequest  true  "Креденшиалы для входа"
 // @Success      200  "Вход выполнен успешно"
-// @Failure      400  {object}  dto.ErrorDTO  "Некорректный запрос"
+// @Failure      400  {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Failure      401  {object}  dto.ErrorDTO  "Неверные креденшиалы"
 // @Router       /login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -106,20 +86,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.PhoneNumber == "" || req.Password == "" {
-		utils.SendError(w, http.StatusBadRequest, errs.ErrRequiredFieldsMissing.Error())
-		return
-	}
-
-	normalizedPhone, isValid := validation.ValidateAndNormalizePhone(req.PhoneNumber)
-	if !isValid {
-		utils.SendError(w, http.StatusBadRequest, "Invalid phone number format")
-		return
-	}
-	req.PhoneNumber = normalizedPhone
-
-	if !validation.ValidatePassword(req.Password) {
-		utils.SendError(w, http.StatusBadRequest, "Only Latin letters, numbers and special characters are allowed in the password")
+	// Валидируем все поля и собираем все ошибки
+	validationErrors := validation.ValidateLoginRequest(&req)
+	if len(validationErrors) > 0 {
+		validationDTO := validation.ConvertToValidationErrorsDTO(validationErrors)
+		utils.SendValidationErrors(w, http.StatusBadRequest, validationDTO)
 		return
 	}
 
@@ -146,7 +117,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, "JWT token required")
+		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
 	err = h.authService.Logout(jwtCookie.Value)
@@ -171,7 +142,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, "JWT token required")
+		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
 	jwttoken := jwt.NewTokenator()
@@ -183,7 +154,7 @@ func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, "Invalid user ID format")
+		utils.SendError(w, http.StatusUnauthorized, "Неверный формат идентификатора пользователя")
 		return
 	}
 	user, err := h.authService.GetUserById(userID)

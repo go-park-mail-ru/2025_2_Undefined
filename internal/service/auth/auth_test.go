@@ -125,7 +125,7 @@ func TestRegister_Success(t *testing.T) {
 	}
 
 	token, err := service.Register(req)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotEmpty(t, token)
 }
 
@@ -140,6 +140,12 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 			if email == "existing@mail.ru" {
 				return existingUser, nil
 			}
+			return nil, errors.New("not found")
+		},
+		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
+			return nil, errors.New("not found")
+		},
+		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
 			return nil, errors.New("not found")
 		},
 	}
@@ -158,8 +164,11 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 	}
 
 	token, err := service.Register(req)
-	assert.Error(t, err)
-	assert.Equal(t, "user with this email already exists", err.Error())
+	assert.NotNil(t, err)
+	assert.Equal(t, "Ошибка валидации", err.Message)
+	assert.Len(t, err.Errors, 1)
+	assert.Equal(t, "email", err.Errors[0].Field)
+	assert.Equal(t, "пользователь с таким email уже существует", err.Errors[0].Message)
 	assert.Empty(t, token)
 }
 
@@ -179,6 +188,9 @@ func TestRegister_PhoneAlreadyExists(t *testing.T) {
 			}
 			return nil, errors.New("not found")
 		},
+		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
+			return nil, errors.New("not found")
+		},
 	}
 
 	mockTokenator := jwt.NewTokenator()
@@ -195,8 +207,11 @@ func TestRegister_PhoneAlreadyExists(t *testing.T) {
 	}
 
 	token, err := service.Register(req)
-	assert.Error(t, err)
-	assert.Equal(t, "user with this phone already exists", err.Error())
+	assert.NotNil(t, err)
+	assert.Equal(t, "Ошибка валидации", err.Message)
+	assert.Len(t, err.Errors, 1)
+	assert.Equal(t, "phone_number", err.Errors[0].Field)
+	assert.Equal(t, "пользователь с таким телефоном уже существует", err.Errors[0].Message)
 	assert.Empty(t, token)
 }
 
@@ -235,8 +250,11 @@ func TestRegister_UsernameAlreadyExists(t *testing.T) {
 	}
 
 	token, err := service.Register(req)
-	assert.Error(t, err)
-	assert.Equal(t, "user with this username already exists", err.Error())
+	assert.NotNil(t, err)
+	assert.Equal(t, "Ошибка валидации", err.Message)
+	assert.Len(t, err.Errors, 1)
+	assert.Equal(t, "username", err.Errors[0].Field)
+	assert.Equal(t, "пользователь с таким именем пользователя уже существует", err.Errors[0].Message)
 	assert.Empty(t, token)
 }
 
@@ -270,7 +288,8 @@ func TestRegister_CreateUserError(t *testing.T) {
 	}
 
 	token, err := service.Register(req)
-	assert.Error(t, err)
+	assert.NotNil(t, err)
+	assert.Equal(t, "database error", err.Message)
 	assert.Empty(t, token)
 }
 
@@ -327,7 +346,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	token, err := service.Login(req)
 	assert.Error(t, err)
-	assert.Equal(t, "invalid credentials", err.Error())
+	assert.Equal(t, "неверные учетные данные", err.Error())
 	assert.Empty(t, token)
 }
 
@@ -363,7 +382,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 	token, err := service.Login(req)
 	assert.Error(t, err)
-	assert.Equal(t, "invalid credentials", err.Error())
+	assert.Equal(t, "неверные учетные данные", err.Error())
 	assert.Empty(t, token)
 }
 
@@ -393,7 +412,7 @@ func TestLogout_InvalidToken(t *testing.T) {
 
 	err := service.Logout("invalid.token.string")
 	assert.Error(t, err)
-	assert.Equal(t, "invalid or expired token", err.Error())
+	assert.Equal(t, "недействительный или истекший токен", err.Error())
 }
 
 func TestGetUserById_Success(t *testing.T) {
@@ -437,7 +456,7 @@ func TestGetUserById_Error(t *testing.T) {
 
 	user, err := service.GetUserById(userID)
 	assert.Error(t, err)
-	assert.Equal(t, "error get user by id", err.Error())
+	assert.Equal(t, "ошибка получения пользователя по id", err.Error())
 	assert.Nil(t, user)
 }
 
@@ -473,5 +492,64 @@ func TestRegister_PasswordHashing(t *testing.T) {
 	}
 
 	_, err := service.Register(req)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
+}
+
+func TestRegister_MultipleExistingFields(t *testing.T) {
+	existingUser := &UserModels.User{
+		ID:          uuid.New(),
+		Email:       "existing@mail.ru",
+		PhoneNumber: "+79998887766",
+		Username:    "existinguser",
+	}
+
+	mockUserRepo := &MockUserRepository{
+		GetByEmailFunc: func(email string) (*UserModels.User, error) {
+			if email == "existing@mail.ru" {
+				return existingUser, nil
+			}
+			return nil, errors.New("not found")
+		},
+		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
+			if phone == "+79998887766" {
+				return existingUser, nil
+			}
+			return nil, errors.New("not found")
+		},
+		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
+			if username == "existinguser" {
+				return existingUser, nil
+			}
+			return nil, errors.New("not found")
+		},
+	}
+
+	mockTokenator := jwt.NewTokenator()
+	mockTokenRepo := &MockTokenRepository{}
+
+	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+
+	req := &AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Email:       "existing@mail.ru",
+		Password:    "password123",
+		Name:        "Test User",
+		Username:    "existinguser",
+	}
+
+	token, err := service.Register(req)
+	assert.NotNil(t, err)
+	assert.Equal(t, "Ошибка валидации", err.Message)
+	assert.Len(t, err.Errors, 3) // Все три поля уже существуют
+
+	// Проверяем наличие ошибок для всех полей
+	errorFields := make(map[string]bool)
+	for _, errorDTO := range err.Errors {
+		errorFields[errorDTO.Field] = true
+	}
+
+	assert.True(t, errorFields["email"], "Should have validation error for email")
+	assert.True(t, errorFields["phone_number"], "Should have validation error for phone_number")
+	assert.True(t, errorFields["username"], "Should have validation error for username")
+	assert.Empty(t, token)
 }
