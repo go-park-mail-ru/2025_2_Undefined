@@ -247,3 +247,258 @@ func TestUpdate_ChangesAllFields(t *testing.T) {
 	assert.Equal(t, updatedUser.Username, foundUser.Username)
 	assert.Equal(t, updatedUser.Email, foundUser.Email)
 }
+
+func TestConcurrentCreateUser(t *testing.T) {
+	repo := NewUserRepo()
+	const numGoroutines = 10
+	errChan := make(chan error, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(index int) {
+			user := &models.User{
+				ID:          uuid.New(),
+				PhoneNumber: fmt.Sprintf("+7999888776%d", index),
+				Username:    fmt.Sprintf("user%d", index),
+				Email:       fmt.Sprintf("user%d@mail.ru", index),
+			}
+			err := repo.Create(user)
+			errChan <- err
+		}(i)
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		err := <-errChan
+		assert.NoError(t, err)
+	}
+
+	assert.Equal(t, numGoroutines, len(repo.users))
+}
+
+func TestGetByEmail_MultipleUsers(t *testing.T) {
+	repo := NewUserRepo()
+
+	user1 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887761",
+		Username:    "user1",
+		Email:       "user1@mail.ru",
+	}
+	user2 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887762",
+		Username:    "user2",
+		Email:       "user2@mail.ru",
+	}
+
+	err := repo.Create(user1)
+	assert.NoError(t, err)
+	err = repo.Create(user2)
+	assert.NoError(t, err)
+
+	foundUser1, err := repo.GetByEmail("user1@mail.ru")
+	assert.NoError(t, err)
+	assert.Equal(t, user1, foundUser1)
+
+	foundUser2, err := repo.GetByEmail("user2@mail.ru")
+	assert.NoError(t, err)
+	assert.Equal(t, user2, foundUser2)
+}
+
+func TestGetByUsername_MultipleUsers(t *testing.T) {
+	repo := NewUserRepo()
+
+	user1 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887761",
+		Username:    "alice",
+		Email:       "alice@mail.ru",
+	}
+	user2 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887762",
+		Username:    "bob",
+		Email:       "bob@mail.ru",
+	}
+
+	err := repo.Create(user1)
+	assert.NoError(t, err)
+	err = repo.Create(user2)
+	assert.NoError(t, err)
+
+	foundUser1, err := repo.GetByUsername("alice")
+	assert.NoError(t, err)
+	assert.Equal(t, user1, foundUser1)
+
+	foundUser2, err := repo.GetByUsername("bob")
+	assert.NoError(t, err)
+	assert.Equal(t, user2, foundUser2)
+}
+
+func TestUpdate_NonExistentPhone(t *testing.T) {
+	repo := NewUserRepo()
+
+	user := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887766",
+		Username:    "testuser",
+		Email:       "test@mail.ru",
+	}
+
+	err := repo.Create(user)
+	assert.NoError(t, err)
+
+	nonExistentUser := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79990001122", 
+		Username:    "updated",
+		Email:       "updated@mail.ru",
+	}
+
+	err = repo.Update(nonExistentUser)
+	assert.Error(t, err)
+	assert.Equal(t, "user not found", err.Error())
+}
+
+func TestGetByID_EmptyUUID(t *testing.T) {
+	repo := NewUserRepo()
+
+	user, err := repo.GetByID(uuid.Nil)
+	assert.Error(t, err)
+	assert.Equal(t, "user not found", err.Error())
+	assert.Nil(t, user)
+}
+
+func TestGetByPhone_EmptyPhone(t *testing.T) {
+	repo := NewUserRepo()
+
+	user, err := repo.GetByPhone("")
+	assert.Error(t, err)
+	assert.Equal(t, "user not found", err.Error())
+	assert.Nil(t, user)
+}
+
+func TestGetByEmail_EmptyEmail(t *testing.T) {
+	repo := NewUserRepo()
+
+	user, err := repo.GetByEmail("")
+	assert.Error(t, err)
+	assert.Equal(t, "user not found", err.Error())
+	assert.Nil(t, user)
+}
+
+func TestGetByUsername_EmptyUsername(t *testing.T) {
+	repo := NewUserRepo()
+
+	user, err := repo.GetByUsername("")
+	assert.Error(t, err)
+	assert.Equal(t, "user not found", err.Error())
+	assert.Nil(t, user)
+}
+
+func TestCreateUser_DuplicateEmailDifferentPhone(t *testing.T) {
+	repo := NewUserRepo()
+
+	user1 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887761",
+		Username:    "user1",
+		Email:       "same@mail.ru",
+	}
+	user2 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887762",
+		Username:    "user2",
+		Email:       "same@mail.ru",
+	}
+
+	err := repo.Create(user1)
+	assert.NoError(t, err)
+
+	err = repo.Create(user2)
+	assert.NoError(t, err)
+}
+
+func TestCreateUser_DuplicateUsernameDifferentPhone(t *testing.T) {
+	repo := NewUserRepo()
+
+	user1 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887761",
+		Username:    "sameuser",
+		Email:       "user1@mail.ru",
+	}
+	user2 := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887762",
+		Username:    "sameuser",
+		Email:       "user2@mail.ru",
+	}
+
+	err := repo.Create(user1)
+	assert.NoError(t, err)
+
+	err = repo.Create(user2)
+	assert.NoError(t, err)
+}
+
+func TestRepositoryIsolation(t *testing.T) {
+	repo1 := NewUserRepo()
+	repo2 := NewUserRepo()
+
+	user := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887766",
+		Username:    "testuser",
+		Email:       "test@mail.ru",
+	}
+
+	err := repo1.Create(user)
+	assert.NoError(t, err)
+
+	_, err = repo2.GetByPhone("+79998887766")
+	assert.Error(t, err)
+	assert.Equal(t, "user not found", err.Error())
+}
+
+func TestMultipleOperationsOnSameUser(t *testing.T) {
+	repo := NewUserRepo()
+	user := &models.User{
+		ID:          uuid.New(),
+		PhoneNumber: "+79998887766",
+		Username:    "testuser",
+		Email:       "test@mail.ru",
+	}
+
+	err := repo.Create(user)
+	assert.NoError(t, err)
+
+	foundByID, err := repo.GetByID(user.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, user, foundByID)
+
+	foundByPhone, err := repo.GetByPhone(user.PhoneNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, user, foundByPhone)
+
+	foundByEmail, err := repo.GetByEmail(user.Email)
+	assert.NoError(t, err)
+	assert.Equal(t, user, foundByEmail)
+
+	foundByUsername, err := repo.GetByUsername(user.Username)
+	assert.NoError(t, err)
+	assert.Equal(t, user, foundByUsername)
+
+	updatedUser := &models.User{
+		ID:          user.ID,
+		PhoneNumber: user.PhoneNumber,
+		Username:    "updateduser",
+		Email:       "updated@mail.ru",
+	}
+	err = repo.Update(updatedUser)
+	assert.NoError(t, err)
+
+	foundAfterUpdate, err := repo.GetByPhone(user.PhoneNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, "updateduser", foundAfterUpdate.Username)
+	assert.Equal(t, "updated@mail.ru", foundAfterUpdate.Email)
+}
