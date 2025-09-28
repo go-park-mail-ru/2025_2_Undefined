@@ -194,9 +194,9 @@ const docTemplate = `{
                         "description": "Вход выполнен успешно"
                     },
                     "400": {
-                        "description": "Некорректный запрос",
+                        "description": "Ошибки валидации",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
+                            "$ref": "#/definitions/dto.ValidationErrorsDTO"
                         }
                     },
                     "401": {
@@ -302,9 +302,9 @@ const docTemplate = `{
                         "description": "Пользователь успешно зарегистрирован"
                     },
                     "400": {
-                        "description": "Некорректный запрос",
+                        "description": "Ошибки валидации",
                         "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
+                            "$ref": "#/definitions/dto.ValidationErrorsDTO"
                         }
                     }
                 }
@@ -433,6 +433,31 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string",
                     "format": "uuid"
+                }
+            }
+        },
+        "dto.ValidationErrorDTO": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ValidationErrorsDTO": {
+            "type": "object",
+            "properties": {
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ValidationErrorDTO"
+                    }
+                },
+                "message": {
+                    "type": "string"
                 }
             }
         },

@@ -85,6 +85,22 @@ definitions:
         format: uuid
         type: string
     type: object
+  dto.ValidationErrorDTO:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  dto.ValidationErrorsDTO:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/dto.ValidationErrorDTO'
+        type: array
+      message:
+        type: string
+    type: object
   models.LoginRequest:
     properties:
       password:
@@ -264,9 +280,9 @@ paths:
         "200":
           description: Вход выполнен успешно
         "400":
-          description: Некорректный запрос
+          description: Ошибки валидации
           schema:
-            $ref: '#/definitions/dto.ErrorDTO'
+            $ref: '#/definitions/dto.ValidationErrorsDTO'
         "401":
           description: Неверные креденшиалы
           schema:
@@ -333,9 +349,9 @@ paths:
         "201":
           description: Пользователь успешно зарегистрирован
         "400":
-          description: Некорректный запрос
+          description: Ошибки валидации
           schema:
-            $ref: '#/definitions/dto.ErrorDTO'
+            $ref: '#/definitions/dto.ValidationErrorsDTO'
       summary: Регистрация пользователя
       tags:
       - auth
