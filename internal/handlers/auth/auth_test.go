@@ -368,3 +368,290 @@ func TestAuthHandler_GetCurrentUser_InvalidToken(t *testing.T) {
 	resp := w.Result()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
+
+func TestAuthHandler_Register_InvalidEmail(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	registerReq := AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Email:       "invalid-email",
+		Username:    "testuser",
+		Name:        "Test User",
+		Password:    "password123",
+	}
+
+	body, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Register_InvalidPassword(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	registerReq := AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Email:       "test@mail.ru",
+		Username:    "testuser",
+		Name:        "Test User",
+		Password:    "кириллица",
+	}
+
+	body, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Register_InvalidUsername(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	registerReq := AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Email:       "test@mail.ru",
+		Username:    "user@name",
+		Name:        "Test User",
+		Password:    "password123",
+	}
+
+	body, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Register_ServiceError(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	userRepo.GetByEmailFunc = func(email string) (*UserModels.User, error) {
+		return &UserModels.User{ID: uuid.New()}, nil
+	}
+
+	registerReq := AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Email:       "existing@mail.ru",
+		Username:    "testuser",
+		Name:        "Test User",
+		Password:    "password123",
+	}
+
+	body, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Login_MissingFields(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	loginReq := AuthModels.LoginRequest{
+		PhoneNumber: "",
+		Password:    "password123",
+	}
+
+	body, _ := json.Marshal(loginReq)
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Login_InvalidPhoneFormat(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	loginReq := AuthModels.LoginRequest{
+		PhoneNumber: "invalid-phone",
+		Password:    "password123",
+	}
+
+	body, _ := json.Marshal(loginReq)
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Login_InvalidPasswordFormat(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	loginReq := AuthModels.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "пароль",
+	}
+
+	body, _ := json.Marshal(loginReq)
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Login_WrongPassword(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	userRepo.GetByPhoneFunc = func(phone string) (*UserModels.User, error) {
+		hashedPassword := "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
+		return &UserModels.User{
+			ID:           uuid.New(),
+			PhoneNumber:  "+79998887766",
+			PasswordHash: hashedPassword,
+		}, nil
+	}
+
+	loginReq := AuthModels.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "wrongpassword",
+	}
+
+	body, _ := json.Marshal(loginReq)
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_GetCurrentUser_UserNotFound(t *testing.T) {
+	userID := uuid.New()
+
+	userRepo := &MockUserRepository{
+		GetByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
+			return nil, errors.New("user not found")
+		},
+	}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	token, _ := tokenator.CreateJWT(userID.String())
+
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
+	w := httptest.NewRecorder()
+
+	handler.GetCurrentUser(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_GetCurrentUser_InvalidUserID(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	token, _ := tokenator.CreateJWT("invalid-uuid")
+
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
+	w := httptest.NewRecorder()
+
+	handler.GetCurrentUser(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_Logout_BlacklistError(t *testing.T) {
+	userRepo := &MockUserRepository{}
+	tokenator := jwt.NewTokenator()
+	tokenRepo := &MockTokenRepository{
+		AddToBlacklistFunc: func(token string) error {
+			return errors.New("blacklist error")
+		},
+	}
+
+	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
+	handler := NewAuthHandler(authService)
+
+	token, _ := tokenator.CreateJWT(uuid.New().String())
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
+	w := httptest.NewRecorder()
+
+	handler.Logout(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
