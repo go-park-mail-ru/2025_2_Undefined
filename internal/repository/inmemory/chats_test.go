@@ -7,12 +7,83 @@ import (
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	userModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
+type MockUserRepo struct {
+	users map[uuid.UUID]*userModels.User
+}
+
+func NewMockUserRepo() *MockUserRepo {
+	return &MockUserRepo{
+		users: make(map[uuid.UUID]*userModels.User),
+	}
+}
+
+func (m *MockUserRepo) GetByID(id uuid.UUID) (*userModels.User, error) {
+	user, exists := m.users[id]
+	if !exists {
+		return nil, errs.ErrNotFound
+	}
+	return user, nil
+}
+
+func (m *MockUserRepo) GetByUsername(username string) (*userModels.User, error) {
+	for _, user := range m.users {
+		if user.Username == username {
+			return user, nil
+		}
+	}
+	return nil, errs.ErrNotFound
+}
+
+func (m *MockUserRepo) GetByEmail(email string) (*userModels.User, error) {
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return nil, errs.ErrNotFound
+}
+
+func (m *MockUserRepo) GetByPhone(phone string) (*userModels.User, error) {
+	for _, user := range m.users {
+		if user.PhoneNumber == phone {
+			return user, nil
+		}
+	}
+	return nil, errs.ErrNotFound
+}
+
+func (m *MockUserRepo) Create(user *userModels.User) error {
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *MockUserRepo) Update(user *userModels.User) error {
+	if _, exists := m.users[user.ID]; !exists {
+		return errs.ErrNotFound
+	}
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *MockUserRepo) Delete(id uuid.UUID) error {
+	if _, exists := m.users[id]; !exists {
+		return errs.ErrNotFound
+	}
+	delete(m.users, id)
+	return nil
+}
+
 func TestGetChat_Success(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	chatID := uuid.New()
 	userID := uuid.New()
 	chat := models.Chat{ID: chatID, Name: "Test Chat", Type: models.ChatDialog}
@@ -25,7 +96,8 @@ func TestGetChat_Success(t *testing.T) {
 }
 
 func TestGetChat_Error(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	userID := uuid.New()
 	chatID := uuid.New()
 	chat, err := repo.GetChat(userID, chatID)
@@ -35,7 +107,8 @@ func TestGetChat_Error(t *testing.T) {
 }
 
 func TestGetChats(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	userID := uuid.New()
 	chatID := uuid.New()
 	chat := models.Chat{ID: chatID, Name: "Chat", Type: models.ChatDialog}
@@ -48,7 +121,8 @@ func TestGetChats(t *testing.T) {
 }
 
 func TestGetLastMessagesOfChats(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	userID := uuid.New()
 	chatID := uuid.New()
 	chat := models.Chat{ID: chatID, Name: "Chat", Type: models.ChatDialog}
@@ -75,7 +149,8 @@ func TestGetLastMessagesOfChats(t *testing.T) {
 }
 
 func TestGetUsersOfChat(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	user := models.UserInfo{
 		UserID: uuid.New(),
 		ChatID: uuid.New(),
@@ -91,7 +166,8 @@ func TestGetUsersOfChat(t *testing.T) {
 }
 
 func TestGetMessagesOfChat(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	chatID := uuid.New()
 	userID := uuid.New()
 	chat := models.Chat{ID: chatID, Name: "Chat", Type: models.ChatDialog}
@@ -130,7 +206,8 @@ func TestGetMessagesOfChat(t *testing.T) {
 }
 
 func TestGetUserInfo_Success(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	chatID := uuid.New()
 	userID := uuid.New()
 	chat := models.Chat{ID: chatID, Name: "Chat", Type: models.ChatDialog}
@@ -145,7 +222,8 @@ func TestGetUserInfo_Success(t *testing.T) {
 }
 
 func TestGetUserInfo_Error(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	userID := uuid.New()
 	chatID := uuid.New()
 	userInfo, err := repo.GetUserInfo(userID, chatID)
@@ -155,7 +233,8 @@ func TestGetUserInfo_Error(t *testing.T) {
 }
 
 func TestConcurrentCreateChat(t *testing.T) {
-	repo := NewChatsRepo()
+	repoUser := NewMockUserRepo()
+	repo := NewChatsRepo(repoUser)
 	const numGoroutines = 10
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines)

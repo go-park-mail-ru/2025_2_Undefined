@@ -37,7 +37,7 @@ func main() {
 	cfg := config.NewConfig()
 
 	userRepo := inmemory.NewUserRepo()
-	chatRepo := inmemory.NewChatsRepo()
+	chatRepo := inmemory.NewChatsRepo(userRepo)
 
 	blackTokenRepo := blackTokenRep.NewTokenRepo()
 	tokenator := jwt.NewTokenator()
