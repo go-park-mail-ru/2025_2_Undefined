@@ -126,7 +126,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cookie.Unset(w, domains.TokenCookieName)
-	utils.SendJSONResponse(w, http.StatusUnauthorized, nil)
+	utils.SendJSONResponse(w, http.StatusOK, nil)
 }
 
 // GetCurrentUser получает информацию о текущем пользователе
