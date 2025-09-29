@@ -284,7 +284,7 @@ func TestAuthHandler_Logout_Success(t *testing.T) {
 	handler.Logout(w, req)
 
 	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestAuthHandler_Logout_NoCookie(t *testing.T) {

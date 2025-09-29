@@ -7,6 +7,7 @@ import (
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	repository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	"github.com/google/uuid"
 )
 
@@ -14,15 +15,16 @@ type ChatsRepo struct {
 	chats        map[uuid.UUID]models.Chat       // информация по чату по id чата
 	usersInfo    map[uuid.UUID][]models.UserInfo // информация по чатам пользователя по его id
 	chatMessages map[uuid.UUID][]models.Message  // сообщения заданного чата
-
-	mutex sync.RWMutex
+	userRepo     repository.UserRepository       // добавляем зависимость от репозитория пользователей
+	mutex        sync.RWMutex
 }
 
-func NewChatsRepo() *ChatsRepo {
+func NewChatsRepo(userRepo repository.UserRepository) *ChatsRepo {
 	return &ChatsRepo{
 		chats:        make(map[uuid.UUID]models.Chat),
 		usersInfo:    make(map[uuid.UUID][]models.UserInfo),
 		chatMessages: make(map[uuid.UUID][]models.Message),
+		userRepo:     userRepo,
 	}
 }
 
@@ -110,12 +112,13 @@ func (r *ChatsRepo) CreateChat(chat models.Chat, usersInfo []models.UserInfo) er
 		r.usersInfo[userInfo.UserID] = append(r.usersInfo[userInfo.UserID], userInfo)
 		// Имя пользователя берется из бд
 		// ! Пофиксить это, когда будет единая структура Repository !
+		userName := r.getNameByID(userInfo.UserID)
 		id := uuid.New()
 		var introductionMessage = models.Message{
 			ID:        id,
 			ChatID:    userInfo.ChatID,
 			UserID:    userInfo.UserID,
-			Text:      fmt.Sprintf("Пользователь %s вступил в чат", userInfo.UserID.String()), // fix
+			Text:      fmt.Sprintf("Пользователь %s вступил в чат", userName), // fix
 			CreatedAt: time.Now(),
 			Type:      models.SystemMessage,
 		}
@@ -138,4 +141,19 @@ func (r *ChatsRepo) GetUserInfo(userId, chatId uuid.UUID) (models.UserInfo, erro
 		}
 	}
 	return models.UserInfo{}, errs.ErrNotFound
+}
+
+func (r *ChatsRepo) getNameByID(userID uuid.UUID) string {
+	user, err := r.userRepo.GetByID(userID)
+	if err != nil {
+		return userID.String()
+	}
+
+	// Используем username, если он есть, иначе комбинацию имени и фамилии
+	if user.Username != "" {
+		return user.Name
+	}
+
+	// Fallback на сокращенный ID
+	return userID.String()
 }
