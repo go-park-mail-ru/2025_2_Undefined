@@ -11,14 +11,11 @@ import (
 )
 
 type ChatsRepo struct {
-	chats      map[uuid.UUID]models.Chat // информация по чату по id чата
-	mutexChats sync.RWMutex
+	chats        map[uuid.UUID]models.Chat       // информация по чату по id чата
+	usersInfo    map[uuid.UUID][]models.UserInfo // информация по чатам пользователя по его id
+	chatMessages map[uuid.UUID][]models.Message  // сообщения заданного чата
 
-	usersInfo      map[uuid.UUID][]models.UserInfo // информация по чатам пользователя по его id
-	mutexUsersInfo sync.RWMutex
-
-	chatMessages      map[uuid.UUID][]models.Message // сообщения заданного чата
-	mutexChatMessages sync.RWMutex
+	mutex sync.RWMutex
 }
 
 func NewChatsRepo() *ChatsRepo {
@@ -30,19 +27,17 @@ func NewChatsRepo() *ChatsRepo {
 }
 
 func (r *ChatsRepo) GetChats(userId uuid.UUID) ([]models.Chat, error) {
-	r.mutexUsersInfo.RLock()
-	defer r.mutexUsersInfo.RUnlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	userInfo, ok := r.usersInfo[userId]
 	if !ok {
 		return make([]models.Chat, 0), nil
 	}
 
-	r.mutexChats.RLock()
 	res := make([]models.Chat, 0, len(userInfo))
 	for i := range userInfo {
 		res = append(res, r.chats[userInfo[i].ChatID])
 	}
-	r.mutexChats.RUnlock()
 	return res, nil
 }
 
@@ -51,8 +46,8 @@ func (r *ChatsRepo) GetLastMessagesOfChats(userId uuid.UUID) ([]models.Message, 
 	if err != nil {
 		return nil, err
 	}
-	r.mutexChatMessages.RLock()
-	defer r.mutexChatMessages.RUnlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 
 	last_messages := make([]models.Message, 0, len(chats))
 	for _, chat := range chats {
@@ -81,8 +76,8 @@ func (r *ChatsRepo) GetChat(userId, chatId uuid.UUID) (models.Chat, error) {
 }
 
 func (r *ChatsRepo) GetUsersOfChat(chatId uuid.UUID) ([]models.UserInfo, error) {
-	r.mutexUsersInfo.RLock()
-	defer r.mutexUsersInfo.RUnlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	result := make([]models.UserInfo, 0)
 	for _, userInfo := range r.usersInfo {
 		for _, info := range userInfo {
@@ -95,9 +90,9 @@ func (r *ChatsRepo) GetUsersOfChat(chatId uuid.UUID) ([]models.UserInfo, error) 
 }
 
 func (r *ChatsRepo) GetMessagesOfChat(chatId uuid.UUID, limit, offset int) ([]models.Message, error) {
-	r.mutexChatMessages.RLock()
+	r.mutex.RLock()
 	messages := r.chatMessages[chatId]
-	r.mutexChatMessages.RUnlock()
+	r.mutex.RUnlock()
 	result := make([]models.Message, 0, limit)
 	total := len(messages)
 	for i := offset; i < offset+limit && (total-1-i) >= 0; i++ {
@@ -107,14 +102,10 @@ func (r *ChatsRepo) GetMessagesOfChat(chatId uuid.UUID, limit, offset int) ([]mo
 }
 
 func (r *ChatsRepo) CreateChat(chat models.Chat, usersInfo []models.UserInfo) error {
-	r.mutexChats.Lock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.chats[chat.ID] = chat
-	r.mutexChats.Unlock()
 
-	r.mutexUsersInfo.Lock()
-	defer r.mutexUsersInfo.Unlock()
-	r.mutexChatMessages.Lock()
-	defer r.mutexChatMessages.Unlock()
 	for _, userInfo := range usersInfo {
 		r.usersInfo[userInfo.UserID] = append(r.usersInfo[userInfo.UserID], userInfo)
 		// Имя пользователя берется из бд
@@ -135,8 +126,8 @@ func (r *ChatsRepo) CreateChat(chat models.Chat, usersInfo []models.UserInfo) er
 }
 
 func (r *ChatsRepo) GetUserInfo(userId, chatId uuid.UUID) (models.UserInfo, error) {
-	r.mutexUsersInfo.RLock()
-	defer r.mutexUsersInfo.RUnlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	userInfos, ok := r.usersInfo[userId]
 	if !ok {
 		return models.UserInfo{}, errs.ErrNotFound

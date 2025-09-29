@@ -277,8 +277,8 @@ func createFakeChats(chatsRepo *ChatsRepo, users []userModels.User) {
 
 // addMessagesToChat добавляет сообщения в чат напрямую (обходя CreateChat)
 func addMessagesToChat(chatsRepo *ChatsRepo, messages []chatsModels.Message) {
-	chatsRepo.mutexChatMessages.Lock()
-	defer chatsRepo.mutexChatMessages.Unlock()
+	chatsRepo.mutex.Lock()
+	defer chatsRepo.mutex.Unlock()
 
 	for _, message := range messages {
 		chatsRepo.chatMessages[message.ChatID] = append(chatsRepo.chatMessages[message.ChatID], message)
