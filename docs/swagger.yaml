@@ -1,0 +1,358 @@
+basePath: /api/v1
+definitions:
+  dto.ChatCreateInformationDTO:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/dto.UserInfoChatDTO'
+        type: array
+      name:
+        type: string
+      type:
+        description: Тип чата - 0 канал, 1 диалог, 2 группа
+        enum:
+        - 0
+        - 1
+        - 2
+        type: integer
+    type: object
+  dto.ChatDetailedInformationDTO:
+    properties:
+      can_chat:
+        type: boolean
+      id:
+        format: uuid
+        type: string
+      is_admin:
+        type: boolean
+      is_member:
+        type: boolean
+      is_private:
+        type: boolean
+      members:
+        items:
+          $ref: '#/definitions/dto.UserInfoChatDTO'
+        type: array
+      messages:
+        items:
+          $ref: '#/definitions/dto.MessageDTO'
+        type: array
+      name:
+        type: string
+    type: object
+  dto.ChatViewInformationDTO:
+    properties:
+      id:
+        format: uuid
+        type: string
+      last_message:
+        $ref: '#/definitions/dto.MessageDTO'
+      name:
+        type: string
+    type: object
+  dto.ErrorDTO:
+    properties:
+      message:
+        type: string
+    type: object
+  dto.IdDTO:
+    properties:
+      id:
+        format: uuid
+        type: string
+    type: object
+  dto.MessageDTO:
+    properties:
+      created_at:
+        type: string
+      sender:
+        format: uuid
+        type: string
+      string:
+        type: string
+    type: object
+  dto.UserInfoChatDTO:
+    properties:
+      role:
+        description: Роль пользователя в чате - 0 админ(писать и добавлять участников),
+          1 участник(писать), 2 зритель (только просмотр)
+        enum:
+        - 0
+        - 1
+        - 2
+        type: integer
+      user_id:
+        format: uuid
+        type: string
+    type: object
+  dto.ValidationErrorDTO:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  dto.ValidationErrorsDTO:
+    properties:
+      errors:
+        items:
+          $ref: '#/definitions/dto.ValidationErrorDTO'
+        type: array
+      message:
+        type: string
+    type: object
+  models.LoginRequest:
+    properties:
+      password:
+        type: string
+      phone_number:
+        type: string
+    required:
+    - password
+    - phone_number
+    type: object
+  models.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone_number:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    - phone_number
+    - username
+    type: object
+  models.User:
+    properties:
+      account_type:
+        type: integer
+      bio:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        format: uuid
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Undefined Team
+    url: https://github.com/go-park-mail-ru/2025_2_Undefined
+  description: API сервер для чат-приложения в стиле Telegram. Позволяет регистрировать
+    пользователей, управлять чатами и обмениваться сообщениями.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Undefined team API documentation of project Telegram
+  version: "1.0"
+paths:
+  /chats:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех чатов текущего пользователя с информацией
+        о последнем сообщении
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список чатов
+          schema:
+            items:
+              $ref: '#/definitions/dto.ChatViewInformationDTO'
+            type: array
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить список чатов
+      tags:
+      - chats
+    post:
+      consumes:
+      - application/json
+      description: Создает новый чат с указанными участниками и настройками
+      parameters:
+      - description: Данные для создания чата
+        in: body
+        name: chat
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChatCreateInformationDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: ID созданного чата
+          schema:
+            $ref: '#/definitions/dto.IdDTO'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Создать новый чат
+      tags:
+      - chats
+  /chats/{chatId}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает детальную информацию о конкретном чате, включая сообщения
+        и участников
+      parameters:
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Детальная информация о чате
+          schema:
+            $ref: '#/definitions/dto.ChatDetailedInformationDTO'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить информацию о чате
+      tags:
+      - chats
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Аутентифицирует пользователя по номеру телефона и паролю, возвращает
+        JWT токен в cookie
+      parameters:
+      - description: Креденшиалы для входа
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Вход выполнен успешно
+        "400":
+          description: Ошибки валидации
+          schema:
+            $ref: '#/definitions/dto.ValidationErrorsDTO'
+        "401":
+          description: Неверные креденшиалы
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Аутентификация пользователя
+      tags:
+      - auth
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Аннулирует текущий JWT токен и удаляет cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Выход из системы
+      tags:
+      - auth
+  /me:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает полные данные о текущем авторизованном пользователе
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о пользователе
+          schema:
+            $ref: '#/definitions/models.User'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить информацию о текущем пользователе
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует нового пользователя в системе и возвращает JWT токен
+        в cookie
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь успешно зарегистрирован
+        "400":
+          description: Ошибки валидации
+          schema:
+            $ref: '#/definitions/dto.ValidationErrorsDTO'
+      summary: Регистрация пользователя
+      tags:
+      - auth
+swagger: "2.0"

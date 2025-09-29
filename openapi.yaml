@@ -1,0 +1,267 @@
+openapi: 3.0.0
+info:
+  title: Undefined team chat api
+  description: API команды Undefined проекта Telegram 
+  version: 1.0.0
+tags: 
+  - name: chats 
+    description: Creating, editing and getting information about chats 
+  - name: auth 
+    description: Authorization and registration system
+paths:
+  /api/v1/chats/:
+    get:
+      tags: 
+       - chats
+      summary: Получить список чатов пользователя
+      responses:
+        '200':
+          description: Список чатов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      description: Идентификатор чата
+                    name:
+                      type: string
+                      description: Имя чата
+                    last_message:
+                      type: object
+                      properties:
+                        sender:
+                          type: string
+                          format: uuid
+                          description: Идентификатор автора сообщения
+                        text:
+                          type: string
+                          description: Текст сообщения
+                        timestamp:
+                          type: string
+                          format: date-time
+                          description: Время отправки сообщения
+                      description: Последнее сообщение
+                      
+    post:
+      tags:
+        - chats
+      summary: Создать новый чат, канал или группу
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Название чата/канала/группы
+                type:
+                  type: integer
+                  enum: [0, 1, 2]
+                  description: Тип чата - 0 канал, 1 диалог, 2 группа
+                members:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Идентификаторы участников чата
+      responses:
+        '201':
+          description: Чат был успешно создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Идентификатор созданного чата
+
+  /api/v1/chats/{id}:
+    get:
+      tags:
+        - chats
+      summary: Получить подробную информацию о чате и его сообщениях
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: Идентификатор чата
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Информация о чате и сообщениях
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chat_info:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: Идентификатор чата
+                      name:
+                        type: string
+                        description: Название чата
+                      is_admin:
+                        type: boolean
+                        description: Может ли пользователь писать сообщения и добавлять участников
+                      can_chat:
+                        type: boolean
+                        description: Может ли пользователь писать сообщения
+                      is_member:
+                        type: boolean
+                        description: Состоит ли пользователь в чате
+                      is_private:
+                        type: boolean
+                        description: Является ли чат приватным
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sender:
+                          type: string
+                          format: uuid
+                          description: Id автора сообщения
+                        text:
+                          type: string
+                          description: Текст сообщения
+                        timestamp:
+                          type: string
+                          format: date-time
+                          description: Время отправки сообщения
+
+  /api/v1/register/:
+    post:
+      tags:
+        - auth
+      summary: Регистрация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+                - password
+                - name
+              properties:
+                phone_number:
+                  type: string
+                  description: Номер телефона
+                email:
+                  type: string
+                  format: email
+                  description: Почта
+                username:
+                  type: string
+                  description: Юзернейм
+                password:
+                  type: string
+                  format: password
+                  description: Пароль
+                name:
+                  type: string
+                  description: Имя
+                  
+      responses:
+        '201':
+          description: Пользователь успешно зарегистрирован
+        '400':
+          description: Неверные данные
+
+  /api/v1/login/:
+    post:
+      tags:
+        - auth
+      summary: Авторизация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone_number
+                - password
+              properties:
+                phone_number:
+                  type: string
+                  description: Номер телефона
+                password:
+                  type: string
+                  format: password
+                  description: Пароль
+      responses:
+        '200':
+          description: Успешная авторизация
+        '401':
+          description: Неверные данные для авторизации
+
+  /api/v1/logout/:
+    post:
+      tags:
+        - auth
+      summary: Выход из системы
+      responses:
+        '200':
+          description: Пользователь успешно вышел
+        '401':
+          description: Пользователь не был авторизован
+  
+  /api/v1/me/:
+    get:
+      tags:
+        - auth
+      summary: Получение информации о текущем пользователе
+      responses:
+        '200':
+          description: Информация о пользователе
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    description: Идентификатор пользователя
+                  name:
+                    type: string
+                    description: Имя пользователя
+                  username:
+                    type: string
+                    description: Юзернейм
+                  bio:
+                    type: string
+                    description: Биография пользователя
+                  account_type:
+                    type: integer
+                    enum: [0, 1, 2]
+                    description: Тип аккаунта
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: Дата создания аккаунта
+                  phone_number:
+                    type: string
+                    description: Номер телефона
+                  email:
+                    type: string
+                    format: email
+                    description: Email адрес
+        '401':
+          description: Пользователь не авторизован
+
