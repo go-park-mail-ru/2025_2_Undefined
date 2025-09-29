@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
@@ -115,7 +116,7 @@ func main() {
 
 	fs := http.FileServer(http.Dir("frontend-build"))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
+		if r.URL.Path == "/" || !strings.HasPrefix(r.URL.Path, "/assets/") {
 			http.ServeFile(w, r, "frontend-build/index.html")
 		} else {
 			fs.ServeHTTP(w, r)
