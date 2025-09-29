@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -19,7 +20,7 @@ type Tokenator struct {
 
 func NewTokenator() *Tokenator {
 	return &Tokenator{
-		sign:          "secret-jwt",
+		sign:          config.NewConfig().JWTSecret,
 		tokenLifeSpan: 24 * time.Hour,
 	}
 }
@@ -49,14 +50,14 @@ func (t *Tokenator) ParseJWT(tokenString string) (*JWTClaims, error) {
 	})
 
 	if err != nil {
-		return nil, errors.New("Invalid token")
+		return nil, errors.New("invalid token")
 	}
 
 	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
 		return claims, nil
 	}
 
-	return nil, errors.New("Invalid token")
+	return nil, errors.New("invalid token")
 }
 
 func (t *Tokenator) GetTokenLifeSpan() time.Duration {

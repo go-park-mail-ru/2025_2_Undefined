@@ -64,9 +64,9 @@ func TestGetLastMessagesOfChats(t *testing.T) {
 		CreatedAt: time.Now(),
 		Type:      models.UserMessage,
 	}
-	repo.mutexChatMessages.Lock()
+	repo.mutex.Lock()
 	repo.chatMessages[chatID] = append(repo.chatMessages[chatID], message)
-	repo.mutexChatMessages.Unlock()
+	repo.mutex.Unlock()
 
 	messages, err := repo.GetLastMessagesOfChats(userID)
 	assert.NoError(t, err)
@@ -101,7 +101,7 @@ func TestGetMessagesOfChat(t *testing.T) {
 
 	// Добавляем 5 пользовательских сообщений
 	testMessages := make([]models.Message, 5)
-	repo.mutexChatMessages.Lock()
+	repo.mutex.Lock()
 	for i := range testMessages {
 		message := models.Message{
 			ID:        uuid.New(),
@@ -114,7 +114,7 @@ func TestGetMessagesOfChat(t *testing.T) {
 		testMessages[i] = message
 		repo.chatMessages[chatID] = append(repo.chatMessages[chatID], message)
 	}
-	repo.mutexChatMessages.Unlock()
+	repo.mutex.Unlock()
 
 	// Получаем 3 последних сообщения
 	messages, err := repo.GetMessagesOfChat(chatID, 3, 0)
