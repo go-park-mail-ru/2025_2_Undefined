@@ -37,14 +37,14 @@ CREATE TABLE "user" (
     phone_number TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     description TEXT,
-    user_type_id UUID NOT NULL REFERENCES user_type(id),
+    user_type_id UUID NOT NULL REFERENCES user_type(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE chat (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    chat_type_id UUID NOT NULL REFERENCES chat_type(id),
+    chat_type_id UUID NOT NULL REFERENCES chat_type(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     name TEXT NOT NULL,
     description TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -52,9 +52,9 @@ CREATE TABLE chat (
 );
 
 CREATE TABLE chat_member (
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    chat_id UUID NOT NULL REFERENCES chat(id) ON DELETE CASCADE,
-    chat_member_role_id UUID NOT NULL REFERENCES chat_member_role(id),
+    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    chat_id UUID NOT NULL REFERENCES chat(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    chat_member_role_id UUID NOT NULL REFERENCES chat_member_role(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, chat_id)
@@ -62,17 +62,17 @@ CREATE TABLE chat_member (
 
 CREATE TABLE message (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    chat_id UUID NOT NULL REFERENCES chat(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    chat_id UUID NOT NULL REFERENCES chat(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
     text TEXT NOT NULL,
-    message_type_id UUID NOT NULL REFERENCES message_type(id),
+    message_type_id UUID NOT NULL REFERENCES message_type(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE session (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
     device TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW()
