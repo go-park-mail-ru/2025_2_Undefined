@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -46,7 +45,6 @@ func NewConfig() (*Config, error) {
 	// Читаем конфиг из файла
 	raw, err := loadYamlConfig("config.yml")
 	if err != nil {
-		log.Printf("CONFIG ERROR: %v\n", err)
 		return nil, err
 	}
 
