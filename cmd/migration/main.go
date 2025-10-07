@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func GetConnectionString(conf *config.DBConfig) (string, error) {
@@ -37,7 +37,6 @@ func main() {
 		cfg.MigrationsConfig.Path,
 		dsn,
 	)
-	log.Printf("%v === %v", cfg.MigrationsConfig.Path, dsn)
 	if err != nil {
 		log.Panicf("Error initializing migrations: %v", err)
 	}
