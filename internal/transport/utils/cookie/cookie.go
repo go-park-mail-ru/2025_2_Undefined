@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 )
 
 func Set(w http.ResponseWriter, token, name string) {

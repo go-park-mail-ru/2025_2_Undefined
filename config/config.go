@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -45,6 +46,7 @@ func NewConfig() (*Config, error) {
 	// Читаем конфиг из файла
 	raw, err := loadYamlConfig("config.yml")
 	if err != nil {
+		log.Printf("CONFIG ERROR: %v\n", err)
 		return nil, err
 	}
 
@@ -108,11 +110,6 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		PostgresHost   string `yaml:"POSTGRES_HOST"`
 		MigrationsPath string `yaml:"MIGRATIONS_PATH"`
 		JwtTokenLife   string `yaml:"JWT_TOKEN_LIFESPAN"`
-
-		AuthPass string `yaml:"AUTH_REDIS_PASSWORD"`
-		AuthDB   string `yaml:"AUTH_REDIS_DB"`
-		AuthPort string `yaml:"AUTH_REDIS_PORT"`
-		AuthHost string `yaml:"AUTH_REDIS_HOST"`
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

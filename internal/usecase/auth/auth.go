@@ -1,12 +1,12 @@
-package service
+package usecase
 
 import (
 	"errors"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
-	Token "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/validation"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	Token "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"

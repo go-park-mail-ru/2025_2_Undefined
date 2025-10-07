@@ -3,12 +3,12 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
-	cookieUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/cookie"
-	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	cookieUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 )
 
 // AuthMiddleware создает middleware для проверки аутентификации

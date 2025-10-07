@@ -1,11 +1,11 @@
-package service
+package usecase
 
 import (
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

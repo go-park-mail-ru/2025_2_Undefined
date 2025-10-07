@@ -9,15 +9,15 @@ import (
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
 	httpSwagger "github.com/swaggo/http-swagger"
 
-	AuthHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/auth"
-	ChatHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/chats"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
-	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/middleware"
+	AuthHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
+	ChatHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	inmemory "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/inmemory"
 	blackTokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
-	AuthService "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
-	ChatService "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/chats"
+	AuthService "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
+	ChatService "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
 )
 
 // @title           Undefined team API documentation of project Telegram

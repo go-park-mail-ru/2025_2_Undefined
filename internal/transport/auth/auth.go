@@ -1,20 +1,20 @@
-package handlers
+package transport
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
-	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/cookie"
-	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/validation"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
+	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 	"github.com/google/uuid"
 )
 
@@ -151,7 +151,6 @@ func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 		return
 	}
-
 	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		utils.SendError(w, http.StatusUnauthorized, "Неверный формат идентификатора пользователя")

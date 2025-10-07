@@ -1,12 +1,12 @@
-package service
+package usecase
 
 import (
 	"errors"
 	"testing"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
@@ -112,6 +112,7 @@ func TestRegister_Success(t *testing.T) {
 	}
 
 	mockTokenator := jwt.NewTokenator()
+
 	mockTokenRepo := &MockTokenRepository{}
 
 	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
@@ -216,6 +217,7 @@ func TestRegister_PhoneAlreadyExists(t *testing.T) {
 }
 
 func TestRegister_UsernameAlreadyExists(t *testing.T) {
+
 	existingUser := &UserModels.User{
 		ID:       uuid.New(),
 		Username: "existinguser",

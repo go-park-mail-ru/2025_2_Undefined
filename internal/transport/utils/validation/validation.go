@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 )

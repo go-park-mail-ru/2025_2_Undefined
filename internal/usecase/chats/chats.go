@@ -1,9 +1,9 @@
-package service
+package usecase
 
 import (
 	"fmt"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	repositoryInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
 	"github.com/google/uuid"

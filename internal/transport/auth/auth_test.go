@@ -1,4 +1,4 @@
-package handlers
+package transport
 
 import (
 	"bytes"
@@ -8,12 +8,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/service/auth"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

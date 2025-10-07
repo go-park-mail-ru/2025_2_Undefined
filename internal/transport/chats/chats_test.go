@@ -1,4 +1,4 @@
-package handlers
+package transport
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

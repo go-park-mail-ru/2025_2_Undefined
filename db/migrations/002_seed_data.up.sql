@@ -1,7 +1,7 @@
 -- Вставляем типы пользователей
-INSERT INTO user_type (name, description) VALUES
-('regular', 'Regular user'),
-('premium', 'User with subscription');
+INSERT INTO user_type (id, name, description) VALUES
+(0, 'regular', 'Regular user'),
+(1, 'premium', 'User with subscription');
 
 -- Вставляем типы чатов
 INSERT INTO chat_type (name, description) VALUES

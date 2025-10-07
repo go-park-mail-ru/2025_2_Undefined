@@ -1,13 +1,13 @@
-package handlers
+package transport
 
 import (
 	"encoding/json"
 	"net/http"
 	"strings"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/dto"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/jwt"
-	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/handlers/utils/response"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	"github.com/google/uuid"

@@ -6,7 +6,6 @@ CREATE TABLE user_type (
     description TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
     CONSTRAINT check_user_type_name_length CHECK (LENGTH(name) >= 3 AND LENGTH(name) <= 20),
     CONSTRAINT check_user_type_description_length CHECK (LENGTH(description) >= 10 AND LENGTH(description) <= 200)
 );

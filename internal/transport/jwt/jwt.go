@@ -21,11 +21,14 @@ type Tokenator struct {
 func NewTokenator() *Tokenator {
 	cfg, err := config.NewConfig()
 	if err != nil {
-		return nil
+		return &Tokenator{
+			sign:          "test",
+			tokenLifeSpan: 24 * time.Hour,
+		}
 	}
 	return &Tokenator{
 		sign:          cfg.JWTConfig.Signature,
-		tokenLifeSpan: 24 * time.Hour,
+		tokenLifeSpan: cfg.JWTConfig.TokenLifeSpan,
 	}
 }
 

@@ -22,7 +22,7 @@ test-coverage-html: test-coverage
 # Запуск приложения
 run:
 	@echo "Запуск приложения..."
-	go run ./cmd/main.go
+	go run ./cmd/app/main.go
 
 # Установка зависимостей
 deps:
