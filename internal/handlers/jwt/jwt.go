@@ -19,8 +19,12 @@ type Tokenator struct {
 }
 
 func NewTokenator() *Tokenator {
+	cfg, err := config.NewConfig()
+	if err != nil {
+		return nil
+	}
 	return &Tokenator{
-		sign:          config.NewConfig().JWTSecret,
+		sign:          cfg.JWTConfig.Signature,
 		tokenLifeSpan: 24 * time.Hour,
 	}
 }

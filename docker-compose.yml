@@ -1,0 +1,48 @@
+services:
+  app:
+    build: .
+    container_name: gramm_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - gramm-network
+    environment:
+      SERVER_PORT: 8080
+      JWT_SIGNATURE: my_secret_key
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: gramm
+      POSTGRES_PORT: 5432
+      POSTGRES_HOST: db
+      MIGRATIONS_PATH: file://db/migrations
+      JWT_TOKEN_LIFESPAN: 24h
+    command: sh -c "./migrate && ./main"
+
+  db:
+    image: postgres:15
+    container_name: gramm_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: gramm
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d gramm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gramm-network
+
+networks:
+  gramm-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

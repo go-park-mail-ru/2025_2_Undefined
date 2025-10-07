@@ -29,3 +29,9 @@ deps:
 	@echo "Установка зависимостей..."
 	go mod download
 	go mod tidy
+
+start:
+	docker compose up --build
+
+clear: 
+	docker compose down -v

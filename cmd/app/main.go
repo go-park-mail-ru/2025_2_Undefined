@@ -35,7 +35,11 @@ import (
 // @BasePath  /api/v1
 func main() {
 
-	cfg := config.NewConfig()
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Can't connect to database: %v", err)
+		return
+	}
 
 	userRepo := inmemory.NewUserRepo()
 	chatRepo := inmemory.NewChatsRepo(userRepo)
@@ -124,10 +128,9 @@ func main() {
 	})
 
 	handler := corsMiddleware(mux)
-
-	log.Printf("Server starting on port %s", cfg.Port)
-	log.Printf("Swagger UI available at: http://localhost:%s/swagger/", cfg.Port)
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
+	log.Printf("Server starting on port %s", cfg.ServerConfig.Port)
+	log.Printf("Swagger UI available at: http://localhost:%s/swagger/", cfg.ServerConfig.Port)
+	log.Fatal(http.ListenAndServe(":"+cfg.ServerConfig.Port, handler))
 }
 
 // настройка CORS для фронта
