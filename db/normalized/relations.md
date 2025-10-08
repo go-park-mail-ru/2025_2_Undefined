@@ -83,6 +83,42 @@
 - **3НФ** - нет транзитивных зависимостей
 - **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
 
+## Таблица attachment
+---
+Хранит информацию о файловых вложениях (изображения, документы, аудио, видео)\
+`{id} -> file_name, file_size, file_path, content_disposition, created_at, updated_at`
+- **1НФ** - все атрибуты атомарны
+- **2НФ** - все неключевые атрибуты полностью зависят от первичного ключа
+- **3НФ** - нет транзитивных зависимостей
+- **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
+
+## Таблица avatar_chat
+---
+Хранит связь между чатами и их аватарами\
+`{attachment_id, chat_id} -> created_at, updated_at`
+- **1НФ** - все атрибуты атомарны
+- **2НФ** - составной первичный ключ, неключевые атрибуты зависят от всего ключа
+- **3НФ** - нет транзитивных зависимостей
+- **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
+
+## Таблица avatar_user
+---
+Хранит связь между пользователями и их аватарами\
+`{attachment_id, user_id} -> created_at, updated_at`
+- **1НФ** - все атрибуты атомарны
+- **2НФ** - составной первичный ключ, неключевые атрибуты зависят от всего ключа
+- **3НФ** - нет транзитивных зависимостей
+- **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
+
+## Таблица message_attachment
+---
+Хранит связь между сообщениями и их вложениями\
+`{message_id, attachment_id} -> user_id, created_at, updated_at`
+- **1НФ** - все атрибуты атомарны
+- **2НФ** - составной первичный ключ, неключевые атрибуты зависят от всего ключа
+- **3НФ** - нет транзитивных зависимостей
+- **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
+
 # ER Diagram
 
 ```mermaid
@@ -146,6 +182,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
+
     message_type{
         INT4 id PK
         TEXT name
@@ -162,13 +199,50 @@ erDiagram
         TIMESTAMPTZ last_seen
     }
 
+    attachment {
+        UUID id PK
+        TEXT file_name
+        BIGINT file_size
+        TEXT file_path
+        TEXT content_disposition
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    avatar_chat {
+        UUID attachment_id FK
+        UUID chat_id FK
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    avatar_user {
+        UUID attachment_id FK
+        UUID user_id FK
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    message_attachment {
+        UUID message_id FK
+        UUID attachment_id FK
+        UUID user_id FK
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
     user ||--o{ chat_member : "participates_as"
     user ||--o{ message : "author"
     user ||--o{ session : "maintains"
+    user ||--o{ avatar_user : "has_avatar"
     chat ||--o{ message : "contains"
+    chat ||--o{ avatar_chat : "has_avatar"
     user_type ||--o{ user : "has"
     chat_type ||--o{ chat : "has" 
     chat_member_role ||--o{ chat_member : "has"
     message_type ||--o{ message : "has"
-
+    message ||--o{ message_attachment : "has"
+    attachment ||--o{ message_attachment : "attached_to"
+    attachment ||--|| avatar_user : "used_as_avatar"
+    attachment ||--|| avatar_chat : "used_as_avatar"
 ```

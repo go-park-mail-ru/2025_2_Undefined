@@ -5,7 +5,7 @@ INSERT INTO user_type (name, description) VALUES
 
 -- Вставляем типы чатов
 INSERT INTO chat_type (name, description) VALUES
-('channel', 'Broadcast channel').
+('channel', 'Broadcast channel'),
 ('private', 'Private chat between two users'),
 ('group', 'Group chat with multiple users');
 
