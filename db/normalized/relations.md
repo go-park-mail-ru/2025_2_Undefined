@@ -59,18 +59,9 @@
 ## Таблица message
 ---
 Хранит сообщения в чатах\
-`{id} -> chat_id, user_id, text, message_type_id, created_at, updated_at`
+`{id} -> chat_id, user_id, text, message_type_enum, created_at, updated_at`
 - **1НФ** - все атрибуты атомарны
 - **2НФ** - все неключевые атрибуты полностью зависят от первичного ключа
-- **3НФ** - нет транзитивных зависимостей
-- **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
-
-## Таблица message_type
----
-Хранит типы сообщений (системное или пользовательское)\
-`{id} -> name, description, created_at, updated_at`
-- **1НФ** - все атрибуты атомарны
-- **2НФ** - неключевые атрибуты полностью зависят от первичного ключа
 - **3НФ** - нет транзитивных зависимостей
 - **НФБК** - отношение находится в 3НФ и имеет один потенциальный ключ
 
@@ -178,15 +169,7 @@ erDiagram
         UUID chat_id FK
         UUID user_id FK
         TEXT text
-        INT4 message_type_id FK
-        TIMESTAMPTZ created_at
-        TIMESTAMPTZ updated_at
-    }
-
-    message_type{
-        INT4 id PK
-        TEXT name
-        TEXT description
+        message_type_enum message_type
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
@@ -240,7 +223,6 @@ erDiagram
     user_type ||--o{ user : "has"
     chat_type ||--o{ chat : "has" 
     chat_member_role ||--o{ chat_member : "has"
-    message_type ||--o{ message : "has"
     message ||--o{ message_attachment : "has"
     attachment ||--o{ message_attachment : "attached_to"
     attachment ||--|| avatar_user : "used_as_avatar"

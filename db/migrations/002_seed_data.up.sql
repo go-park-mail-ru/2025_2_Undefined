@@ -14,8 +14,3 @@ INSERT INTO chat_member_role (name, description) VALUES
 ('admin', 'Administrator with full permissions'),
 ('writer', 'Can write messages'),
 ('reader', 'Can only read messages');
-
--- Вставляем типы сообщений
-INSERT INTO message_type (name, description) VALUES
-('user', 'User generated message'),
-('system', 'System generated message');
