@@ -22,10 +22,16 @@ test-coverage-html: test-coverage
 # Запуск приложения
 run:
 	@echo "Запуск приложения..."
-	go run ./cmd/main.go
+	go run ./cmd/app/main.go
 
 # Установка зависимостей
 deps:
 	@echo "Установка зависимостей..."
 	go mod download
 	go mod tidy
+
+start:
+	docker compose up --build
+
+clear: 
+	docker compose down -v
