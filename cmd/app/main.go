@@ -2,22 +2,10 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
-	httpSwagger "github.com/swaggo/http-swagger"
-
-	AuthHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
-	ChatHandlers "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
-	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
-	inmemory "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/inmemory"
-	blackTokenRep "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
-	AuthService "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
-	ChatService "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/app"
 )
 
 // @title           Undefined team API documentation of project Telegram
@@ -33,6 +21,21 @@ import (
 
 // @host      localhost:8080
 // @BasePath  /api/v1
+func main() {
+	conf, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("config error: %v", err)
+	}
+
+	application, err := app.NewApp(conf)
+	if err != nil {
+		log.Fatalf("failed to create app: %v", err)
+	}
+
+	application.Run()
+}
+
+/*
 func main() {
 
 	cfg, err := config.NewConfig()
@@ -148,3 +151,4 @@ func corsMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+*/

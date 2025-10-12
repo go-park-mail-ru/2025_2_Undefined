@@ -3,8 +3,8 @@ package validation
 import (
 	"testing"
 
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 )
 
 func TestValidateRegisterRequest(t *testing.T) {
@@ -17,8 +17,6 @@ func TestValidateRegisterRequest(t *testing.T) {
 			name: "valid request",
 			req: &AuthModels.RegisterRequest{
 				PhoneNumber: "+79123456789",
-				Email:       "test@example.com",
-				Username:    "testuser",
 				Password:    "password123",
 				Name:        "Test User",
 			},
@@ -27,25 +25,12 @@ func TestValidateRegisterRequest(t *testing.T) {
 		{
 			name:     "empty request",
 			req:      &AuthModels.RegisterRequest{},
-			wantErrs: 5,
+			wantErrs: 3,
 		},
 		{
 			name: "invalid phone",
 			req: &AuthModels.RegisterRequest{
 				PhoneNumber: "invalid",
-				Email:       "test@example.com",
-				Username:    "testuser",
-				Password:    "password123",
-				Name:        "Test User",
-			},
-			wantErrs: 1,
-		},
-		{
-			name: "invalid email",
-			req: &AuthModels.RegisterRequest{
-				PhoneNumber: "+79123456789",
-				Email:       "invalid-email",
-				Username:    "testuser",
 				Password:    "password123",
 				Name:        "Test User",
 			},
@@ -55,20 +40,7 @@ func TestValidateRegisterRequest(t *testing.T) {
 			name: "invalid password",
 			req: &AuthModels.RegisterRequest{
 				PhoneNumber: "+79123456789",
-				Email:       "test@example.com",
-				Username:    "testuser",
 				Password:    "123",
-				Name:        "Test User",
-			},
-			wantErrs: 1,
-		},
-		{
-			name: "invalid username",
-			req: &AuthModels.RegisterRequest{
-				PhoneNumber: "+79123456789",
-				Email:       "test@example.com",
-				Username:    "ab",
-				Password:    "password123",
 				Name:        "Test User",
 			},
 			wantErrs: 1,
@@ -77,8 +49,6 @@ func TestValidateRegisterRequest(t *testing.T) {
 			name: "invalid name",
 			req: &AuthModels.RegisterRequest{
 				PhoneNumber: "+79123456789",
-				Email:       "test@example.com",
-				Username:    "testuser",
 				Password:    "password123",
 				Name:        "",
 			},

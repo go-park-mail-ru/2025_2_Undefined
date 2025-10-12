@@ -4,63 +4,48 @@ import (
 	"errors"
 	"testing"
 
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type MockUserRepository struct {
-	CreateFunc        func(user *UserModels.User) error
-	GetByIDFunc       func(id uuid.UUID) (*UserModels.User, error)
-	GetByPhoneFunc    func(phone string) (*UserModels.User, error)
-	GetByEmailFunc    func(email string) (*UserModels.User, error)
-	GetByUsernameFunc func(username string) (*UserModels.User, error)
-	UpdateFunc        func(user *UserModels.User) error
+type MockAuthRepository struct {
+	CreateUserFunc        func(name string, phone string, passwordHash string) (*UserModels.User, error)
+	GetUserByPhoneFunc    func(phone string) (*UserModels.User, error)
+	GetUserByUsernameFunc func(username string) (*UserModels.User, error)
+	GetUserByIDFunc       func(id uuid.UUID) (*UserModels.User, error)
 }
 
-func (m *MockUserRepository) Create(user *UserModels.User) error {
-	if m.CreateFunc != nil {
-		return m.CreateFunc(user)
+func (m *MockAuthRepository) CreateUser(name string, phone string, passwordHash string) (*UserModels.User, error) {
+	if m.CreateUserFunc != nil {
+		return m.CreateUserFunc(name, phone, passwordHash)
 	}
-	return nil
+	return nil, nil
 }
 
-func (m *MockUserRepository) GetByID(id uuid.UUID) (*UserModels.User, error) {
-	if m.GetByIDFunc != nil {
-		return m.GetByIDFunc(id)
+func (m *MockAuthRepository) GetUserByPhone(phone string) (*UserModels.User, error) {
+	if m.GetUserByPhoneFunc != nil {
+		return m.GetUserByPhoneFunc(phone)
 	}
 	return nil, errors.New("not found")
 }
 
-func (m *MockUserRepository) GetByPhone(phone string) (*UserModels.User, error) {
-	if m.GetByPhoneFunc != nil {
-		return m.GetByPhoneFunc(phone)
+func (m *MockAuthRepository) GetUserByUsername(username string) (*UserModels.User, error) {
+	if m.GetUserByUsernameFunc != nil {
+		return m.GetUserByUsernameFunc(username)
 	}
 	return nil, errors.New("not found")
 }
 
-func (m *MockUserRepository) GetByEmail(email string) (*UserModels.User, error) {
-	if m.GetByEmailFunc != nil {
-		return m.GetByEmailFunc(email)
+func (m *MockAuthRepository) GetUserByID(id uuid.UUID) (*UserModels.User, error) {
+	if m.GetUserByIDFunc != nil {
+		return m.GetUserByIDFunc(id)
 	}
 	return nil, errors.New("not found")
-}
-
-func (m *MockUserRepository) GetByUsername(username string) (*UserModels.User, error) {
-	if m.GetByUsernameFunc != nil {
-		return m.GetByUsernameFunc(username)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *MockUserRepository) Update(user *UserModels.User) error {
-	if m.UpdateFunc != nil {
-		return m.UpdateFunc(user)
-	}
-	return nil
 }
 
 type MockTokenRepository struct {
@@ -89,88 +74,54 @@ func (m *MockTokenRepository) CleanupExpiredTokens() {
 	}
 }
 
+// FailingTokenator для тестирования ошибок создания токена
+type FailingTokenator struct{}
+
+func (ft *FailingTokenator) CreateJWT(userID string) (string, error) {
+	return "", errors.New("token creation failed")
+}
+
+func (ft *FailingTokenator) ParseJWT(tokenString string) (*jwt.JWTClaims, error) {
+	return nil, errors.New("parse failed")
+}
+
 func TestRegister_Success(t *testing.T) {
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			return nil, errors.New("not found")
 		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateFunc: func(user *UserModels.User) error {
-			assert.Equal(t, "+79998887766", user.PhoneNumber)
-			assert.Equal(t, "test@mail.ru", user.Email)
-			assert.Equal(t, "testuser", user.Username)
-			assert.Equal(t, "Test User", user.Name)
-			assert.Equal(t, UserModels.UserAccount, user.AccountType)
-			assert.NotEmpty(t, user.PasswordHash)
-			return nil
+		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
+			assert.Equal(t, "Test User", name)
+			assert.Equal(t, "+79998887766", phone)
+			assert.NotEmpty(t, passwordHash)
+
+			err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte("password123"))
+			assert.NoError(t, err)
+
+			return &UserModels.User{
+				ID:           uuid.New(),
+				Name:         name,
+				PhoneNumber:  phone,
+				PasswordHash: passwordHash,
+				AccountType:  UserModels.UserAccount,
+			}, nil
 		},
 	}
 
 	mockTokenator := jwt.NewTokenator()
-
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	req := &AuthModels.RegisterRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
 		Password:    "password123",
 		Name:        "Test User",
-		Username:    "testuser",
 	}
 
 	token, err := service.Register(req)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, token)
-}
-
-func TestRegister_EmailAlreadyExists(t *testing.T) {
-	existingUser := &UserModels.User{
-		ID:    uuid.New(),
-		Email: "existing@mail.ru",
-	}
-
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
-			if email == "existing@mail.ru" {
-				return existingUser, nil
-			}
-			return nil, errors.New("not found")
-		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
-		PhoneNumber: "+79998887766",
-		Email:       "existing@mail.ru",
-		Password:    "password123",
-		Name:        "Test User",
-		Username:    "testuser",
-	}
-
-	token, err := service.Register(req)
-	assert.NotNil(t, err)
-	assert.Equal(t, "Ошибка валидации", err.Message)
-	assert.Len(t, err.Errors, 1)
-	assert.Equal(t, "email", err.Errors[0].Field)
-	assert.Equal(t, "пользователь с таким email уже существует", err.Errors[0].Message)
-	assert.Empty(t, token)
 }
 
 func TestRegister_PhoneAlreadyExists(t *testing.T) {
@@ -179,17 +130,11 @@ func TestRegister_PhoneAlreadyExists(t *testing.T) {
 		PhoneNumber: "+79998887766",
 	}
 
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			if phone == "+79998887766" {
 				return existingUser, nil
 			}
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
 			return nil, errors.New("not found")
 		},
 	}
@@ -197,14 +142,12 @@ func TestRegister_PhoneAlreadyExists(t *testing.T) {
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	req := &AuthModels.RegisterRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
 		Password:    "password123",
 		Name:        "Test User",
-		Username:    "testuser",
 	}
 
 	token, err := service.Register(req)
@@ -212,81 +155,29 @@ func TestRegister_PhoneAlreadyExists(t *testing.T) {
 	assert.Equal(t, "Ошибка валидации", err.Message)
 	assert.Len(t, err.Errors, 1)
 	assert.Equal(t, "phone_number", err.Errors[0].Field)
-	assert.Equal(t, "пользователь с таким телефоном уже существует", err.Errors[0].Message)
-	assert.Empty(t, token)
-}
-
-func TestRegister_UsernameAlreadyExists(t *testing.T) {
-
-	existingUser := &UserModels.User{
-		ID:       uuid.New(),
-		Username: "existinguser",
-	}
-
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
-			if username == "existinguser" {
-				return existingUser, nil
-			}
-			return nil, errors.New("not found")
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
-		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
-		Password:    "password123",
-		Name:        "Test User",
-		Username:    "existinguser",
-	}
-
-	token, err := service.Register(req)
-	assert.NotNil(t, err)
-	assert.Equal(t, "Ошибка валидации", err.Message)
-	assert.Len(t, err.Errors, 1)
-	assert.Equal(t, "username", err.Errors[0].Field)
-	assert.Equal(t, "пользователь с таким именем пользователя уже существует", err.Errors[0].Message)
+	assert.Equal(t, "a user with such a phone already exists", err.Errors[0].Message)
 	assert.Empty(t, token)
 }
 
 func TestRegister_CreateUserError(t *testing.T) {
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			return nil, errors.New("not found")
 		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateFunc: func(user *UserModels.User) error {
-			return errors.New("database error")
+		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
+			return nil, errors.New("database error")
 		},
 	}
 
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	req := &AuthModels.RegisterRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
 		Password:    "password123",
 		Name:        "Test User",
-		Username:    "testuser",
 	}
 
 	token, err := service.Register(req)
@@ -295,18 +186,46 @@ func TestRegister_CreateUserError(t *testing.T) {
 	assert.Empty(t, token)
 }
 
+func TestRegister_UserNotCreated(t *testing.T) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
+			return nil, errors.New("not found")
+		},
+		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
+			return nil, nil 
+		},
+	}
+
+	mockTokenator := jwt.NewTokenator()
+	mockTokenRepo := &MockTokenRepository{}
+
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
+
+	req := &AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "password123",
+		Name:        "Test User",
+	}
+
+	token, err := service.Register(req)
+	assert.NotNil(t, err)
+	assert.Equal(t, "user not created", err.Message)
+	assert.Empty(t, token)
+}
+
 func TestLogin_Success(t *testing.T) {
+	userID := uuid.New()
 	correctPassword := "password123"
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
 
 	user := &UserModels.User{
-		ID:           uuid.New(),
+		ID:           userID,
 		PhoneNumber:  "+79998887766",
 		PasswordHash: string(hashedPassword),
 	}
 
-	mockUserRepo := &MockUserRepository{
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			if phone == "+79998887766" {
 				return user, nil
 			}
@@ -317,7 +236,7 @@ func TestLogin_Success(t *testing.T) {
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	req := &AuthModels.LoginRequest{
 		PhoneNumber: "+79998887766",
@@ -330,8 +249,8 @@ func TestLogin_Success(t *testing.T) {
 }
 
 func TestLogin_UserNotFound(t *testing.T) {
-	mockUserRepo := &MockUserRepository{
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			return nil, errors.New("user not found")
 		},
 	}
@@ -339,7 +258,7 @@ func TestLogin_UserNotFound(t *testing.T) {
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	req := &AuthModels.LoginRequest{
 		PhoneNumber: "+79990001122",
@@ -348,23 +267,24 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	token, err := service.Login(req)
 	assert.Error(t, err)
-	assert.Equal(t, "неверные учетные данные", err.Error())
+	assert.Equal(t, errs.ErrInvalidCredentials, err)
 	assert.Empty(t, token)
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
+	userID := uuid.New()
 	correctPassword := "password123"
 	wrongPassword := "wrongpassword"
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
 	user := &UserModels.User{
-		ID:           uuid.New(),
+		ID:           userID,
 		PhoneNumber:  "+79998887766",
 		PasswordHash: string(hashedPassword),
 	}
 
-	mockUserRepo := &MockUserRepository{
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			if phone == "+79998887766" {
 				return user, nil
 			}
@@ -375,7 +295,7 @@ func TestLogin_InvalidPassword(t *testing.T) {
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	req := &AuthModels.LoginRequest{
 		PhoneNumber: "+79998887766",
@@ -384,12 +304,35 @@ func TestLogin_InvalidPassword(t *testing.T) {
 
 	token, err := service.Login(req)
 	assert.Error(t, err)
-	assert.Equal(t, "неверные учетные данные", err.Error())
+	assert.Equal(t, errs.ErrInvalidCredentials, err)
+	assert.Empty(t, token)
+}
+
+func TestLogin_UserIsNil(t *testing.T) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
+			return nil, nil
+		},
+	}
+
+	mockTokenator := jwt.NewTokenator()
+	mockTokenRepo := &MockTokenRepository{}
+
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
+
+	req := &AuthModels.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "password123",
+	}
+
+	token, err := service.Login(req)
+	assert.Error(t, err)
+	assert.Equal(t, errs.ErrInvalidCredentials, err)
 	assert.Empty(t, token)
 }
 
 func TestLogout_Success(t *testing.T) {
-	mockUserRepo := &MockUserRepository{}
+	mockRepo := &MockAuthRepository{}
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{
 		AddToBlacklistFunc: func(token string) error {
@@ -397,7 +340,7 @@ func TestLogout_Success(t *testing.T) {
 		},
 	}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	token, _ := mockTokenator.CreateJWT(uuid.New().String())
 
@@ -406,27 +349,45 @@ func TestLogout_Success(t *testing.T) {
 }
 
 func TestLogout_InvalidToken(t *testing.T) {
-	mockUserRepo := &MockUserRepository{}
+	mockRepo := &MockAuthRepository{}
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	err := service.Logout("invalid.token.string")
 	assert.Error(t, err)
-	assert.Equal(t, "недействительный или истекший токен", err.Error())
+	assert.Equal(t, "invalid or expired token", err.Error())
+}
+
+func TestLogout_BlacklistError(t *testing.T) {
+	mockRepo := &MockAuthRepository{}
+	mockTokenator := jwt.NewTokenator()
+	mockTokenRepo := &MockTokenRepository{
+		AddToBlacklistFunc: func(token string) error {
+			return errors.New("blacklist error")
+		},
+	}
+
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
+
+	token, _ := mockTokenator.CreateJWT(uuid.New().String())
+
+	err := service.Logout(token)
+	assert.Error(t, err)
+	assert.Equal(t, "blacklist error", err.Error())
 }
 
 func TestGetUserById_Success(t *testing.T) {
 	userID := uuid.New()
 	expectedUser := &UserModels.User{
-		ID:       userID,
-		Username: "testuser",
-		Email:    "test@mail.ru",
+		ID:          userID,
+		Name:        "Test User",
+		PhoneNumber: "+79998887766",
 	}
 
-	mockUserRepo := &MockUserRepository{
-		GetByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
 			assert.Equal(t, userID, id)
 			return expectedUser, nil
 		},
@@ -435,7 +396,7 @@ func TestGetUserById_Success(t *testing.T) {
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	user, err := service.GetUserById(userID)
 	assert.NoError(t, err)
@@ -445,8 +406,8 @@ func TestGetUserById_Success(t *testing.T) {
 func TestGetUserById_Error(t *testing.T) {
 	userID := uuid.New()
 
-	mockUserRepo := &MockUserRepository{
-		GetByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
+	mockRepo := &MockAuthRepository{
+		GetUserByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
 			return nil, errors.New("user not found")
 		},
 	}
@@ -454,104 +415,75 @@ func TestGetUserById_Error(t *testing.T) {
 	mockTokenator := jwt.NewTokenator()
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, mockTokenator, mockTokenRepo)
 
 	user, err := service.GetUserById(userID)
 	assert.Error(t, err)
-	assert.Equal(t, "ошибка получения пользователя по id", err.Error())
+	assert.Equal(t, "Error getting user by ID", err.Error())
 	assert.Nil(t, user)
 }
 
-func TestRegister_PasswordHashing(t *testing.T) {
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
+func TestRegister_TokenCreationError(t *testing.T) {
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
 			return nil, errors.New("not found")
 		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateFunc: func(user *UserModels.User) error {
-			err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte("password123"))
-			assert.NoError(t, err)
-			return nil
+		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
+			return &UserModels.User{
+				ID:           uuid.New(),
+				Name:         name,
+				PhoneNumber:  phone,
+				PasswordHash: passwordHash,
+			}, nil
 		},
 	}
 
-	mockTokenator := jwt.NewTokenator()
+	failingTokenator := &FailingTokenator{}
 	mockTokenRepo := &MockTokenRepository{}
 
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
+	service := New(mockRepo, failingTokenator, mockTokenRepo)
 
 	req := &AuthModels.RegisterRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
 		Password:    "password123",
 		Name:        "Test User",
-		Username:    "testuser",
-	}
-
-	_, err := service.Register(req)
-	assert.Nil(t, err)
-}
-
-func TestRegister_MultipleExistingFields(t *testing.T) {
-	existingUser := &UserModels.User{
-		ID:          uuid.New(),
-		Email:       "existing@mail.ru",
-		PhoneNumber: "+79998887766",
-		Username:    "existinguser",
-	}
-
-	mockUserRepo := &MockUserRepository{
-		GetByEmailFunc: func(email string) (*UserModels.User, error) {
-			if email == "existing@mail.ru" {
-				return existingUser, nil
-			}
-			return nil, errors.New("not found")
-		},
-		GetByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			if phone == "+79998887766" {
-				return existingUser, nil
-			}
-			return nil, errors.New("not found")
-		},
-		GetByUsernameFunc: func(username string) (*UserModels.User, error) {
-			if username == "existinguser" {
-				return existingUser, nil
-			}
-			return nil, errors.New("not found")
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := NewAuthService(mockUserRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
-		PhoneNumber: "+79998887766",
-		Email:       "existing@mail.ru",
-		Password:    "password123",
-		Name:        "Test User",
-		Username:    "existinguser",
 	}
 
 	token, err := service.Register(req)
 	assert.NotNil(t, err)
-	assert.Equal(t, "Ошибка валидации", err.Message)
-	assert.Len(t, err.Errors, 3) // Все три поля уже существуют
+	assert.Equal(t, "token creation failed", err.Message)
+	assert.Empty(t, token)
+}
 
-	// Проверяем наличие ошибок для всех полей
-	errorFields := make(map[string]bool)
-	for _, errorDTO := range err.Errors {
-		errorFields[errorDTO.Field] = true
+func TestLogin_TokenCreationError(t *testing.T) {
+	userID := uuid.New()
+	correctPassword := "password123"
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
+
+	user := &UserModels.User{
+		ID:           userID,
+		PhoneNumber:  "+79998887766",
+		PasswordHash: string(hashedPassword),
 	}
 
-	assert.True(t, errorFields["email"], "Should have validation error for email")
-	assert.True(t, errorFields["phone_number"], "Should have validation error for phone_number")
-	assert.True(t, errorFields["username"], "Should have validation error for username")
+	mockRepo := &MockAuthRepository{
+		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
+			return user, nil
+		},
+	}
+
+	failingTokenator := &FailingTokenator{}
+	mockTokenRepo := &MockTokenRepository{}
+
+	service := New(mockRepo, failingTokenator, mockTokenRepo)
+
+	req := &AuthModels.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    correctPassword,
+	}
+
+	token, err := service.Login(req)
+	assert.Error(t, err)
+	assert.Equal(t, "token creation failed", err.Error())
 	assert.Empty(t, token)
 }

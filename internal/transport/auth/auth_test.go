@@ -7,114 +7,67 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
-type MockUserRepository struct {
-	CreateFunc        func(user *UserModels.User) error
-	GetByIDFunc       func(id uuid.UUID) (*UserModels.User, error)
-	GetByPhoneFunc    func(phone string) (*UserModels.User, error)
-	GetByEmailFunc    func(email string) (*UserModels.User, error)
-	GetByUsernameFunc func(username string) (*UserModels.User, error)
-	UpdateFunc        func(user *UserModels.User) error
+type MockAuthUsecase struct {
+	RegisterFunc    func(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO)
+	LoginFunc       func(req *AuthModels.LoginRequest) (string, error)
+	LogoutFunc      func(tokenString string) error
+	GetUserByIdFunc func(id uuid.UUID) (*UserModels.User, error)
 }
 
-func (m *MockUserRepository) Create(user *UserModels.User) error {
-	if m.CreateFunc != nil {
-		return m.CreateFunc(user)
+func (m *MockAuthUsecase) Register(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO) {
+	if m.RegisterFunc != nil {
+		return m.RegisterFunc(req)
+	}
+	return "", nil
+}
+
+func (m *MockAuthUsecase) Login(req *AuthModels.LoginRequest) (string, error) {
+	if m.LoginFunc != nil {
+		return m.LoginFunc(req)
+	}
+	return "", nil
+}
+
+func (m *MockAuthUsecase) Logout(tokenString string) error {
+	if m.LogoutFunc != nil {
+		return m.LogoutFunc(tokenString)
 	}
 	return nil
 }
 
-func (m *MockUserRepository) GetByID(id uuid.UUID) (*UserModels.User, error) {
-	if m.GetByIDFunc != nil {
-		return m.GetByIDFunc(id)
+func (m *MockAuthUsecase) GetUserById(id uuid.UUID) (*UserModels.User, error) {
+	if m.GetUserByIdFunc != nil {
+		return m.GetUserByIdFunc(id)
 	}
-	return nil, errors.New("not found")
+	return nil, nil
 }
 
-func (m *MockUserRepository) GetByPhone(phone string) (*UserModels.User, error) {
-	if m.GetByPhoneFunc != nil {
-		return m.GetByPhoneFunc(phone)
+func TestAuthHandler_Register_Success(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		RegisterFunc: func(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO) {
+			assert.Equal(t, "+79998887766", req.PhoneNumber)
+			assert.Equal(t, "Test User", req.Name)
+			assert.Equal(t, "password123", req.Password)
+			return "test.jwt.token", nil
+		},
 	}
-	return nil, errors.New("not found")
-}
 
-func (m *MockUserRepository) GetByEmail(email string) (*UserModels.User, error) {
-	if m.GetByEmailFunc != nil {
-		return m.GetByEmailFunc(email)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *MockUserRepository) GetByUsername(username string) (*UserModels.User, error) {
-	if m.GetByUsernameFunc != nil {
-		return m.GetByUsernameFunc(username)
-	}
-	return nil, errors.New("not found")
-}
-
-func (m *MockUserRepository) Update(user *UserModels.User) error {
-	if m.UpdateFunc != nil {
-		return m.UpdateFunc(user)
-	}
-	return nil
-}
-
-type MockTokenRepository struct {
-	AddToBlacklistFunc func(token string) error
-	IsInBlacklistFunc  func(token string) bool
-}
-
-func (m *MockTokenRepository) AddToBlacklist(token string) error {
-	if m.AddToBlacklistFunc != nil {
-		return m.AddToBlacklistFunc(token)
-	}
-	return nil
-}
-
-func (m *MockTokenRepository) IsInBlacklist(token string) bool {
-	if m.IsInBlacklistFunc != nil {
-		return m.IsInBlacklistFunc(token)
-	}
-	return false
-}
-
-func (m *MockTokenRepository) CleanupExpiredTokens() {}
-
-func TestAuthHandler_Register_Integration(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	userRepo.GetByEmailFunc = func(email string) (*UserModels.User, error) {
-		return nil, errors.New("not found")
-	}
-	userRepo.GetByPhoneFunc = func(phone string) (*UserModels.User, error) {
-		return nil, errors.New("not found")
-	}
-	userRepo.GetByUsernameFunc = func(username string) (*UserModels.User, error) {
-		return nil, errors.New("not found")
-	}
-	userRepo.CreateFunc = func(user *UserModels.User) error {
-		return nil
-	}
+	handler := New(mockUsecase)
 
 	registerReq := AuthModels.RegisterRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
-		Username:    "testuser",
 		Name:        "Test User",
 		Password:    "password123",
 	}
@@ -128,15 +81,22 @@ func TestAuthHandler_Register_Integration(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	cookies := resp.Cookies()
+	var tokenCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == domains.TokenCookieName {
+			tokenCookie = cookie
+			break
+		}
+	}
+	assert.NotNil(t, tokenCookie)
+	assert.Equal(t, "test.jwt.token", tokenCookie.Value)
 }
 
 func TestAuthHandler_Register_BadJSON(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
 
 	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -148,45 +108,49 @@ func TestAuthHandler_Register_BadJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-func TestAuthHandler_Register_MissingFields(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	registerReq := AuthModels.RegisterRequest{
-		PhoneNumber: "",
-		Email:       "test@mail.ru",
-		Username:    "testuser",
-		Name:        "Test User",
-		Password:    "password123",
-	}
-
-	body, _ := json.Marshal(registerReq)
-	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Register(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestAuthHandler_Register_InvalidPhone(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
+func TestAuthHandler_Register_ValidationErrors(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
 
 	registerReq := AuthModels.RegisterRequest{
 		PhoneNumber: "invalid-phone",
-		Email:       "test@mail.ru",
-		Username:    "testuser",
+		Name:        "",
+		Password:    "123",
+	}
+
+	body, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Register(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var validationResponse dto.ValidationErrorsDTO
+	err := json.NewDecoder(resp.Body).Decode(&validationResponse)
+	assert.NoError(t, err)
+	assert.Equal(t, "Ошибка валидации", validationResponse.Message)
+	assert.True(t, len(validationResponse.Errors) > 0)
+}
+
+func TestAuthHandler_Register_UsecaseError(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		RegisterFunc: func(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO) {
+			return "", &dto.ValidationErrorsDTO{
+				Message: "phone already exists",
+				Errors: []dto.ValidationErrorDTO{
+					{Field: "phone_number", Message: "пользователь с таким телефоном уже существует"},
+				},
+			}
+		},
+	}
+
+	handler := New(mockUsecase)
+
+	registerReq := AuthModels.RegisterRequest{
+		PhoneNumber: "+79998887766",
 		Name:        "Test User",
 		Password:    "password123",
 	}
@@ -202,186 +166,17 @@ func TestAuthHandler_Register_InvalidPhone(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-func TestAuthHandler_Login_Integration(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	userRepo.GetByPhoneFunc = func(phone string) (*UserModels.User, error) {
-		hashedPassword := "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
-		return &UserModels.User{
-			ID:           uuid.New(),
-			PhoneNumber:  "+79998887766",
-			PasswordHash: hashedPassword,
-		}, nil
-	}
-
-	loginReq := AuthModels.LoginRequest{
-		PhoneNumber: "+79998887766",
-		Password:    "password",
-	}
-
-	body, _ := json.Marshal(loginReq)
-	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Login(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	userRepo.GetByPhoneFunc = func(phone string) (*UserModels.User, error) {
-		return nil, errors.New("not found")
-	}
-
-	loginReq := AuthModels.LoginRequest{
-		PhoneNumber: "+79998887766",
-		Password:    "password123",
-	}
-
-	body, _ := json.Marshal(loginReq)
-	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Login(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_Logout_Success(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{
-		AddToBlacklistFunc: func(token string) error {
-			return nil
+func TestAuthHandler_Register_EmptyToken(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		RegisterFunc: func(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO) {
+			return "", nil
 		},
 	}
 
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	token, _ := tokenator.CreateJWT(uuid.New().String())
-
-	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
-	w := httptest.NewRecorder()
-
-	handler.Logout(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestAuthHandler_Logout_NoCookie(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
-	w := httptest.NewRecorder()
-
-	handler.Logout(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_GetCurrentUser_Success(t *testing.T) {
-	userID := uuid.New()
-	expectedUser := &UserModels.User{
-		ID:       userID,
-		Username: "testuser",
-		Email:    "test@mail.ru",
-	}
-
-	userRepo := &MockUserRepository{
-		GetByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
-			return expectedUser, nil
-		},
-	}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	token, _ := tokenator.CreateJWT(userID.String())
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestAuthHandler_GetCurrentUser_NoCookie(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_GetCurrentUser_InvalidToken(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: "invalid-token"})
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_Register_InvalidEmail(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
+	handler := New(mockUsecase)
 
 	registerReq := AuthModels.RegisterRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "invalid-email",
-		Username:    "testuser",
 		Name:        "Test User",
 		Password:    "password123",
 	}
@@ -397,104 +192,67 @@ func TestAuthHandler_Register_InvalidEmail(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-func TestAuthHandler_Register_InvalidPassword(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
+func TestAuthHandler_Login_Success(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		LoginFunc: func(req *AuthModels.LoginRequest) (string, error) {
+			assert.Equal(t, "+79998887766", req.PhoneNumber)
+			assert.Equal(t, "password123", req.Password)
+			return "test.jwt.token", nil
+		},
+	}
 
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
+	handler := New(mockUsecase)
 
-	registerReq := AuthModels.RegisterRequest{
+	loginReq := AuthModels.LoginRequest{
 		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
-		Username:    "testuser",
-		Name:        "Test User",
+		Password:    "password123",
+	}
+
+	body, _ := json.Marshal(loginReq)
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cookies := resp.Cookies()
+	var tokenCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == domains.TokenCookieName {
+			tokenCookie = cookie
+			break
+		}
+	}
+	assert.NotNil(t, tokenCookie)
+	assert.Equal(t, "test.jwt.token", tokenCookie.Value)
+}
+
+func TestAuthHandler_Login_BadJSON(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
+
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString("invalid json"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAuthHandler_Login_ValidationErrors(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
+
+	loginReq := AuthModels.LoginRequest{
+		PhoneNumber: "invalid-phone",
 		Password:    "кириллица",
 	}
 
-	body, _ := json.Marshal(registerReq)
-	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Register(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestAuthHandler_Register_InvalidUsername(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	registerReq := AuthModels.RegisterRequest{
-		PhoneNumber: "+79998887766",
-		Email:       "test@mail.ru",
-		Username:    "user@name",
-		Name:        "Test User",
-		Password:    "password123",
-	}
-
-	body, _ := json.Marshal(registerReq)
-	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Register(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestAuthHandler_Register_ServiceError(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	userRepo.GetByEmailFunc = func(email string) (*UserModels.User, error) {
-		return &UserModels.User{ID: uuid.New()}, nil
-	}
-
-	registerReq := AuthModels.RegisterRequest{
-		PhoneNumber: "+79998887766",
-		Email:       "existing@mail.ru",
-		Username:    "testuser",
-		Name:        "Test User",
-		Password:    "password123",
-	}
-
-	body, _ := json.Marshal(registerReq)
-	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Register(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestAuthHandler_Login_MissingFields(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	loginReq := AuthModels.LoginRequest{
-		PhoneNumber: "",
-		Password:    "password123",
-	}
-
 	body, _ := json.Marshal(loginReq)
 	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -504,72 +262,22 @@ func TestAuthHandler_Login_MissingFields(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var validationResponse dto.ValidationErrorsDTO
+	err := json.NewDecoder(resp.Body).Decode(&validationResponse)
+	assert.NoError(t, err)
+	assert.Equal(t, "Ошибка валидации", validationResponse.Message)
+	assert.True(t, len(validationResponse.Errors) > 0)
 }
 
-func TestAuthHandler_Login_InvalidPhoneFormat(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	loginReq := AuthModels.LoginRequest{
-		PhoneNumber: "invalid-phone",
-		Password:    "password123",
+func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		LoginFunc: func(req *AuthModels.LoginRequest) (string, error) {
+			return "", errs.ErrInvalidCredentials
+		},
 	}
 
-	body, _ := json.Marshal(loginReq)
-	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Login(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestAuthHandler_Login_InvalidPasswordFormat(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	loginReq := AuthModels.LoginRequest{
-		PhoneNumber: "+79998887766",
-		Password:    "пароль",
-	}
-
-	body, _ := json.Marshal(loginReq)
-	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.Login(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestAuthHandler_Login_WrongPassword(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	userRepo.GetByPhoneFunc = func(phone string) (*UserModels.User, error) {
-		hashedPassword := "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
-		return &UserModels.User{
-			ID:           uuid.New(),
-			PhoneNumber:  "+79998887766",
-			PasswordHash: hashedPassword,
-		}, nil
-	}
+	handler := New(mockUsecase)
 
 	loginReq := AuthModels.LoginRequest{
 		PhoneNumber: "+79998887766",
@@ -587,20 +295,88 @@ func TestAuthHandler_Login_WrongPassword(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestAuthHandler_GetCurrentUser_UserNotFound(t *testing.T) {
-	userID := uuid.New()
-
-	userRepo := &MockUserRepository{
-		GetByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
-			return nil, errors.New("user not found")
+func TestAuthHandler_Logout_Success(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		LogoutFunc: func(tokenString string) error {
+			assert.Equal(t, "test.jwt.token", tokenString)
+			return nil
 		},
 	}
+
+	handler := New(mockUsecase)
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: "test.jwt.token"})
+	w := httptest.NewRecorder()
+
+	handler.Logout(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cookies := resp.Cookies()
+	var tokenCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == domains.TokenCookieName {
+			tokenCookie = cookie
+			break
+		}
+	}
+	assert.NotNil(t, tokenCookie)
+	assert.Equal(t, "", tokenCookie.Value)
+	assert.True(t, tokenCookie.Expires.Before(time.Now()))
+}
+
+func TestAuthHandler_Logout_NoCookie(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	w := httptest.NewRecorder()
+
+	handler.Logout(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_Logout_UsecaseError(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{
+		LogoutFunc: func(tokenString string) error {
+			return errors.New("logout failed")
+		},
+	}
+
+	handler := New(mockUsecase)
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: "test.jwt.token"})
+	w := httptest.NewRecorder()
+
+	handler.Logout(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_GetCurrentUser_Success(t *testing.T) {
+	userID := uuid.New()
+	expectedUser := &UserModels.User{
+		ID:          userID,
+		Name:        "Test User",
+		PhoneNumber: "+79998887766",
+	}
+
+	mockUsecase := &MockAuthUsecase{
+		GetUserByIdFunc: func(id uuid.UUID) (*UserModels.User, error) {
+			assert.Equal(t, userID, id)
+			return expectedUser, nil
+		},
+	}
+
+	handler := New(mockUsecase)
+
 	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
 	token, _ := tokenator.CreateJWT(userID.String())
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -610,17 +386,47 @@ func TestAuthHandler_GetCurrentUser_UserNotFound(t *testing.T) {
 	handler.GetCurrentUser(w, req)
 
 	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var user UserModels.User
+	err := json.NewDecoder(resp.Body).Decode(&user)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUser.ID, user.ID)
+	assert.Equal(t, expectedUser.Name, user.Name)
+}
+
+func TestAuthHandler_GetCurrentUser_NoCookie(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
+
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetCurrentUser(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHandler_GetCurrentUser_InvalidToken(t *testing.T) {
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
+
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: "invalid-token"})
+	w := httptest.NewRecorder()
+
+	handler.GetCurrentUser(w, req)
+
+	resp := w.Result()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
 func TestAuthHandler_GetCurrentUser_InvalidUserID(t *testing.T) {
-	userRepo := &MockUserRepository{}
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
+
 	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
 	token, _ := tokenator.CreateJWT("invalid-uuid")
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -633,45 +439,51 @@ func TestAuthHandler_GetCurrentUser_InvalidUserID(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestAuthHandler_Logout_BlacklistError(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{
-		AddToBlacklistFunc: func(token string) error {
-			return errors.New("blacklist error")
+func TestAuthHandler_GetCurrentUser_UserNotFound(t *testing.T) {
+	userID := uuid.New()
+
+	mockUsecase := &MockAuthUsecase{
+		GetUserByIdFunc: func(id uuid.UUID) (*UserModels.User, error) {
+			return nil, errors.New("user not found")
 		},
 	}
 
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
+	handler := New(mockUsecase)
 
-	token, _ := tokenator.CreateJWT(uuid.New().String())
+	tokenator := jwt.NewTokenator()
+	token, _ := tokenator.CreateJWT(userID.String())
 
-	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
 	w := httptest.NewRecorder()
 
-	handler.Logout(w, req)
+	handler.GetCurrentUser(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	cookies := resp.Cookies()
+	var tokenCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == domains.TokenCookieName {
+			tokenCookie = cookie
+			break
+		}
+	}
+	assert.NotNil(t, tokenCookie)
+	assert.Equal(t, "", tokenCookie.Value)
+	assert.True(t, tokenCookie.Expires.Before(time.Now()))
 }
 
 func TestAuthHandler_Register_MultipleValidationErrors(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
-
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
 
 	// Создаем запрос с множественными ошибками валидации
 	registerReq := AuthModels.RegisterRequest{
-		PhoneNumber: "invalid-phone", // Невалидный номер телефона
-		Email:       "invalid-email", // Невалидный email
-		Username:    "",              // Пустой username
-		Name:        "",              // Пустое имя
-		Password:    "123",           // Слишком короткий пароль
+		PhoneNumber: "invalid-phone",
+		Name:        "",
+		Password:    "123",
 	}
 
 	body, _ := json.Marshal(registerReq)
@@ -688,34 +500,27 @@ func TestAuthHandler_Register_MultipleValidationErrors(t *testing.T) {
 	err := json.NewDecoder(resp.Body).Decode(&validationResponse)
 	assert.NoError(t, err)
 
-	// Проверяем, что вернулся правильный тип ответа
 	assert.Equal(t, "Ошибка валидации", validationResponse.Message)
 	assert.True(t, len(validationResponse.Errors) > 1, "Should return multiple validation errors")
 
-	// Проверяем, что есть ошибки для всех проблемных полей
 	errorFields := make(map[string]bool)
 	for _, errorDTO := range validationResponse.Errors {
 		errorFields[errorDTO.Field] = true
 	}
 
-	expectedFields := []string{"phone_number", "email", "username", "name", "password"}
+	expectedFields := []string{"phone_number", "name", "password"}
 	for _, field := range expectedFields {
 		assert.True(t, errorFields[field], "Should have validation error for field: %s", field)
 	}
 }
 
 func TestAuthHandler_Login_MultipleValidationErrors(t *testing.T) {
-	userRepo := &MockUserRepository{}
-	tokenator := jwt.NewTokenator()
-	tokenRepo := &MockTokenRepository{}
+	mockUsecase := &MockAuthUsecase{}
+	handler := New(mockUsecase)
 
-	authService := service.NewAuthService(userRepo, tokenator, tokenRepo)
-	handler := NewAuthHandler(authService)
-
-	// Создаем запрос с множественными ошибками валидации
 	loginReq := AuthModels.LoginRequest{
-		PhoneNumber: "invalid-phone", // Невалидный номер телефона
-		Password:    "кириллица",     // Невалидный пароль (содержит кириллицу)
+		PhoneNumber: "invalid-phone",
+		Password:    "кириллица",
 	}
 
 	body, _ := json.Marshal(loginReq)
@@ -732,11 +537,9 @@ func TestAuthHandler_Login_MultipleValidationErrors(t *testing.T) {
 	err := json.NewDecoder(resp.Body).Decode(&validationResponse)
 	assert.NoError(t, err)
 
-	// Проверяем, что вернулся правильный тип ответа
 	assert.Equal(t, "Ошибка валидации", validationResponse.Message)
 	assert.True(t, len(validationResponse.Errors) > 1, "Should return multiple validation errors")
 
-	// Проверяем, что есть ошибки для всех проблемных полей
 	errorFields := make(map[string]bool)
 	for _, errorDTO := range validationResponse.Errors {
 		errorFields[errorDTO.Field] = true
@@ -744,4 +547,64 @@ func TestAuthHandler_Login_MultipleValidationErrors(t *testing.T) {
 
 	assert.True(t, errorFields["phone_number"], "Should have validation error for phone_number")
 	assert.True(t, errorFields["password"], "Should have validation error for password")
+}
+
+func TestAuthHandler_Register_EdgeCases(t *testing.T) {
+	t.Run("Empty request body", func(t *testing.T) {
+		mockUsecase := &MockAuthUsecase{}
+		handler := New(mockUsecase)
+
+		req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer([]byte{}))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.Register(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("Null JSON", func(t *testing.T) {
+		mockUsecase := &MockAuthUsecase{}
+		handler := New(mockUsecase)
+
+		req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString("null"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.Register(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+func TestAuthHandler_Login_EdgeCases(t *testing.T) {
+	t.Run("Empty request body", func(t *testing.T) {
+		mockUsecase := &MockAuthUsecase{}
+		handler := New(mockUsecase)
+
+		req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer([]byte{}))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.Login(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("Null JSON", func(t *testing.T) {
+		mockUsecase := &MockAuthUsecase{}
+		handler := New(mockUsecase)
+
+		req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString("null"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.Login(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
 }

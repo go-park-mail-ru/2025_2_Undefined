@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 )
 
 func SendError(w http.ResponseWriter, status int, message string) {

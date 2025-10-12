@@ -3,13 +3,14 @@ package errs
 import "errors"
 
 var (
-	ErrInvalidToken          = errors.New("неверный токен")
-	ErrNotFound              = errors.New("не найдено")
-	ErrBadRequest            = errors.New("неверный запрос")
-	ErrInvalidCredentials    = errors.New("неверные учетные данные")
-	ErrRequiredFieldsMissing = errors.New("отсутствуют обязательные поля")
-	ErrUserNotFound          = errors.New("пользователь не найден")
-	ErrJWTIsRequired         = errors.New("требуется JWT токен")
+	ErrInvalidToken          = errors.New("invalid token")
+	ErrNotFound              = errors.New("not found")
+	ErrBadRequest            = errors.New("bad request")
+	ErrInvalidCredentials    = errors.New("invalid credentials")
+	ErrRequiredFieldsMissing = errors.New("required fields missing")
+	ErrUserNotFound          = errors.New("user not found")
+	ErrJWTIsRequired         = errors.New("JWT token required")
+	ErrIsDuplicateKey        = errors.New("duplicate key")
 )
 
 // ValidationError представляет ошибку валидации поля
