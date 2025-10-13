@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"

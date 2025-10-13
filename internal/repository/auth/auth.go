@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
@@ -59,7 +60,7 @@ func (r *AuthRepository) CreateUser(name string, phone string, password_hash str
 		PasswordHash: password_hash,
 		Name:         name,
 		Username:     newUsername,
-		AccountType:  0,
+		AccountType:  models.UserAccount,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -131,6 +132,47 @@ func (r *AuthRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *AuthRepository) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
+	const op = "AuthRepository.GetUsersNames"
+
+	if len(usersIds) == 0 {
+		return []string{}, nil
+	}
+
+	query := `SELECT name FROM "user" WHERE id IN (`
+	placeholders := []string{}
+	args := make([]interface{}, len(usersIds))
+
+	for i, userID := range usersIds {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+		args[i] = userID
+	}
+
+	query += strings.Join(placeholders, ", ")
+	query += ")"
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]string, 0, len(usersIds))
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			wrappedErr := fmt.Errorf("%s: %w", op, err)
+			log.Printf("Error: %v", wrappedErr)
+			return nil, err
+		}
+		result = append(result, name)
+	}
+
+	return result, nil
 }
 
 func (r *AuthRepository) generateUsername() (string, error) {

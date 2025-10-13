@@ -17,6 +17,10 @@ import (
 	authrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/auth"
 	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
 	authuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
+
+	chatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
+	chatsTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
+	chatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
 )
 
 type App struct {
@@ -43,11 +47,19 @@ func NewApp(conf *config.Config) (*App, error) {
 	authUC := authuc.New(authRepo, tokenator, blacktoken)
 	authHandler := autht.New(authUC)
 
+	chatsRepo := chatsRepository.NewChatsRepository(db)
+	chatsUC := chatsUsecase.NewChatsService(chatsRepo, authRepo)
+	chatsHandler := chatsTransport.NewChatsHandler(chatsUC)
+
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
 	router.Use(corsMiddleware)
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
+
+	apiRouter.HandleFunc("/chats/", chatsHandler.GetInformationAboutChat).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/chats", chatsHandler.GetChats).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/chats", chatsHandler.PostChats).Methods(http.MethodPost)
 
 	authRouter := apiRouter.PathPrefix("").Subrouter()
 	{
