@@ -2,28 +2,38 @@ package transport
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
 	"net/http"
 
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
-	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
-	service "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 	"github.com/google/uuid"
 )
 
-type AuthHandler struct {
-	authService *service.AuthService
+type AuthUsecase interface {
+	Register(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO)
+	Login(req *AuthModels.LoginRequest) (string, error)
+	Logout(tokenString string) error
+	GetUserById(id uuid.UUID) (*UserModels.User, error)
 }
 
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+type AuthHandler struct {
+	uc AuthUsecase
+}
+
+func New(uc AuthUsecase) *AuthHandler {
+	return &AuthHandler{
+		uc: uc,
+	}
 }
 
 // Register регистрирует нового пользователя
@@ -37,8 +47,11 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 // @Failure      400   {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Router       /register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	const op = "AuthHandler.Register"
 	var req AuthModels.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrBadRequest)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
@@ -46,20 +59,26 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Валидируем все поля и собираем все ошибки
 	validationErrors := validation.ValidateRegisterRequest(&req)
 	if len(validationErrors) > 0 {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("validationErrors"))
+		log.Printf("Error: %v", wrappedErr)
 		validationDTO := validation.ConvertToValidationErrorsDTO(validationErrors)
 		utils.SendValidationErrors(w, http.StatusBadRequest, validationDTO)
 		return
 	}
 
-	token, err := h.authService.Register(&req)
+	token, err := h.uc.Register(&req)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("registration error"))
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendValidationErrors(w, http.StatusBadRequest, *err)
 		return
 	}
 
 	if token == "" {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("token is missing"))
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendValidationErrors(w, http.StatusBadRequest, dto.ValidationErrorsDTO{
-			Message: "token отсутствует",
+			Message: "token is missing",
 		})
 		return
 	}
@@ -80,8 +99,11 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Failure      401  {object}  dto.ErrorDTO  "Неверные креденшиалы"
 // @Router       /login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	const op = "AuthHandler.Login"
 	var req AuthModels.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrBadRequest)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
@@ -89,13 +111,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Валидируем все поля и собираем все ошибки
 	validationErrors := validation.ValidateLoginRequest(&req)
 	if len(validationErrors) > 0 {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("validationErrors"))
+		log.Printf("Error: %v", wrappedErr)
 		validationDTO := validation.ConvertToValidationErrorsDTO(validationErrors)
 		utils.SendValidationErrors(w, http.StatusBadRequest, validationDTO)
 		return
 	}
 
-	token, err := h.authService.Login(&req)
+	token, err := h.uc.Login(&req)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidCredentials.Error())
 		return
 	}
@@ -115,13 +141,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure      401  {object}  dto.ErrorDTO  "Неавторизованный доступ"
 // @Router       /logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	const op = "AuthHandler.Logout"
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
-	err = h.authService.Logout(jwtCookie.Value)
+	err = h.uc.Logout(jwtCookie.Value)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
@@ -140,24 +171,34 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Failure      401  {object}  dto.ErrorDTO      "Неавторизованный доступ"
 // @Router       /me [get]
 func (h *AuthHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	const op = "AuthHandler.GetCurrentUser"
 	jwtCookie, err := r.Cookie(domains.TokenCookieName)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
 	jwttoken := jwt.NewTokenator()
 	claims, err := jwttoken.ParseJWT(jwtCookie.Value)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
+		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 		return
 	}
 	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, "Неверный формат идентификатора пользователя")
+		err = errors.New("Invalid user ID format")
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	user, err := h.authService.GetUserById(userID)
+	user, err := h.uc.GetUserById(userID)
 	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrUserNotFound)
+		log.Printf("Error: %v", wrappedErr)
 		cookie.Unset(w, domains.TokenCookieName)
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrUserNotFound.Error())
 		return

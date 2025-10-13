@@ -5,9 +5,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 )
 
 // ValidateRegisterRequest проверяет все поля регистрации и возвращает все найденные ошибки
@@ -17,12 +17,6 @@ func ValidateRegisterRequest(req *AuthModels.RegisterRequest) []errs.ValidationE
 	// Проверка обязательных полей
 	if req.PhoneNumber == "" {
 		errors = append(errors, errs.ValidationError{Field: "phone_number", Message: "Номер телефона обязателен"})
-	}
-	if req.Email == "" {
-		errors = append(errors, errs.ValidationError{Field: "email", Message: "Email обязателен"})
-	}
-	if req.Username == "" {
-		errors = append(errors, errs.ValidationError{Field: "username", Message: "Имя пользователя обязательно"})
 	}
 	if req.Password == "" {
 		errors = append(errors, errs.ValidationError{Field: "password", Message: "Пароль обязателен"})
@@ -41,19 +35,9 @@ func ValidateRegisterRequest(req *AuthModels.RegisterRequest) []errs.ValidationE
 		}
 	}
 
-	// Валидация email
-	if req.Email != "" && !ValidateEmail(req.Email) {
-		errors = append(errors, errs.ValidationError{Field: "email", Message: "Неверный формат email"})
-	}
-
 	// Валидация пароля
 	if req.Password != "" && !ValidatePassword(req.Password) {
 		errors = append(errors, errs.ValidationError{Field: "password", Message: "Пароль должен содержать минимум 8 символов и только латинские буквы, цифры и специальные символы"})
-	}
-
-	// Валидация username
-	if req.Username != "" && !ValidateUsername(req.Username) {
-		errors = append(errors, errs.ValidationError{Field: "username", Message: "Неверный формат имени пользователя"})
 	}
 
 	// Валидация имени

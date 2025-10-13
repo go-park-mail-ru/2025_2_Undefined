@@ -27,7 +27,6 @@ func createFakeUsers() []userModels.User {
 	users := []userModels.User{
 		{
 			ID:           uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-			Email:        "alice.johnson@example.com",
 			PhoneNumber:  "+79001234567",
 			PasswordHash: "$2a$10$fZAsBF3Itv8a2LMkfK0GLuJ/ADve/bY4RWQViOmoKFTXTCrU7MwrK",
 			Name:         "Алиса Джонсон",
@@ -39,7 +38,6 @@ func createFakeUsers() []userModels.User {
 		},
 		{
 			ID:           uuid.MustParse("550e8400-e29b-41d4-a716-446655440001"),
-			Email:        "bob.smith@example.com",
 			PhoneNumber:  "+79002345678",
 			PasswordHash: "$2a$10$fZAsBF3Itv8a2LMkfK0GLuJ/ADve/bY4RWQViOmoKFTXTCrU7MwrK",
 			Name:         "Боб Смит",
@@ -51,7 +49,6 @@ func createFakeUsers() []userModels.User {
 		},
 		{
 			ID:           uuid.MustParse("550e8400-e29b-41d4-a716-446655440002"),
-			Email:        "carol.white@example.com",
 			PhoneNumber:  "+79003456789",
 			PasswordHash: "$2a$10$fZAsBF3Itv8a2LMkfK0GLuJ/ADve/bY4RWQViOmoKFTXTCrU7MwrK",
 			Name:         "Кэрол Уайт",
@@ -63,7 +60,6 @@ func createFakeUsers() []userModels.User {
 		},
 		{
 			ID:           uuid.MustParse("550e8400-e29b-41d4-a716-446655440003"),
-			Email:        "david.brown@example.com",
 			PhoneNumber:  "+79004567890",
 			PasswordHash: "$2a$10$fZAsBF3Itv8a2LMkfK0GLuJ/ADve/bY4RWQViOmoKFTXTCrU7MwrK",
 			Name:         "Дэвид Браун",
@@ -75,7 +71,6 @@ func createFakeUsers() []userModels.User {
 		},
 		{
 			ID:           uuid.MustParse("550e8400-e29b-41d4-a716-446655440004"),
-			Email:        "eva.green@example.com",
 			PhoneNumber:  "+79005678901",
 			PasswordHash: "$2a$10$fZAsBF3Itv8a2LMkfK0GLuJ/ADve/bY4RWQViOmoKFTXTCrU7MwrK",
 			Name:         "Ева Грин",
