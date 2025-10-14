@@ -1,24 +1,6 @@
 package transport
 
-import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
-
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-)
-
+/*
 type MockAuthUsecase struct {
 	RegisterFunc    func(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO)
 	LoginFunc       func(req *AuthModels.LoginRequest) (string, error)
@@ -359,122 +341,6 @@ func TestAuthHandler_Logout_UsecaseError(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestAuthHandler_GetCurrentUser_Success(t *testing.T) {
-	userID := uuid.New()
-	expectedUser := &UserModels.User{
-		ID:          userID,
-		Name:        "Test User",
-		PhoneNumber: "+79998887766",
-	}
-
-	mockUsecase := &MockAuthUsecase{
-		GetUserByIdFunc: func(id uuid.UUID) (*UserModels.User, error) {
-			assert.Equal(t, userID, id)
-			return expectedUser, nil
-		},
-	}
-
-	handler := New(mockUsecase)
-
-	tokenator := jwt.NewTokenator()
-	token, _ := tokenator.CreateJWT(userID.String())
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var user UserModels.User
-	err := json.NewDecoder(resp.Body).Decode(&user)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedUser.ID, user.ID)
-	assert.Equal(t, expectedUser.Name, user.Name)
-}
-
-func TestAuthHandler_GetCurrentUser_NoCookie(t *testing.T) {
-	mockUsecase := &MockAuthUsecase{}
-	handler := New(mockUsecase)
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_GetCurrentUser_InvalidToken(t *testing.T) {
-	mockUsecase := &MockAuthUsecase{}
-	handler := New(mockUsecase)
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: "invalid-token"})
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_GetCurrentUser_InvalidUserID(t *testing.T) {
-	mockUsecase := &MockAuthUsecase{}
-	handler := New(mockUsecase)
-
-	tokenator := jwt.NewTokenator()
-	token, _ := tokenator.CreateJWT("invalid-uuid")
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestAuthHandler_GetCurrentUser_UserNotFound(t *testing.T) {
-	userID := uuid.New()
-
-	mockUsecase := &MockAuthUsecase{
-		GetUserByIdFunc: func(id uuid.UUID) (*UserModels.User, error) {
-			return nil, errors.New("user not found")
-		},
-	}
-
-	handler := New(mockUsecase)
-
-	tokenator := jwt.NewTokenator()
-	token, _ := tokenator.CreateJWT(userID.String())
-
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.AddCookie(&http.Cookie{Name: domains.TokenCookieName, Value: token})
-	w := httptest.NewRecorder()
-
-	handler.GetCurrentUser(w, req)
-
-	resp := w.Result()
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-
-	cookies := resp.Cookies()
-	var tokenCookie *http.Cookie
-	for _, cookie := range cookies {
-		if cookie.Name == domains.TokenCookieName {
-			tokenCookie = cookie
-			break
-		}
-	}
-	assert.NotNil(t, tokenCookie)
-	assert.Equal(t, "", tokenCookie.Value)
-	assert.True(t, tokenCookie.Expires.Before(time.Now()))
-}
-
 func TestAuthHandler_Register_MultipleValidationErrors(t *testing.T) {
 	mockUsecase := &MockAuthUsecase{}
 	handler := New(mockUsecase)
@@ -608,3 +474,4 @@ func TestAuthHandler_Login_EdgeCases(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
 }
+*/

@@ -9,49 +9,44 @@ import (
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type ITokenator interface {
-	CreateJWT(userID string) (string, error)
-	ParseJWT(tokenString string) (*jwt.JWTClaims, error)
-}
-
-type IBlackToken interface {
-	AddToBlacklist(token string) error
-	IsInBlacklist(token string) bool
-	CleanupExpiredTokens()
-}
-
 type AuthRepository interface {
 	CreateUser(name string, phone string, password_hash string) (*UserModels.User, error)
+}
+
+type UserRepository interface {
 	GetUserByPhone(phone string) (*UserModels.User, error)
-	GetUserByUsername(username string) (*UserModels.User, error)
 	GetUserByID(id uuid.UUID) (*UserModels.User, error)
 }
 
-type AuthUsecase struct {
-	repo       AuthRepository
-	tokenator  ITokenator
-	blacktoken IBlackToken
+type SessionRepository interface {
+	AddSession(UserID uuid.UUID, device string) (uuid.UUID, error)
+	DeleteSession(SessionID uuid.UUID) error
 }
 
-func New(repo AuthRepository, tokenator ITokenator, blacktoken IBlackToken) *AuthUsecase {
+type AuthUsecase struct {
+	authrepo    AuthRepository
+	userrepo    UserRepository
+	sessionrepo SessionRepository
+}
+
+func New(authrepo AuthRepository, userrepo UserRepository, sessionrepo SessionRepository) *AuthUsecase {
 	return &AuthUsecase{
-		repo:       repo,
-		tokenator:  tokenator,
-		blacktoken: blacktoken,
+		authrepo:    authrepo,
+		userrepo:    userrepo,
+		sessionrepo: sessionrepo,
 	}
 }
 
-func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO) {
+func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
 	const op = "AuthUsecase.Register"
 	errorsValidation := make([]errs.ValidationError, 0)
 
-	existing, _ := uc.repo.GetUserByPhone(req.PhoneNumber)
+	existing, _ := uc.userrepo.GetUserByPhone(req.PhoneNumber)
 	if existing != nil {
 		errorsValidation = append(errorsValidation, errs.ValidationError{
 			Field:   "phone_number",
@@ -64,23 +59,23 @@ func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest) (string, *dto.V
 		log.Printf("Error: %v", wrappedErr)
 		err := validation.ConvertToValidationErrorsDTO(errorsValidation)
 
-		return "", &err
+		return uuid.Nil, &err
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
-		return "", &dto.ValidationErrorsDTO{
+		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
 	}
 
-	user, err := uc.repo.CreateUser(req.Name, req.PhoneNumber, string(hashedPassword))
+	user, err := uc.authrepo.CreateUser(req.Name, req.PhoneNumber, string(hashedPassword))
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
-		return "", &dto.ValidationErrorsDTO{
+		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
 	}
@@ -89,71 +84,77 @@ func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest) (string, *dto.V
 		err = errors.New("user not created")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
-		return "", &dto.ValidationErrorsDTO{
+		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
 	}
 
 	// Генерация JWT токена
-	token, err := uc.tokenator.CreateJWT(user.ID.String())
+	/*
+		token, err := uc.tokenator.CreateJWT(user.ID.String())
+		if err != nil {
+			wrappedErr := fmt.Errorf("%s: %w", op, err)
+			log.Printf("Error: %v", wrappedErr)
+			return "", &dto.ValidationErrorsDTO{
+				Message: err.Error(),
+			}
+		}
+	*/
+
+	newsSession, err := uc.sessionrepo.AddSession(user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
-		return "", &dto.ValidationErrorsDTO{
+		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
 	}
 
-	return token, nil
+	return newsSession, nil
 }
 
-func (uc *AuthUsecase) Login(req *AuthModels.LoginRequest) (string, error) {
+func (uc *AuthUsecase) Login(req *AuthModels.LoginRequest, device string) (uuid.UUID, error) {
 	const op = "AuthUsecase.Login"
-	user, err := uc.repo.GetUserByPhone(req.PhoneNumber)
-	if (err != nil || user == nil) {
+	user, err := uc.userrepo.GetUserByPhone(req.PhoneNumber)
+	if err != nil || user == nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
 		log.Printf("Error: %v", wrappedErr)
-		return "", errs.ErrInvalidCredentials
+		return uuid.Nil, errs.ErrInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
 		log.Printf("Error: %v", wrappedErr)
-		return "", errs.ErrInvalidCredentials
+		return uuid.Nil, errs.ErrInvalidCredentials
 	}
 
 	// Генерация JWT токена
-	token, err := uc.tokenator.CreateJWT(user.ID.String())
+	/*
+		token, err := uc.tokenator.CreateJWT(user.ID.String())
+		if err != nil {
+			wrappedErr := fmt.Errorf("%s: %w", op, err)
+			log.Printf("Error: %v", wrappedErr)
+			return err
+		}
+	*/
+	newSession, err := uc.sessionrepo.AddSession(user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
-		return "", err
+		return uuid.Nil, wrappedErr
 	}
 
-	return token, nil
+	return newSession, nil
 }
 
-func (uc *AuthUsecase) Logout(tokenString string) error {
+func (uc *AuthUsecase) Logout(SessionID uuid.UUID) error {
 	const op = "AuthUsecase.Logout"
-	_, err := uc.tokenator.ParseJWT(tokenString)
+	err := uc.sessionrepo.DeleteSession(SessionID)
 	if err != nil {
-		err = errors.New("invalid or expired token")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
-		return err
+		return wrappedErr
 	}
 
-	return uc.blacktoken.AddToBlacklist(tokenString)
-}
-
-func (uc *AuthUsecase) GetUserById(id uuid.UUID) (*UserModels.User, error) {
-	const op = "AuthUsecase.GetUserById"
-	user, err := uc.repo.GetUserByID(id)
-	if err != nil {
-		err = errors.New("Error getting user by ID")
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		return nil, err
-	}
-	return user, nil
+	return nil
 }

@@ -5,35 +5,36 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	BlackToken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	SessionRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/session"
 	cookieUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
+	"github.com/google/uuid"
 )
 
-// AuthMiddleware создает middleware для проверки аутентификации
-func AuthMiddleware(tokenator *jwt.Tokenator, blacktokenRepo BlackToken.TokenRepository) func(http.Handler) http.Handler {
+// AuthMiddleware создает middleware для проверки аутентификации через сессии
+func AuthMiddleware(sessionRepo *SessionRepo.SessionRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Получаем токен из куки
-			cookie, err := r.Cookie(domains.TokenCookieName)
+			// Получаем сессию из куки
+			cookie, err := r.Cookie(domains.SessionName)
 			if err != nil {
-				cookieUtils.Unset(w, domains.TokenCookieName)
-				utils.SendError(w, http.StatusUnauthorized, "JWT token required")
+				cookieUtils.Unset(w, domains.SessionName)
+				utils.SendError(w, http.StatusUnauthorized, "Session required")
 				return
 			}
 
-			// Проверяем, не в черном списке ли токен
-			if blacktokenRepo.IsInBlacklist(cookie.Value) {
-				cookieUtils.Unset(w, domains.TokenCookieName)
-				utils.SendError(w, http.StatusUnauthorized, "Token is blacklisted")
+			// Парсим UUID сессии
+			sessionID, err := uuid.Parse(cookie.Value)
+			if err != nil {
+				cookieUtils.Unset(w, domains.SessionName)
+				utils.SendError(w, http.StatusUnauthorized, "Invalid session ID")
 				return
 			}
 
-			// Парсим токен
-			_, err = tokenator.ParseJWT(cookie.Value)
+			// Проверяем существование сессии и обновляем время последней активности
+			err = sessionRepo.UpdateSession(sessionID)
 			if err != nil {
-				cookieUtils.Unset(w, domains.TokenCookieName)
+				cookieUtils.Unset(w, domains.SessionName)
 				utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}

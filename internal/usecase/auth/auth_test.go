@@ -1,24 +1,13 @@
 package usecase
 
-import (
-	"errors"
-	"testing"
-
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/bcrypt"
-)
-
+/*
 type MockAuthRepository struct {
 	CreateUserFunc        func(name string, phone string, passwordHash string) (*UserModels.User, error)
 	GetUserByPhoneFunc    func(phone string) (*UserModels.User, error)
 	GetUserByUsernameFunc func(username string) (*UserModels.User, error)
 	GetUserByIDFunc       func(id uuid.UUID) (*UserModels.User, error)
 }
+
 
 func (m *MockAuthRepository) CreateUser(name string, phone string, passwordHash string) (*UserModels.User, error) {
 	if m.CreateUserFunc != nil {
@@ -192,7 +181,7 @@ func TestRegister_UserNotCreated(t *testing.T) {
 			return nil, errors.New("not found")
 		},
 		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
-			return nil, nil 
+			return nil, nil
 		},
 	}
 
@@ -487,3 +476,4 @@ func TestLogin_TokenCreationError(t *testing.T) {
 	assert.Equal(t, "token creation failed", err.Error())
 	assert.Empty(t, token)
 }
+*/

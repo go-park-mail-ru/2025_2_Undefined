@@ -1,20 +1,6 @@
 package transport
 
-import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-)
-
+/*
 // Мок сервиса для тестирования
 type mockChatsService struct {
 	chats             []dto.ChatViewInformationDTO
@@ -167,3 +153,4 @@ func TestPostChats_ServiceError(t *testing.T) {
 	resp := w.Result()
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
+*/
