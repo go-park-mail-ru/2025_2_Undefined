@@ -14,6 +14,10 @@ import (
 
 	blacktoken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
 
+	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
+	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
+	useruc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
+
 	authrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/auth"
 	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
 	authuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
@@ -43,12 +47,16 @@ func NewApp(conf *config.Config) (*App, error) {
 	tokenator := jwt.NewTokenator()
 	blacktoken := blacktoken.NewTokenRepo()
 
+	userRepo := userrepo.New(db)
+	userUC := useruc.New(userRepo)
+	userHandler := usert.New(userUC)
+
 	authRepo := authrepo.New(db)
-	authUC := authuc.New(authRepo, tokenator, blacktoken)
+	authUC := authuc.New(authRepo, userRepo, tokenator, blacktoken)
 	authHandler := autht.New(authUC)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
-	chatsUC := chatsUsecase.NewChatsService(chatsRepo, authRepo)
+	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
 	chatsHandler := chatsTransport.NewChatsHandler(chatsUC)
 
 	// Настройка маршрутищатора
@@ -71,7 +79,7 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.Handle("/logout",
 			middleware.AuthMiddleware(tokenator, blacktoken)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
-		authRouter.HandleFunc("/me", authHandler.GetCurrentUser).Methods(http.MethodGet)
+		authRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
 	}
 
 	return &App{
