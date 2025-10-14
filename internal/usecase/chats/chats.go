@@ -56,13 +56,15 @@ func (s *ChatsService) GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO,
 		chatDTO := dto.ChatViewInformationDTO{
 			ID:   chat.ID,
 			Name: chat.Name,
+			Type: chat.Type,
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
 			chatDTO.LastMessage = dto.MessageDTO{
-				Sender:    lastMsg.UserID,
-				Text:      lastMsg.Text,
-				CreatedAt: lastMsg.CreatedAt,
+				SenderName:   lastMsg.UserName,
+				Text:         lastMsg.Text,
+				CreatedAt:    lastMsg.CreatedAt,
+				SenderAvatar: lastMsg.UserAvatar,
 			}
 		}
 
@@ -96,17 +98,20 @@ func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.C
 	messagesDTO := make([]dto.MessageDTO, len(messages))
 	for i, message := range messages {
 		messagesDTO[i] = dto.MessageDTO{
-			Sender:    message.UserID,
-			Text:      message.Text,
-			CreatedAt: message.CreatedAt,
+			SenderName:   message.UserName,
+			Text:         message.Text,
+			CreatedAt:    message.CreatedAt,
+			SenderAvatar: message.UserAvatar,
 		}
 	}
 
 	usersDTO := make([]dto.UserInfoChatDTO, len(users))
 	for i, user := range users {
 		usersDTO[i] = dto.UserInfoChatDTO{
-			UserId: user.UserID,
-			Role:   user.Role,
+			UserId:     user.UserID,
+			UserName:   user.UserName,
+			UserAvatar: user.UserAvatar,
+			Role:       user.Role,
 		}
 	}
 
@@ -131,6 +136,7 @@ func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.C
 		CanChat:   canChat,
 		IsMember:  isMember,
 		IsPrivate: isPrivate,
+		Type:      chat.Type,
 		Members:   usersDTO,
 		Messages:  messagesDTO,
 	}

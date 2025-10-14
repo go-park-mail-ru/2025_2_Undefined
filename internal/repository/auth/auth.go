@@ -16,22 +16,22 @@ import (
 
 const (
 	createUserQuery = `
-		INSERT INTO "user" (id, username, name, phone_number, password_hash, user_type_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, username, phone_number, user_type_id`
+		INSERT INTO "user" (id, username, name, phone_number, password_hash, user_type, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6::user_type_enum, $7, $8)
+		RETURNING id, username, phone_number, user_type`
 
 	getUserByPhoneQuery = `
-		SELECT id, username, name, phone_number, password_hash, user_type_id, created_at, updated_at
+		SELECT id, username, name, phone_number, password_hash, user_type, created_at, updated_at
 		FROM "user"
 		WHERE phone_number = $1`
 
 	getUserByUsernameQuery = `
-		SELECT id, username, name, phone_number, password_hash, user_type_id, created_at, updated_at
+		SELECT id, username, name, phone_number, password_hash, user_type, created_at, updated_at
 		FROM "user"
 		WHERE username = $1`
 
 	getUserByIDQuery = `
-		SELECT id, username, name, phone_number, user_type_id, created_at, updated_at
+		SELECT id, username, name, phone_number, user_type, created_at, updated_at
 		FROM "user"
 		WHERE id = $1`
 )

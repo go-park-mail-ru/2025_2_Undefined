@@ -24,23 +24,27 @@ const (
 )
 
 type Chat struct {
-	ID          uuid.UUID `json:"id"`
-	Type        string    `json:"type"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
+	ID          uuid.UUID
+	Type        string
+	Name        string
+	Description string
 }
 
 type Message struct {
-	ID        uuid.UUID `json:"-"`
-	ChatID    uuid.UUID `json:"-"`
-	UserID    uuid.UUID `json:"sender"`
-	Text      string    `json:"text"`
-	CreatedAt time.Time `json:"created_at"`
-	Type      string
+	ID         uuid.UUID
+	ChatID     uuid.UUID
+	UserID     uuid.UUID
+	UserName   string
+	UserAvatar *string
+	Text       string
+	CreatedAt  time.Time
+	Type       string
 }
 
 type UserInfo struct {
-	UserID uuid.UUID `json:"user_id"`
-	ChatID uuid.UUID `json:"-"`
-	Role   string    `json:"role"`
+	UserID     uuid.UUID
+	ChatID     uuid.UUID
+	UserName   string
+	UserAvatar *string
+	Role       string
 }

@@ -57,9 +57,12 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
-	apiRouter.HandleFunc("/chats/", chatsHandler.GetInformationAboutChat).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/chats", chatsHandler.GetChats).Methods(http.MethodGet)
-	apiRouter.HandleFunc("/chats", chatsHandler.PostChats).Methods(http.MethodPost)
+	chatRouter := apiRouter.PathPrefix("/chats").Subrouter()
+	{
+		chatRouter.HandleFunc("/{chat_id}", chatsHandler.GetInformationAboutChat).Methods(http.MethodGet)
+		chatRouter.HandleFunc("", chatsHandler.GetChats).Methods(http.MethodGet)
+		chatRouter.HandleFunc("", chatsHandler.PostChats).Methods(http.MethodPost)
+	}
 
 	authRouter := apiRouter.PathPrefix("").Subrouter()
 	{

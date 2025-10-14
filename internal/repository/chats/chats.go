@@ -18,11 +18,14 @@ const (
 		WHERE cm.user_id = $1`
 
 	getLastMessagesOfChatsQuery = `
-		SELECT DISTINCT ON (m.chat_id) m.id, m.chat_id, m.user_id, m.text, m.created_at, m.message_type::text
-		FROM message m
-		JOIN chat_member cm ON cm.chat_id = m.chat_id
+		SELECT msg.id, msg.chat_id, msg.user_id, usr.name, atch.file_path, msg.text, msg.created_at, msg.message_type::text
+		FROM message msg
+		JOIN chat_member cm ON cm.chat_id = msg.chat_id
+		JOIN "user" usr ON usr.id = msg.user_id
+		LEFT JOIN avatar_user ava ON ava.user_id = msg.user_id
+		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
 		WHERE cm.user_id = $1
-		ORDER BY m.chat_id, m.created_at DESC`
+		ORDER BY msg.chat_id, msg.created_at DESC`
 
 	getChatQuery = `
 		SELECT c.id, c.chat_type::text, c.name, c.description 
@@ -31,21 +34,30 @@ const (
 		WHERE cm.user_id = $1 AND c.id = $2`
 
 	getUsersOfChat = `
-		SELECT user_id, chat_id, chat_member_role::text
-		FROM chat_member
-		WHERE chat_id = $1`
+		SELECT cm.user_id, cm.chat_id, usr.name, atch.file_path, cm.chat_member_role::text
+		FROM chat_member cm
+		JOIN "user" usr ON usr.id = cm.user_id
+		LEFT JOIN avatar_user ava ON ava.user_id = cm.user_id
+		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		WHERE cm.chat_id = $1`
 
 	getMessagesOfChatQuery = `
-		SELECT id, chat_id, user_id, text, created_at, message_type::text
-		FROM message
+		SELECT msg.id, msg.chat_id, msg.user_id, usr.name, atch.file_path, msg.text, msg.created_at, msg.message_type::text
+		FROM message msg
+		JOIN "user" usr ON usr.id = msg.user_id
+		LEFT JOIN avatar_user ava ON ava.user_id = msg.user_id
+		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
 		WHERE chat_id = $1
 		ORDER BY created_at DESC
 		LIMIT $3 OFFSET $2`
 
 	getUserInfo = `
-		SELECT user_id, chat_id, chat_member_role::text
-		FROM chat_member
-		WHERE user_id = $1 AND chat_id = $2`
+		SELECT cm.user_id, cm.chat_id, usr.name, atch.file_path, cm.chat_member_role::text
+		FROM chat_member cm
+		JOIN "user" usr ON usr.id = cm.user_id
+		LEFT JOIN avatar_user ava ON ava.user_id = cm.user_id
+		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		WHERE cm.user_id = $1 AND cm.chat_id = $2`
 )
 
 type ChatsRepository struct {
@@ -96,8 +108,9 @@ func (r *ChatsRepository) GetLastMessagesOfChats(userId uuid.UUID) ([]models.Mes
 	result := make([]models.Message, 0)
 	for rows.Next() {
 		var message models.Message
-		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID,
-			&message.Text, &message.CreatedAt, &message.Type); err != nil {
+		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
+			&message.UserAvatar, &message.Text, &message.CreatedAt,
+			&message.Type); err != nil {
 			wrappedErr := fmt.Errorf("%s: %w", op, err)
 			log.Printf("Error: %v", wrappedErr)
 			return nil, err
@@ -137,7 +150,8 @@ func (r *ChatsRepository) GetUsersOfChat(chatId uuid.UUID) ([]models.UserInfo, e
 	result := make([]models.UserInfo, 0)
 	for rows.Next() {
 		var userInfo models.UserInfo
-		if err := rows.Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.Role); err != nil {
+		if err := rows.Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.UserName,
+			&userInfo.UserAvatar, &userInfo.Role); err != nil {
 			wrappedErr := fmt.Errorf("%s: %w", op, err)
 			log.Printf("Error: %v", wrappedErr)
 			return nil, err
@@ -162,8 +176,9 @@ func (r *ChatsRepository) GetMessagesOfChat(chatId uuid.UUID, offset, limit int)
 	result := make([]models.Message, 0)
 	for rows.Next() {
 		var message models.Message
-		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID,
-			&message.Text, &message.CreatedAt, &message.Type); err != nil {
+		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
+			&message.UserAvatar, &message.Text, &message.CreatedAt,
+			&message.Type); err != nil {
 			wrappedErr := fmt.Errorf("%s: %w", op, err)
 			log.Printf("Error: %v", wrappedErr)
 			return nil, err
@@ -259,7 +274,8 @@ func (r *ChatsRepository) GetUserInfo(userId, chatId uuid.UUID) (*models.UserInf
 	userInfo := &models.UserInfo{}
 
 	err := r.db.QueryRow(getUserInfo, userId, chatId).
-		Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.Role)
+		Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.UserName,
+			&userInfo.UserAvatar, &userInfo.Role)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
