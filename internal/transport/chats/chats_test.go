@@ -9,7 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto"
+	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,9 +51,9 @@ func TestPostChats_Success(t *testing.T) {
 
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "Test Chat",
-		Type: 1,
+		Type: models.ChatTypeDialog,
 		Members: []dto.UserInfoChatDTO{
-			{UserId: uuid.New(), Role: 1},
+			{UserId: uuid.New(), Role: models.RoleMember},
 		},
 	}
 
@@ -148,9 +149,9 @@ func TestPostChats_ServiceError(t *testing.T) {
 
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "Test Chat",
-		Type: 1,
+		Type: models.ChatTypeChannel,
 		Members: []dto.UserInfoChatDTO{
-			{UserId: uuid.New(), Role: 1},
+			{UserId: uuid.New(), Role: models.RoleMember},
 		},
 	}
 

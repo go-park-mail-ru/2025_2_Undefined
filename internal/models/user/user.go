@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	UserAccount int = iota
-	PremiumAccount
-	VerifiedAccount
+	UserAccount     = "user"
+	PremiumAccount  = "premium"
+	VerifiedAccount = "verified"
 )
 
 type User struct {
@@ -19,7 +19,8 @@ type User struct {
 	Name         string    `json:"name"`
 	Username     string    `json:"username"`
 	Bio          string    `json:"bio"`
-	AccountType  int       `json:"account_type"`
+	Avatar       *string   `json:"avatar"`
+	AccountType  string    `json:"account_type"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
