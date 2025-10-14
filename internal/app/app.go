@@ -8,11 +8,10 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	"github.com/gorilla/mux"
 
-	blacktoken "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/token"
+	sessionrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/session"
 
 	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
@@ -35,29 +34,28 @@ type App struct {
 
 func NewApp(conf *config.Config) (*App, error) {
 	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if err != nil {
+	if (err != nil) {
 		return nil, fmt.Errorf("failed to get connection string: %v", err)
 	}
 
 	db, err := sql.Open("postgres", dbConn)
-	if err != nil {
+	if (err != nil) {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	tokenator := jwt.NewTokenator()
-	blacktoken := blacktoken.NewTokenRepo()
+	sessionrepo := sessionrepo.New(db)
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo)
-	userHandler := usert.New(userUC)
+	userHandler := usert.New(userUC, sessionrepo)
 
 	authRepo := authrepo.New(db)
-	authUC := authuc.New(authRepo, userRepo, tokenator, blacktoken)
-	authHandler := autht.New(authUC)
+	authUC := authuc.New(authRepo, userRepo, sessionrepo)
+	authHandler := autht.New(authUC, sessionrepo)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
-	chatsHandler := chatsTransport.NewChatsHandler(chatsUC)
+	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionrepo)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
@@ -77,9 +75,11 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
 		authRouter.Handle("/logout",
-			middleware.AuthMiddleware(tokenator, blacktoken)(http.HandlerFunc(authHandler.Logout)),
+			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
-		authRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
+		authRouter.Handle("/me",
+			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(userHandler.GetCurrentUser)),
+		).Methods(http.MethodGet)
 	}
 
 	return &App{

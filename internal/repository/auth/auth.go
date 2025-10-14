@@ -60,6 +60,8 @@ func (r *AuthRepository) CreateUser(name string, phone string, password_hash str
 			log.Printf("Error: %v", wrappedErr)
 			return nil, err
 		}
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
 		return nil, err
 	}
 	return user, nil

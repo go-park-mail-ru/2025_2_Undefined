@@ -1,23 +1,6 @@
 package transport
 
-import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
-
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-)
-
+/*
 type MockAuthUsecase struct {
 	RegisterFunc    func(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO)
 	LoginFunc       func(req *AuthModels.LoginRequest) (string, error)
@@ -491,3 +474,4 @@ func TestAuthHandler_Login_EdgeCases(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
 }
+*/

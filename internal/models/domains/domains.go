@@ -5,5 +5,5 @@ type (
 )
 
 const (
-	TokenCookieName = "token"
+	SessionName = "session"
 )

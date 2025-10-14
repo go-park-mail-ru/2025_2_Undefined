@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
@@ -21,11 +20,13 @@ type ChatsServiceInterface interface {
 
 type ChatsHandler struct {
 	chatService ChatsServiceInterface
+	sessionRepo sessionUtils.SessionRepository
 }
 
-func NewChatsHandler(chatService ChatsServiceInterface) *ChatsHandler {
+func NewChatsHandler(chatService ChatsServiceInterface, sessionRepo sessionUtils.SessionRepository) *ChatsHandler {
 	return &ChatsHandler{
 		chatService: chatService,
+		sessionRepo: sessionRepo,
 	}
 }
 
@@ -41,21 +42,10 @@ func NewChatsHandler(chatService ChatsServiceInterface) *ChatsHandler {
 // @Failure      401  {object}  dto.ErrorDTO                "Неавторизованный доступ"
 // @Router       /chats [get]
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
-	// ! Получаем id пользователя из JWT токена
-	jwtCookie, err := r.Cookie(domains.TokenCookieName)
+	// Получаем id пользователя из сессии
+	userUUID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "JWT token требуется"}`)
-		return
-	}
-	jwttoken := jwt.NewTokenator()
-	claims, err := jwttoken.ParseJWT(jwtCookie.Value)
-	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "`+err.Error()+`"}`)
-		return
-	}
-	userUUID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, `{"error": "`+err.Error()+`"}`)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -80,7 +70,6 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  dto.ErrorDTO                  "Неавторизованный доступ"
 // @Router       /chats [post]
 func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
-
 	chatDTO := &dto.ChatCreateInformationDTO{}
 
 	if err := json.NewDecoder(r.Body).Decode(chatDTO); err != nil {
@@ -123,19 +112,8 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// ! Получаем id пользователя из JWT токена
-	jwtCookie, err := r.Cookie(domains.TokenCookieName)
-	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
-		return
-	}
-	jwttoken := jwt.NewTokenator()
-	claims, err := jwttoken.ParseJWT(jwtCookie.Value)
-	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
-		return
-	}
-	userUUID, err := uuid.Parse(claims.UserID)
+	// Получаем id пользователя из сессии
+	userUUID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
 	if err != nil {
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return

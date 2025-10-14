@@ -9,35 +9,56 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
+	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 	"github.com/google/uuid"
+	"github.com/mssola/user_agent"
 )
 
 type AuthUsecase interface {
-	Register(req *AuthModels.RegisterRequest) (string, *dto.ValidationErrorsDTO)
-	Login(req *AuthModels.LoginRequest) (string, error)
-	Logout(tokenString string) error
-	GetUserById(id uuid.UUID) (*UserModels.User, error)
+	Register(req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
+	Login(req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
+	Logout(SessionID uuid.UUID) error
 }
 
 type AuthHandler struct {
-	uc AuthUsecase
+	uc          AuthUsecase
+	sessionRepo sessionUtils.SessionRepository
 }
 
-func New(uc AuthUsecase) *AuthHandler {
+func New(uc AuthUsecase, sessionRepo sessionUtils.SessionRepository) *AuthHandler {
 	return &AuthHandler{
-		uc: uc,
+		uc:          uc,
+		sessionRepo: sessionRepo,
 	}
+}
+
+// getDeviceFromUserAgent извлекает информацию об устройстве из User-Agent заголовка
+func getDeviceFromUserAgent(r *http.Request) string {
+	userAgent := r.Header.Get("User-Agent")
+	if userAgent == "" {
+		return "Unknown Device"
+	}
+
+	ua := user_agent.New(userAgent)
+	name, version := ua.Browser()
+	os := ua.OS()
+
+	device := fmt.Sprintf("%s %s on %s", name, version, os)
+	if device == "  on " {
+		return "Unknown Device"
+	}
+
+	return device
 }
 
 // Register регистрирует нового пользователя
 // @Summary      Регистрация пользователя
-// @Description  Регистрирует нового пользователя в системе и возвращает JWT токен в cookie
+// @Description  Регистрирует нового пользователя в системе и создает сессию
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -65,30 +86,33 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.uc.Register(&req)
-	if err != nil {
+	// Получаем информацию об устройстве из User-Agent
+	device := getDeviceFromUserAgent(r)
+
+	sessionID, validationErr := h.uc.Register(&req, device)
+	if validationErr != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("registration error"))
 		log.Printf("Error: %v", wrappedErr)
-		utils.SendValidationErrors(w, http.StatusBadRequest, *err)
+		utils.SendValidationErrors(w, http.StatusBadRequest, *validationErr)
 		return
 	}
 
-	if token == "" {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("token is missing"))
+	if sessionID == uuid.Nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("session ID is missing"))
 		log.Printf("Error: %v", wrappedErr)
 		utils.SendValidationErrors(w, http.StatusBadRequest, dto.ValidationErrorsDTO{
-			Message: "token is missing",
+			Message: "session ID is missing",
 		})
 		return
 	}
 
-	cookie.Set(w, token, domains.TokenCookieName)
+	cookie.Set(w, sessionID.String(), domains.SessionName)
 	w.WriteHeader(http.StatusCreated)
 }
 
 // Login аутентифицирует пользователя
 // @Summary      Аутентификация пользователя
-// @Description  Аутентифицирует пользователя по номеру телефона и паролю, возвращает JWT токен в cookie
+// @Description  Аутентифицирует пользователя по номеру телефона и паролю, создает сессию
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -117,7 +141,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.uc.Login(&req)
+	// Получаем информацию об устройстве из User-Agent
+	device := getDeviceFromUserAgent(r)
+
+	sessionID, err := h.uc.Login(&req, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
 		log.Printf("Error: %v", wrappedErr)
@@ -125,13 +152,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie.Set(w, token, domains.TokenCookieName)
+	cookie.Set(w, sessionID.String(), domains.SessionName)
 	w.WriteHeader(http.StatusOK)
 }
 
 // Logout завершает сессию пользователя
 // @Summary      Выход из системы
-// @Description  Аннулирует текущий JWT токен и удаляет cookie
+// @Description  Аннулирует текущую сессию и удаляет cookie
 // @Tags         auth
 // @Accept       json
 // @Produce      json
@@ -141,20 +168,38 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Router       /logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Logout"
-	jwtCookie, err := r.Cookie(domains.TokenCookieName)
+	_, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session"))
+		log.Printf("Error: %v", wrappedErr)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	// Получаем ID сессии из cookie для удаления
+	sessionCookie, err := r.Cookie(domains.SessionName)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
 		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
-	err = h.uc.Logout(jwtCookie.Value)
+
+	sessionID, err := uuid.Parse(sessionCookie.Value)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session ID"))
+		log.Printf("Error: %v", wrappedErr)
+		utils.SendError(w, http.StatusUnauthorized, "invalid session ID")
+		return
+	}
+
+	err = h.uc.Logout(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	cookie.Unset(w, domains.TokenCookieName)
+	cookie.Unset(w, domains.SessionName)
 	utils.SendJSONResponse(w, http.StatusOK, nil)
 }

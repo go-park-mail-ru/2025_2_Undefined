@@ -39,7 +39,7 @@ func New(db *sql.DB) *UserRepository {
 }
 
 func (r *UserRepository) GetUserByPhone(phone string) (*models.User, error) {
-	const op = "AuthRepository.GetUserByPhone"
+	const op = "UserRepository.GetUserByPhone"
 	var user models.User
 	err := r.db.QueryRow(getUserByPhoneQuery, phone).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
@@ -55,7 +55,7 @@ func (r *UserRepository) GetUserByPhone(phone string) (*models.User, error) {
 }
 
 func (r *UserRepository) GetUserByUsername(username string) (*models.User, error) {
-	const op = "AuthRepository.GetUserByUsername"
+	const op = "UserRepository.GetUserByUsername"
 	var user models.User
 	err := r.db.QueryRow(getUserByUsernameQuery, username).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
@@ -73,7 +73,7 @@ func (r *UserRepository) GetUserByUsername(username string) (*models.User, error
 }
 
 func (r *UserRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
-	const op = "AuthRepository.GetUserByID"
+	const op = "UserRepository.GetUserByID"
 	var user models.User
 	err := r.db.QueryRow(getUserByIDQuery, id).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
@@ -91,7 +91,7 @@ func (r *UserRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 }
 
 func (r *UserRepository) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
-	const op = "AuthRepository.GetUsersNames"
+	const op = "UserRepository.GetUsersNames"
 
 	if len(usersIds) == 0 {
 		return []string{}, nil

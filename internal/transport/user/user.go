@@ -1,15 +1,13 @@
 package transport
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/jwt"
+	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
@@ -20,12 +18,14 @@ type UserUsecase interface {
 }
 
 type UserHandler struct {
-	uc UserUsecase
+	uc          UserUsecase
+	sessionRepo sessionUtils.SessionRepository
 }
 
-func New(uc UserUsecase) *UserHandler {
+func New(uc UserUsecase, sessionRepo sessionUtils.SessionRepository) *UserHandler {
 	return &UserHandler{
-		uc: uc,
+		uc:          uc,
+		sessionRepo: sessionRepo,
 	}
 }
 
@@ -40,35 +40,21 @@ func New(uc UserUsecase) *UserHandler {
 // @Failure      401  {object}  dto.ErrorDTO      "Неавторизованный доступ"
 // @Router       /me [get]
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
-	const op = "AuthHandler.GetCurrentUser"
-	jwtCookie, err := r.Cookie(domains.TokenCookieName)
+	const op = "UserHandler.GetCurrentUser"
+
+	userID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
-		return
-	}
-	jwttoken := jwt.NewTokenator()
-	claims, err := jwttoken.ParseJWT(jwtCookie.Value)
-	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
-		return
-	}
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		err = errors.New("Invalid user ID format")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
+
 	user, err := h.uc.GetUserById(userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrUserNotFound)
 		log.Printf("Error: %v", wrappedErr)
-		cookie.Unset(w, domains.TokenCookieName)
+		cookie.Unset(w, "session_token")
 		utils.SendError(w, http.StatusUnauthorized, errs.ErrUserNotFound.Error())
 		return
 	}
