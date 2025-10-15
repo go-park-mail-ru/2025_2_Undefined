@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
@@ -13,16 +14,21 @@ import (
 	"github.com/google/uuid"
 )
 
+type SessionRepository interface {
+	GetSession(sessionID uuid.UUID) (*session.Session, error)
+	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
+}
+
 type UserUsecase interface {
 	GetUserById(id uuid.UUID) (*UserModels.User, error)
 }
 
 type UserHandler struct {
 	uc          UserUsecase
-	sessionRepo sessionUtils.SessionRepository
+	sessionRepo SessionRepository
 }
 
-func New(uc UserUsecase, sessionRepo sessionUtils.SessionRepository) *UserHandler {
+func New(uc UserUsecase, sessionRepo SessionRepository) *UserHandler {
 	return &UserHandler{
 		uc:          uc,
 		sessionRepo: sessionRepo,
@@ -59,4 +65,36 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.SendJSONResponse(w, http.StatusOK, user)
+}
+
+// GetSessionsByUser получает все сессии текущего пользователя
+// @Summary      Получить список сессий пользователя
+// @Description  Возвращает все активные сессии текущего авторизованного пользователя
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200  {array}   session.Session  "Список сессий пользователя"
+// @Failure      401  {object}  dto.ErrorDTO     "Неавторизованный доступ"
+// @Failure      500  {object}  dto.ErrorDTO     "Внутренняя ошибка сервера"
+// @Router       /sessions [get]
+func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) {
+	const op = "UserHandler.GetSessionsByUser"
+
+	userID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	sessions, err := h.sessionRepo.GetSessionsByUserID(userID)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	utils.SendJSONResponse(w, http.StatusOK, sessions)
 }

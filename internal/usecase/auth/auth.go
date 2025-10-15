@@ -89,18 +89,6 @@ func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest, device string) 
 		}
 	}
 
-	// Генерация JWT токена
-	/*
-		token, err := uc.tokenator.CreateJWT(user.ID.String())
-		if err != nil {
-			wrappedErr := fmt.Errorf("%s: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
-			return "", &dto.ValidationErrorsDTO{
-				Message: err.Error(),
-			}
-		}
-	*/
-
 	newsSession, err := uc.sessionrepo.AddSession(user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
@@ -128,15 +116,6 @@ func (uc *AuthUsecase) Login(req *AuthModels.LoginRequest, device string) (uuid.
 		return uuid.Nil, errs.ErrInvalidCredentials
 	}
 
-	// Генерация JWT токена
-	/*
-		token, err := uc.tokenator.CreateJWT(user.ID.String())
-		if err != nil {
-			wrappedErr := fmt.Errorf("%s: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
-			return err
-		}
-	*/
 	newSession, err := uc.sessionrepo.AddSession(user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
