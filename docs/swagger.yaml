@@ -158,8 +158,6 @@ definitions:
         type: string
       last_seen:
         type: string
-      userID:
-        type: string
     type: object
 host: localhost:8080
 info:

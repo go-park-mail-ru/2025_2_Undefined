@@ -15,6 +15,6 @@ var (
 
 // ValidationError представляет ошибку валидации поля
 type ValidationError struct {
-	Field   string
-	Message string
+	Field   string`json:"field"`
+	Message string`json:"message"`
 }
