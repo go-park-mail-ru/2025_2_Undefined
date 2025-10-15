@@ -62,7 +62,7 @@ func getDeviceFromUserAgent(r *http.Request) string {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        user  body  models.RegisterRequest  true  "Данные для регистрации"
+// @Param        user  body  dto.RegisterRequest  true  "Данные для регистрации"
 // @Success      201   "Пользователь успешно зарегистрирован"
 // @Failure      400   {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Router       /register [post]
@@ -116,7 +116,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        credentials  body  models.LoginRequest  true  "Креденшиалы для входа"
+// @Param        credentials  body  dto.LoginRequest  true  "Креденшиалы для входа"
 // @Success      200  "Вход выполнен успешно"
 // @Failure      400  {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Failure      401  {object}  dto.ErrorDTO  "Неверные креденшиалы"

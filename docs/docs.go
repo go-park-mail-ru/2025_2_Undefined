@@ -167,7 +167,7 @@ const docTemplate = `{
         },
         "/login": {
             "post": {
-                "description": "Аутентифицирует пользователя по номеру телефона и паролю, возвращает JWT токен в cookie",
+                "description": "Аутентифицирует пользователя по номеру телефона и паролю, создает сессию",
                 "consumes": [
                     "application/json"
                 ],
@@ -185,7 +185,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.LoginRequest"
+                            "$ref": "#/definitions/dto.LoginRequest"
                         }
                     }
                 ],
@@ -215,7 +215,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Аннулирует текущий JWT токен и удаляет cookie",
+                "description": "Аннулирует текущую сессию и удаляет cookie",
                 "consumes": [
                     "application/json"
                 ],
@@ -254,7 +254,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "user"
                 ],
                 "summary": "Получить информацию о текущем пользователе",
                 "responses": {
@@ -275,7 +275,7 @@ const docTemplate = `{
         },
         "/register": {
             "post": {
-                "description": "Регистрирует нового пользователя в системе и возвращает JWT токен в cookie",
+                "description": "Регистрирует нового пользователя в системе и создает сессию",
                 "consumes": [
                     "application/json"
                 ],
@@ -293,7 +293,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.RegisterRequest"
+                            "$ref": "#/definitions/dto.RegisterRequest"
                         }
                     }
                 ],
@@ -325,13 +325,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "description": "Тип чата - 0 канал, 1 диалог, 2 группа",
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1,
-                        2
-                    ]
+                    "description": "Тип чата - канал, диалог или группа",
+                    "type": "string"
                 }
             }
         },
@@ -368,6 +363,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },
@@ -382,6 +380,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/dto.MessageDTO"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 }
             }
@@ -403,17 +404,54 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "phone_number"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.MessageDTO": {
             "type": "object",
             "properties": {
                 "created_at": {
                     "type": "string"
                 },
-                "sender": {
-                    "type": "string",
-                    "format": "uuid"
+                "sender_avatar": {
+                    "type": "string"
+                },
+                "sender_name": {
+                    "type": "string"
                 },
                 "string": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "password",
+                "phone_number"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "phone_number": {
                     "type": "string"
                 }
             }
@@ -422,17 +460,18 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "role": {
-                    "description": "Роль пользователя в чате - 0 админ(писать и добавлять участников), 1 участник(писать), 2 зритель (только просмотр)",
-                    "type": "integer",
-                    "enum": [
-                        0,
-                        1,
-                        2
-                    ]
+                    "description": "Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)",
+                    "type": "string"
+                },
+                "user_avatar": {
+                    "type": "string"
                 },
                 "user_id": {
                     "type": "string",
                     "format": "uuid"
+                },
+                "user_name": {
+                    "type": "string"
                 }
             }
         },
@@ -461,65 +500,19 @@ const docTemplate = `{
                 }
             }
         },
-        "models.LoginRequest": {
-            "type": "object",
-            "required": [
-                "password",
-                "phone_number"
-            ],
-            "properties": {
-                "password": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "name",
-                "password",
-                "phone_number",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
         "models.User": {
             "type": "object",
-            "required": [
-                "email"
-            ],
             "properties": {
                 "account_type": {
-                    "type": "integer"
+                    "type": "string"
+                },
+                "avatar": {
+                    "type": "string"
                 },
                 "bio": {
                     "type": "string"
                 },
                 "created_at": {
-                    "type": "string"
-                },
-                "email": {
                     "type": "string"
                 },
                 "id": {

@@ -32,7 +32,7 @@ func New(uc UserUsecase, sessionRepo sessionUtils.SessionRepository) *UserHandle
 // GetCurrentUser получает информацию о текущем пользователе
 // @Summary      Получить информацию о текущем пользователе
 // @Description  Возвращает полные данные о текущем авторизованном пользователе
-// @Tags         auth
+// @Tags         user
 // @Accept       json
 // @Produce      json
 // @Security     ApiKeyAuth
