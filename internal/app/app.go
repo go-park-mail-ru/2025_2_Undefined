@@ -7,9 +7,11 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
+	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	"github.com/gorilla/mux"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	sessionrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/session"
 
@@ -34,12 +36,12 @@ type App struct {
 
 func NewApp(conf *config.Config) (*App, error) {
 	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to get connection string: %v", err)
 	}
 
 	db, err := sql.Open("postgres", dbConn)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
@@ -80,7 +82,11 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.Handle("/me",
 			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(userHandler.GetCurrentUser)),
 		).Methods(http.MethodGet)
+
 	}
+	
+	// Swagger UI
+	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	return &App{
 		conf:   conf,
