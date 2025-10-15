@@ -590,9 +590,6 @@ const docTemplate = `{
                 },
                 "last_seen": {
                     "type": "string"
-                },
-                "userID": {
-                    "type": "string"
                 }
             }
         }
