@@ -29,6 +29,11 @@ const (
 		SELECT id, user_id, device, created_at, last_seen 
 		FROM session 
 		WHERE id = $1`
+
+	getSessionsByUserIDQuery = `
+		SELECT id, user_id, device, created_at, last_seen 
+		FROM session 
+		WHERE user_id = $1`
 )
 
 type SessionRepository struct {
@@ -119,4 +124,36 @@ func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*session.Session, e
 	}
 	
 	return &sess, nil
+}
+
+func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error) {
+	const op = "SessionRepository.GetSessionsByUserID"
+	
+	rows, err := r.db.Query(getSessionsByUserIDQuery, userID)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return nil, wrappedErr
+	}
+	defer rows.Close()
+	
+	var sessions []*session.Session
+	for rows.Next() {
+		var sess session.Session
+		err := rows.Scan(&sess.ID, &sess.UserID, &sess.Device, &sess.Created_at, &sess.Last_seen)
+		if err != nil {
+			wrappedErr := fmt.Errorf("%s: %w", op, err)
+			log.Printf("Error: %v", wrappedErr)
+			return nil, wrappedErr
+		}
+		sessions = append(sessions, &sess)
+	}
+	
+	if err = rows.Err(); err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return nil, wrappedErr
+	}
+	
+	return sessions, nil
 }

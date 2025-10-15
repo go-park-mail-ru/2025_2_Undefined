@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
@@ -19,6 +20,10 @@ import (
 	"github.com/mssola/user_agent"
 )
 
+type SessionRepository interface {
+	GetSession(sessionID uuid.UUID) (*session.Session, error)
+}
+
 type AuthUsecase interface {
 	Register(req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
 	Login(req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
@@ -27,10 +32,10 @@ type AuthUsecase interface {
 
 type AuthHandler struct {
 	uc          AuthUsecase
-	sessionRepo sessionUtils.SessionRepository
+	sessionRepo SessionRepository
 }
 
-func New(uc AuthUsecase, sessionRepo sessionUtils.SessionRepository) *AuthHandler {
+func New(uc AuthUsecase, sessionRepo SessionRepository) *AuthHandler {
 	return &AuthHandler{
 		uc:          uc,
 		sessionRepo: sessionRepo,
@@ -48,12 +53,14 @@ func getDeviceFromUserAgent(r *http.Request) string {
 	name, version := ua.Browser()
 	os := ua.OS()
 
-	device := fmt.Sprintf("%s %s on %s", name, version, os)
-	if device == "  on " {
+	if name == "" && version == "" {
 		return "Unknown Device"
 	}
+	if os == "" {
+		return fmt.Sprintf("%s %s", name, version)
+	}
 
-	return device
+	return fmt.Sprintf("%s %s on %s", name, version, os)
 }
 
 // Register регистрирует нового пользователя

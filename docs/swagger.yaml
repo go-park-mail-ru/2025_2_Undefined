@@ -148,6 +148,19 @@ definitions:
       username:
         type: string
     type: object
+  session.Session:
+    properties:
+      created_at:
+        type: string
+      device:
+        type: string
+      id:
+        type: string
+      last_seen:
+        type: string
+      userID:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -347,4 +360,31 @@ paths:
       summary: Регистрация пользователя
       tags:
       - auth
+  /sessions:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все активные сессии текущего авторизованного пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список сессий пользователя
+          schema:
+            items:
+              $ref: '#/definitions/session.Session'
+            type: array
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить список сессий пользователя
+      tags:
+      - user
 swagger: "2.0"

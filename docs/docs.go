@@ -309,6 +309,49 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает все активные сессии текущего авторизованного пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Получить список сессий пользователя",
+                "responses": {
+                    "200": {
+                        "description": "Список сессий пользователя",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/session.Session"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -529,6 +572,26 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "session.Session": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "device": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "userID": {
                     "type": "string"
                 }
             }

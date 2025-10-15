@@ -65,7 +65,10 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
-	chatRouter := apiRouter.PathPrefix("/chats").Subrouter()
+	protectedRouter := apiRouter.NewRoute().Subrouter()
+	protectedRouter.Use(middleware.AuthMiddleware(sessionrepo))
+
+	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.GetInformationAboutChat).Methods(http.MethodGet)
 		chatRouter.HandleFunc("", chatsHandler.GetChats).Methods(http.MethodGet)
@@ -79,13 +82,15 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.Handle("/logout",
 			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
-		authRouter.Handle("/me",
-			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(userHandler.GetCurrentUser)),
-		).Methods(http.MethodGet)
-
 	}
-	
-	// Swagger UI
+
+	userRouter := protectedRouter.PathPrefix("").Subrouter()
+	{
+		userRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
+		userRouter.HandleFunc("/sessions", userHandler.GetSessionsByUser).Methods(http.MethodGet)
+	}
+
+	// Swagger
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	return &App{
