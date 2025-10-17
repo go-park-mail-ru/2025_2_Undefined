@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"os"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
@@ -30,9 +31,15 @@ func main() {
 		log.Panicf("Error initializing migrations: %v", err)
 	}
 
-	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Fatalf("Error applying migrations: %v", err)
+	if len(os.Args) > 1 && os.Args[1] == "down" {
+		if err = m.Down(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			log.Fatalf("Error rolling back migrations: %v", err)
+		}
+		log.Println("Migrations rolled back successfully.")
+	} else {
+		if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			log.Fatalf("Error applying migrations: %v", err)
+		}
+		log.Println("Migrations applied successfully.")
 	}
-
-	log.Println("Migrations applied successfully.")
 }
