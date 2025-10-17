@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
@@ -18,27 +16,11 @@ const (
 	RoleViewer = "viewer"
 )
 
-const (
-	MessageTypeUser   = "user"
-	MessageTypeSystem = "system"
-)
-
 type Chat struct {
 	ID          uuid.UUID
 	Type        string
 	Name        string
 	Description string
-}
-
-type Message struct {
-	ID         uuid.UUID
-	ChatID     uuid.UUID
-	UserID     uuid.UUID
-	UserName   string
-	UserAvatar *string
-	Text       string
-	CreatedAt  time.Time
-	Type       string
 }
 
 type UserInfo struct {

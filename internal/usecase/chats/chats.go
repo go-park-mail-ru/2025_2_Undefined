@@ -3,38 +3,28 @@ package usecase
 import (
 	"fmt"
 
-	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/chats"
+	interfaceUserUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
 	"github.com/google/uuid"
 )
 
-type ChatsRepository interface {
-	GetChats(userId uuid.UUID) ([]models.Chat, error)
-	GetLastMessagesOfChats(userId uuid.UUID) ([]models.Message, error)
-	GetChat(userId, chatId uuid.UUID) (*models.Chat, error)
-	GetUsersOfChat(chatId uuid.UUID) ([]models.UserInfo, error)
-	GetMessagesOfChat(chatId uuid.UUID, offset, limit int) ([]models.Message, error)
-	CreateChat(chat models.Chat, usersInfo []models.UserInfo, usersNames []string) error
-	GetUserInfo(userId, chatId uuid.UUID) (*models.UserInfo, error)
-}
-
-type UserRepository interface {
-	GetUsersNames(usersIds []uuid.UUID) ([]string, error)
-}
-
 type ChatsService struct {
-	chatsRepo ChatsRepository
-	usersRepo UserRepository
+	chatsRepo interfaceChatsUsecase.ChatsRepository
+	usersRepo interfaceUserUsecase.UserRepository
 }
 
-func NewChatsService(chatsRepo ChatsRepository, usersRepo UserRepository) *ChatsService {
+func NewChatsService(chatsRepo interfaceChatsUsecase.ChatsRepository, usersRepo interfaceUserUsecase.UserRepository) *ChatsService {
 	return &ChatsService{
 		chatsRepo: chatsRepo,
 		usersRepo: usersRepo,
 	}
 }
 
-func (s *ChatsService) GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error) {
+func (s *ChatsService) GetChats(userId uuid.UUID) ([]dtoChats.ChatViewInformationDTO, error) {
 	chats, err := s.chatsRepo.GetChats(userId)
 	if err != nil {
 		return nil, err
@@ -46,25 +36,26 @@ func (s *ChatsService) GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO,
 	}
 
 	// Создаем мапу для быстрого поиска последних сообщений по chat_id
-	messageMap := make(map[uuid.UUID]models.Message)
+	messageMap := make(map[uuid.UUID]modelsMessage.Message)
 	for _, msg := range lastMessages {
 		messageMap[msg.ChatID] = msg
 	}
 
-	result := make([]dto.ChatViewInformationDTO, 0, len(chats))
+	result := make([]dtoChats.ChatViewInformationDTO, 0, len(chats))
 	for _, chat := range chats {
-		chatDTO := dto.ChatViewInformationDTO{
+		chatDTO := dtoChats.ChatViewInformationDTO{
 			ID:   chat.ID,
 			Name: chat.Name,
 			Type: chat.Type,
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
-			chatDTO.LastMessage = dto.MessageDTO{
+			chatDTO.LastMessage = dtoMessage.MessageDTO{
 				SenderName:   lastMsg.UserName,
 				Text:         lastMsg.Text,
 				CreatedAt:    lastMsg.CreatedAt,
 				SenderAvatar: lastMsg.UserAvatar,
+				ChatId:       lastMsg.ChatID,
 			}
 		}
 
@@ -74,7 +65,7 @@ func (s *ChatsService) GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO,
 	return result, nil
 }
 
-func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error) {
+func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
 	chat, err := s.chatsRepo.GetChat(userId, chatId)
 	if err != nil {
 		return nil, err
@@ -95,19 +86,20 @@ func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.C
 		return nil, err
 	}
 
-	messagesDTO := make([]dto.MessageDTO, len(messages))
+	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
-		messagesDTO[i] = dto.MessageDTO{
+		messagesDTO[i] = dtoMessage.MessageDTO{
 			SenderName:   message.UserName,
 			Text:         message.Text,
 			CreatedAt:    message.CreatedAt,
 			SenderAvatar: message.UserAvatar,
+			ChatId:       message.ChatID,
 		}
 	}
 
-	usersDTO := make([]dto.UserInfoChatDTO, len(users))
+	usersDTO := make([]dtoChats.UserInfoChatDTO, len(users))
 	for i, user := range users {
-		usersDTO[i] = dto.UserInfoChatDTO{
+		usersDTO[i] = dtoChats.UserInfoChatDTO{
 			UserId:     user.UserID,
 			UserName:   user.UserName,
 			UserAvatar: user.UserAvatar,
@@ -117,19 +109,19 @@ func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.C
 
 	var isAdmin, canChat, isMember, isPrivate bool = false, false, false, false
 	switch userInfo.Role {
-	case models.RoleAdmin:
+	case modelsChats.RoleAdmin:
 		isAdmin = true
 		fallthrough
-	case models.RoleMember:
+	case modelsChats.RoleMember:
 		isMember = true
 		canChat = true
 	}
 
-	if chat.Type == models.ChatTypeDialog {
+	if chat.Type == modelsChats.ChatTypeDialog {
 		isPrivate = true
 	}
 
-	result := &dto.ChatDetailedInformationDTO{
+	result := &dtoChats.ChatDetailedInformationDTO{
 		ID:        chat.ID,
 		Name:      chat.Name,
 		IsAdmin:   isAdmin,
@@ -144,8 +136,8 @@ func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.C
 	return result, nil
 }
 
-func (s *ChatsService) CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error) {
-	chat := models.Chat{
+func (s *ChatsService) CreateChat(chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
+	chat := modelsChats.Chat{
 		ID:          uuid.New(),
 		Name:        chatDTO.Name,
 		Type:        chatDTO.Type,
@@ -162,9 +154,9 @@ func (s *ChatsService) CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UU
 		return uuid.Nil, fmt.Errorf("can't create chat: %w", err)
 	}
 
-	usersInfo := make([]models.UserInfo, len(chatDTO.Members))
+	usersInfo := make([]modelsChats.UserInfo, len(chatDTO.Members))
 	for i, memberDTO := range chatDTO.Members {
-		usersInfo[i] = models.UserInfo{
+		usersInfo[i] = modelsChats.UserInfo{
 			UserID: memberDTO.UserId,
 			ChatID: chat.ID,
 			Role:   memberDTO.Role,
