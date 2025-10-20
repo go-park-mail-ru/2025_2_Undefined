@@ -39,10 +39,10 @@ func New(uc ContactUsecase, sessionUtils SessionUtilsI) *ContactHandler {
 // @Accept       json
 // @Produce      json
 // @Param        contact  body  dto.PostContactDTO  true  "Данные контакта для добавления"
-// @Success      201   {object}  map[string]interface{}  "Контакт успешно добавлен"
-// @Failure      400   {object}  map[string]interface{}  "Неверные данные запроса"
-// @Failure      401   {object}  map[string]interface{}  "Неавторизованный доступ"
-// @Failure      500   {object}  map[string]interface{}  "Внутренняя ошибка сервера"
+// @Success      201   "Контакт успешно добавлен"
+// @Failure      400   {object}  dto.ErrorDTO  			  "Неверные данные запроса"
+// @Failure      401   {object}  dto.ErrorDTO 			  "Неавторизованный доступ"
+// @Failure      500   {object}  dto.ErrorDTO          	  "Внутренняя ошибка сервера"
 // @Security     ApiKeyAuth
 // @Router       /contacts [post]
 func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
@@ -72,9 +72,7 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.SendJSONResponse(w, http.StatusCreated, map[string]interface{}{
-		"message": "Contact created successfully",
-	})
+	w.WriteHeader(http.StatusCreated)
 }
 
 // GetContacts получает список контактов пользователя
@@ -83,9 +81,9 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 // @Tags         contacts
 // @Accept       json
 // @Produce      json
-// @Success      200   {object}  map[string]interface{}  "Список контактов успешно получен"
-// @Failure      401   {object}  map[string]interface{}  "Неавторизованный доступ"
-// @Failure      500   {object}  map[string]interface{}  "Внутренняя ошибка сервера"
+// @Success      200   {array}   dto.GetContactsDTO      "Список контактов успешно получен"
+// @Failure      401   {object}  dto.ErrorDTO   		 "Неавторизованный доступ"
+// @Failure      500   {object}  dto.ErrorDTO 			 "Внутренняя ошибка сервера"
 // @Security     ApiKeyAuth
 // @Router       /contacts [get]
 func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
