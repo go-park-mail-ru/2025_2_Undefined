@@ -6,15 +6,13 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
-	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
 
-type SessionRepository interface {
-	GetSession(sessionID uuid.UUID) (*session.Session, error)
+type SessionUtilsI interface {
+	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
 }
 
 type ChatsService interface {
@@ -30,8 +28,8 @@ type ChatsHandler struct {
 
 func NewChatsHandler(chatService ChatsService, sessionRepo SessionRepository) *ChatsHandler {
 	return &ChatsHandler{
-		chatService: chatService,
-		sessionRepo: sessionRepo,
+		chatService:  chatService,
+		sessionUtils: sessionUtils,
 	}
 }
 
@@ -48,7 +46,7 @@ func NewChatsHandler(chatService ChatsService, sessionRepo SessionRepository) *C
 // @Router       /chats [get]
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	// Получаем id пользователя из сессии
-	userUUID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
@@ -118,7 +116,7 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 	}
 
 	// Получаем id пользователя из сессии
-	userUUID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return

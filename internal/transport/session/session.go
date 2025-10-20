@@ -14,12 +14,23 @@ import (
 
 type SessionRepository interface {
 	GetSession(sessionID uuid.UUID) (*session.Session, error)
+	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
+}
+
+type SessionUtils struct {
+	sessionRepo SessionRepository
+}
+
+func NewSessionUtils(sessionRepo SessionRepository) *SessionUtils {
+	return &SessionUtils{
+		sessionRepo: sessionRepo,
+	}
 }
 
 // GetUserIDFromSession извлекает ID пользователя из сессии в cookie
-func GetUserIDFromSession(r *http.Request, sessionRepo SessionRepository) (uuid.UUID, error) {
+func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
 	const op = "session.GetUserIDFromSession"
-	
+
 	// Получаем сессию из куки
 	sessionCookie, err := r.Cookie(domains.SessionName)
 	if err != nil {
@@ -36,7 +47,7 @@ func GetUserIDFromSession(r *http.Request, sessionRepo SessionRepository) (uuid.
 	}
 
 	// Получаем информацию о сессии
-	sessionInfo, err := sessionRepo.GetSession(sessionID)
+	sessionInfo, err := s.sessionRepo.GetSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
 		log.Printf("Error: %v", wrappedErr)
@@ -44,4 +55,9 @@ func GetUserIDFromSession(r *http.Request, sessionRepo SessionRepository) (uuid.
 	}
 
 	return sessionInfo.UserID, nil
+}
+
+// GetSessionsByUserID получает все сессии пользователя
+func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error) {
+	return s.sessionRepo.GetSessionsByUserID(userID)
 }

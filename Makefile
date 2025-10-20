@@ -71,7 +71,11 @@ start:
 	docker compose up --build
 
 clear: 
-	docker compose down -v
+	@echo "Остановка приложения и очистка БД..."
+	docker compose down
+	docker compose run --rm app ./migrate down
+	docker compose run --rm app ./migrate up
+	@echo "Очистка завершена"
 
 swagger:
 	swag init -g cmd/app/main.go -o docs
