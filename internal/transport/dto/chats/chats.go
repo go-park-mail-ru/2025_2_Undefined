@@ -1,35 +1,27 @@
 package dto
 
 import (
-	"time"
-
+	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	"github.com/google/uuid"
 )
 
-type MessageDTO struct {
-	SenderName   string    `json:"sender_name" swaggertype:"string"`
-	SenderAvatar *string   `json:"sender_avatar" swaggertype:"string"`
-	Text         string    `json:"string"`
-	CreatedAt    time.Time `json:"created_at"`
-}
-
 type ChatViewInformationDTO struct {
-	ID          uuid.UUID  `json:"id" swaggertype:"string" format:"uuid"`
-	Name        string     `json:"name"`
-	LastMessage MessageDTO `json:"last_message"`
-	Type        string     `json:"type"`
+	ID          uuid.UUID             `json:"id" swaggertype:"string" format:"uuid"`
+	Name        string                `json:"name"`
+	LastMessage dtoMessage.MessageDTO `json:"last_message"`
+	Type        string                `json:"type"`
 }
 
 type ChatDetailedInformationDTO struct {
-	ID        uuid.UUID         `json:"id" swaggertype:"string" format:"uuid"`
-	Name      string            `json:"name"`
-	IsAdmin   bool              `json:"is_admin"`
-	CanChat   bool              `json:"can_chat"`
-	IsMember  bool              `json:"is_member"`
-	IsPrivate bool              `json:"is_private"`
-	Type      string            `json:"type"`
-	Messages  []MessageDTO      `json:"messages"`
-	Members   []UserInfoChatDTO `json:"members"`
+	ID        uuid.UUID               `json:"id" swaggertype:"string" format:"uuid"`
+	Name      string                  `json:"name"`
+	IsAdmin   bool                    `json:"is_admin"`
+	CanChat   bool                    `json:"can_chat"`
+	IsMember  bool                    `json:"is_member"`
+	IsPrivate bool                    `json:"is_private"`
+	Type      string                  `json:"type"`
+	Messages  []dtoMessage.MessageDTO `json:"messages"`
+	Members   []UserInfoChatDTO       `json:"members"`
 }
 
 type ChatCreateInformationDTO struct {

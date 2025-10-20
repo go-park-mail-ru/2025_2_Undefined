@@ -27,6 +27,10 @@ import (
 	chatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
 	chatsTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
 	chatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
+
+	messageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
+	messageTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/message"
+	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
 )
 
 type App struct {
@@ -61,11 +65,25 @@ func NewApp(conf *config.Config) (*App, error) {
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
 	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionutils)
 
+	messageRepo := messageRepository.NewMessageRepository(db)
+	listenerMap := messageUsecase.NewListenerMap()
+	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, listenerMap)
+	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionrepo)
+
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
 	router.Use(corsMiddleware)
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
+
+	authRouter := apiRouter.PathPrefix("").Subrouter()
+	{
+		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
+		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
+		authRouter.Handle("/logout",
+			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(authHandler.Logout)),
+		).Methods(http.MethodPost)
+	}
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
 	protectedRouter.Use(middleware.AuthMiddleware(sessionrepo))
@@ -77,19 +95,15 @@ func NewApp(conf *config.Config) (*App, error) {
 		chatRouter.HandleFunc("", chatsHandler.PostChats).Methods(http.MethodPost)
 	}
 
-	authRouter := apiRouter.PathPrefix("").Subrouter()
-	{
-		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
-		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
-		authRouter.Handle("/logout",
-			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(authHandler.Logout)),
-		).Methods(http.MethodPost)
-	}
-
 	userRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
 		userRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/sessions", userHandler.GetSessionsByUser).Methods(http.MethodGet)
+	}
+
+	messageRouter := protectedRouter.PathPrefix("").Subrouter()
+	{
+		messageRouter.HandleFunc("/message/ws", messageHandler.HandleMessages)
 	}
 
 	// Swagger

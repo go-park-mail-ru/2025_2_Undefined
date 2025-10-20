@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
-	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	modelsUsers "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -13,13 +15,13 @@ import (
 
 // MockChatsRepo реализует интерфейс ChatsRepository, который используется в ChatsService
 type MockChatsRepo struct {
-	GetChatsFunc               func(userId uuid.UUID) ([]models.Chat, error)
-	GetLastMessagesOfChatsFunc func(userId uuid.UUID) ([]models.Message, error)
-	GetChatFunc                func(userId, chatId uuid.UUID) (*models.Chat, error)
-	GetMessagesOfChatFunc      func(chatId uuid.UUID, offset, limit int) ([]models.Message, error)
-	GetUsersOfChatFunc         func(chatId uuid.UUID) ([]models.UserInfo, error)
-	GetUserInfoFunc            func(userId, chatId uuid.UUID) (*models.UserInfo, error)
-	CreateChatFunc             func(chat models.Chat, usersInfo []models.UserInfo, usersNames []string) error
+	GetChatsFunc               func(userId uuid.UUID) ([]modelsChats.Chat, error)
+	GetLastMessagesOfChatsFunc func(userId uuid.UUID) ([]modelsMessage.Message, error)
+	GetChatFunc                func(userId, chatId uuid.UUID) (*modelsChats.Chat, error)
+	GetMessagesOfChatFunc      func(chatId uuid.UUID, offset, limit int) ([]modelsMessage.Message, error)
+	GetUsersOfChatFunc         func(chatId uuid.UUID) ([]modelsChats.UserInfo, error)
+	GetUserInfoFunc            func(userId, chatId uuid.UUID) (*modelsChats.UserInfo, error)
+	CreateChatFunc             func(chat modelsChats.Chat, usersInfo []modelsChats.UserInfo, usersNames []string) error
 }
 
 // MockUserRepo реализует интерфейс UserRepository, который используется в ChatsService
@@ -31,25 +33,29 @@ func (m *MockUserRepo) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
 	return m.GetUsersNamesFunc(usersIds)
 }
 
-func (m *MockChatsRepo) GetChats(userId uuid.UUID) ([]models.Chat, error) {
+func (m *MockUserRepo) GetUserByID(userId uuid.UUID) (*modelsUsers.User, error) {
+	return &modelsUsers.User{}, nil
+}
+
+func (m *MockChatsRepo) GetChats(userId uuid.UUID) ([]modelsChats.Chat, error) {
 	return m.GetChatsFunc(userId)
 }
-func (m *MockChatsRepo) GetLastMessagesOfChats(userId uuid.UUID) ([]models.Message, error) {
+func (m *MockChatsRepo) GetLastMessagesOfChats(userId uuid.UUID) ([]modelsMessage.Message, error) {
 	return m.GetLastMessagesOfChatsFunc(userId)
 }
-func (m *MockChatsRepo) GetChat(userId, chatId uuid.UUID) (*models.Chat, error) {
+func (m *MockChatsRepo) GetChat(userId, chatId uuid.UUID) (*modelsChats.Chat, error) {
 	return m.GetChatFunc(userId, chatId)
 }
-func (m *MockChatsRepo) GetMessagesOfChat(chatId uuid.UUID, offset, limit int) ([]models.Message, error) {
+func (m *MockChatsRepo) GetMessagesOfChat(chatId uuid.UUID, offset, limit int) ([]modelsMessage.Message, error) {
 	return m.GetMessagesOfChatFunc(chatId, offset, limit)
 }
-func (m *MockChatsRepo) GetUsersOfChat(chatId uuid.UUID) ([]models.UserInfo, error) {
+func (m *MockChatsRepo) GetUsersOfChat(chatId uuid.UUID) ([]modelsChats.UserInfo, error) {
 	return m.GetUsersOfChatFunc(chatId)
 }
-func (m *MockChatsRepo) GetUserInfo(userId, chatId uuid.UUID) (*models.UserInfo, error) {
+func (m *MockChatsRepo) GetUserInfo(userId, chatId uuid.UUID) (*modelsChats.UserInfo, error) {
 	return m.GetUserInfoFunc(userId, chatId)
 }
-func (m *MockChatsRepo) CreateChat(chat models.Chat, usersInfo []models.UserInfo, usersNames []string) error {
+func (m *MockChatsRepo) CreateChat(chat modelsChats.Chat, usersInfo []modelsChats.UserInfo, usersNames []string) error {
 	return m.CreateChatFunc(chat, usersInfo, usersNames)
 }
 
@@ -57,11 +63,11 @@ func TestGetChats_Success(t *testing.T) {
 	userId := uuid.New()
 	chatId := uuid.New()
 	mockChatsRepo := &MockChatsRepo{
-		GetChatsFunc: func(userId uuid.UUID) ([]models.Chat, error) {
-			return []models.Chat{{ID: chatId, Name: "TestChat"}}, nil
+		GetChatsFunc: func(userId uuid.UUID) ([]modelsChats.Chat, error) {
+			return []modelsChats.Chat{{ID: chatId, Name: "TestChat"}}, nil
 		},
-		GetLastMessagesOfChatsFunc: func(userId uuid.UUID) ([]models.Message, error) {
-			return []models.Message{{
+		GetLastMessagesOfChatsFunc: func(userId uuid.UUID) ([]modelsMessage.Message, error) {
+			return []modelsMessage.Message{{
 				ChatID:    chatId,
 				UserID:    userId,
 				Text:      "Hello",
@@ -81,7 +87,7 @@ func TestGetChats_Success(t *testing.T) {
 
 func TestGetChats_Error(t *testing.T) {
 	mockChatsRepo := &MockChatsRepo{
-		GetChatsFunc: func(userId uuid.UUID) ([]models.Chat, error) {
+		GetChatsFunc: func(userId uuid.UUID) ([]modelsChats.Chat, error) {
 			return nil, errors.New("repo error")
 		},
 	}
@@ -95,24 +101,24 @@ func TestGetInformationAboutChat_Success(t *testing.T) {
 	userId := uuid.New()
 	chatId := uuid.New()
 	mockChatsRepo := &MockChatsRepo{
-		GetChatFunc: func(userId, chatId uuid.UUID) (*models.Chat, error) {
-			return &models.Chat{ID: chatId, Name: "Chat1", Type: models.ChatTypeDialog}, nil
+		GetChatFunc: func(userId, chatId uuid.UUID) (*modelsChats.Chat, error) {
+			return &modelsChats.Chat{ID: chatId, Name: "Chat1", Type: modelsChats.ChatTypeDialog}, nil
 		},
-		GetMessagesOfChatFunc: func(chatId uuid.UUID, offset, limit int) ([]models.Message, error) {
-			return []models.Message{{
+		GetMessagesOfChatFunc: func(chatId uuid.UUID, offset, limit int) ([]modelsMessage.Message, error) {
+			return []modelsMessage.Message{{
 				UserID:    userId,
 				Text:      "Hi",
 				CreatedAt: time.Now(),
 			}}, nil
 		},
-		GetUsersOfChatFunc: func(chatId uuid.UUID) ([]models.UserInfo, error) {
-			return []models.UserInfo{{
+		GetUsersOfChatFunc: func(chatId uuid.UUID) ([]modelsChats.UserInfo, error) {
+			return []modelsChats.UserInfo{{
 				UserID: userId,
-				Role:   models.RoleAdmin,
+				Role:   modelsChats.RoleAdmin,
 			}}, nil
 		},
-		GetUserInfoFunc: func(userId, chatId uuid.UUID) (*models.UserInfo, error) {
-			return &models.UserInfo{UserID: userId, Role: models.RoleAdmin}, nil
+		GetUserInfoFunc: func(userId, chatId uuid.UUID) (*modelsChats.UserInfo, error) {
+			return &modelsChats.UserInfo{UserID: userId, Role: modelsChats.RoleAdmin}, nil
 		},
 	}
 	mockUserRepo := &MockUserRepo{}
@@ -130,7 +136,7 @@ func TestGetInformationAboutChat_Success(t *testing.T) {
 
 func TestGetInformationAboutChat_Error(t *testing.T) {
 	mockChatsRepo := &MockChatsRepo{
-		GetChatFunc: func(userId, chatId uuid.UUID) (*models.Chat, error) {
+		GetChatFunc: func(userId, chatId uuid.UUID) (*modelsChats.Chat, error) {
 			return nil, errors.New("not found")
 		},
 	}
@@ -143,7 +149,7 @@ func TestGetInformationAboutChat_Error(t *testing.T) {
 
 func TestCreateChat_Success(t *testing.T) {
 	mockChatsRepo := &MockChatsRepo{
-		CreateChatFunc: func(chat models.Chat, usersInfo []models.UserInfo, usersNames []string) error {
+		CreateChatFunc: func(chat modelsChats.Chat, usersInfo []modelsChats.UserInfo, usersNames []string) error {
 			return nil
 		},
 	}
@@ -155,9 +161,9 @@ func TestCreateChat_Success(t *testing.T) {
 	service := NewChatsService(mockChatsRepo, mockUserRepo)
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "NewChat",
-		Type: models.ChatTypeDialog,
+		Type: modelsChats.ChatTypeDialog,
 		Members: []dto.UserInfoChatDTO{
-			{UserId: uuid.New(), Role: models.RoleAdmin},
+			{UserId: uuid.New(), Role: modelsChats.RoleAdmin},
 		},
 	}
 	id, err := service.CreateChat(chatDTO)
@@ -167,7 +173,7 @@ func TestCreateChat_Success(t *testing.T) {
 
 func TestCreateChat_Error(t *testing.T) {
 	mockChatsRepo := &MockChatsRepo{
-		CreateChatFunc: func(chat models.Chat, usersInfo []models.UserInfo, usersNames []string) error {
+		CreateChatFunc: func(chat modelsChats.Chat, usersInfo []modelsChats.UserInfo, usersNames []string) error {
 			return errors.New("fail")
 		},
 	}
@@ -179,9 +185,9 @@ func TestCreateChat_Error(t *testing.T) {
 	service := NewChatsService(mockChatsRepo, mockUserRepo)
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "FailChat",
-		Type: models.ChatTypeDialog,
+		Type: modelsChats.ChatTypeDialog,
 		Members: []dto.UserInfoChatDTO{
-			{UserId: uuid.New(), Role: models.RoleAdmin},
+			{UserId: uuid.New(), Role: modelsChats.RoleAdmin},
 		},
 	}
 	id, err := service.CreateChat(chatDTO)

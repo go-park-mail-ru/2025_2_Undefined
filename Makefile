@@ -1,15 +1,52 @@
 # Makefile для проекта 2025_2_Undefined
 
+# Переменные для подключения к БД
+DB_URL=postgres://user:password@localhost:5433/gramm?sslmode=disable
+MIGRATIONS_PATH=db/migrations
+
+
+# Миграции базы данных (через CLI migrate)
+db-up:
+	@echo "Применение всех миграций через CLI..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up
+
+db-down:
+	@echo "Откат всех миграций через CLI..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down -all
+
+db-down-1:
+	@echo "Откат последней миграции через CLI..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down 1
+
+db-version:
+	@echo "Текущая версия миграций..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" version
+
+db-goto:
+	@echo "Миграция к версии $(VERSION)..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" goto $(VERSION)
+
+db-drop:
+	@echo "Удаление всех объектов из БД..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" drop -f
+
+db-force:
+	@echo "Принудительная установка версии $(VERSION)..."
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" force $(VERSION)
+
 # Запуск всех тестов
 test:
 	go test -v ./...
 
 # Запуск тестов с покрытием кода, исключая моки и сгенерированный код
 test-coverage:
+	@echo "Очистка кэша и старых файлов покрытия..."
+	@rm -f coverage.out coverage_filtered.out
+	go clean -testcache
 	@echo "Запуск тестов с покрытием кода..."
 	go test -v -coverprofile=coverage.out -coverpkg=./... ./...
-	@echo "Исключаем docs.go и fill.go из покрытия..."
-	grep -v -E "(docs|fill\.go)" coverage.out > coverage_filtered.out || true
+	@echo "Исключаем docs.go, fill.go, mock*.go из покрытия..."
+	grep -v -E "(docs|fill\.go|mock.*\.go)" coverage.out > coverage_filtered.out || true
 	@echo "Результаты покрытия:"
 	go tool cover -func=coverage_filtered.out | grep total
 

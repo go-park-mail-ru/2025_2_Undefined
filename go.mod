@@ -4,8 +4,8 @@ go 1.24.6
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/lib/pq v1.10.9
 	github.com/mssola/user_agent v0.6.0
 	github.com/stretchr/testify v1.11.1

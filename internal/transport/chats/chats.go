@@ -15,18 +15,18 @@ type SessionUtilsI interface {
 	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
 }
 
-type ChatsServiceInterface interface {
+type ChatsService interface {
 	GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
 	CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error)
 	GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error)
 }
 
 type ChatsHandler struct {
-	chatService  ChatsServiceInterface
-	sessionUtils SessionUtilsI
+	chatService ChatsService
+	sessionRepo SessionRepository
 }
 
-func NewChatsHandler(chatService ChatsServiceInterface, sessionUtils SessionUtilsI) *ChatsHandler {
+func NewChatsHandler(chatService ChatsService, sessionRepo SessionRepository) *ChatsHandler {
 	return &ChatsHandler{
 		chatService:  chatService,
 		sessionUtils: sessionUtils,

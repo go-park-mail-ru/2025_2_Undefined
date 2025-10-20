@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 )
 
@@ -22,6 +23,17 @@ func SendError(w http.ResponseWriter, status int, message string) {
 	if _, err := w.Write(resp); err != nil {
 		log.Printf("failed to write response: %s", err.Error())
 	}
+}
+
+// Функция отправки ошибки с проставлением статуса ответа в зависимости от сообщения.
+// Сообщение сравнивается с ошибками из models/errs. Если нету совпадению, то возвращается
+// http.StatusBadRequest
+func SendErrorWithAutoStatus(w http.ResponseWriter, message string) {
+	if message == errs.ErrServiceIsOverloaded.Error() {
+		SendError(w, http.StatusServiceUnavailable, message)
+		return
+	}
+	SendError(w, http.StatusBadRequest, message)
 }
 
 func SendValidationErrors(w http.ResponseWriter, status int, validationErrors dto.ValidationErrorsDTO) {
