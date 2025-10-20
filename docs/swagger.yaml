@@ -55,6 +55,17 @@ definitions:
       message:
         type: string
     type: object
+  dto.GetContactsDTO:
+    properties:
+      contact:
+        $ref: '#/definitions/dto.User'
+      created_at:
+        type: string
+      update_at:
+        type: string
+      user_id:
+        type: string
+    type: object
   dto.IdDTO:
     properties:
       id:
@@ -89,6 +100,28 @@ definitions:
     - name
     - password
     - phone_number
+    type: object
+  dto.User:
+    properties:
+      account_type:
+        type: string
+      avatar:
+        type: string
+      bio:
+        type: string
+      created_at:
+        type: string
+      id:
+        format: uuid
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
     type: object
   dto.UserInfoChatDTO:
     properties:
@@ -271,18 +304,17 @@ paths:
         "200":
           description: Список контактов успешно получен
           schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/dto.GetContactsDTO'
+            type: array
         "401":
           description: Неавторизованный доступ
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/dto.ErrorDTO'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/dto.ErrorDTO'
       security:
       - ApiKeyAuth: []
       summary: Получение списка контактов
@@ -304,24 +336,18 @@ paths:
       responses:
         "201":
           description: Контакт успешно добавлен
-          schema:
-            additionalProperties: true
-            type: object
         "400":
           description: Неверные данные запроса
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/dto.ErrorDTO'
         "401":
           description: Неавторизованный доступ
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/dto.ErrorDTO'
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/dto.ErrorDTO'
       security:
       - ApiKeyAuth: []
       summary: Добавление контакта

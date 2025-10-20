@@ -187,22 +187,22 @@ const docTemplate = `{
                     "200": {
                         "description": "Список контактов успешно получен",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.GetContactsDTO"
+                            }
                         }
                     },
                     "401": {
                         "description": "Неавторизованный доступ",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     }
                 }
@@ -237,31 +237,24 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Контакт успешно добавлен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
+                        "description": "Контакт успешно добавлен"
                     },
                     "400": {
                         "description": "Неверные данные запроса",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "401": {
                         "description": "Неавторизованный доступ",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     }
                 }
@@ -540,6 +533,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GetContactsDTO": {
+            "type": "object",
+            "properties": {
+                "contact": {
+                    "$ref": "#/definitions/dto.User"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "update_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.IdDTO": {
             "type": "object",
             "properties": {
@@ -588,6 +598,39 @@ const docTemplate = `{
                     "minLength": 6
                 },
                 "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.User": {
+            "type": "object",
+            "properties": {
+                "account_type": {
+                    "type": "string"
+                },
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }
