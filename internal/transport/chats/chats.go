@@ -22,11 +22,11 @@ type ChatsService interface {
 }
 
 type ChatsHandler struct {
-	chatService ChatsService
-	sessionRepo SessionRepository
+	chatService  ChatsService
+	sessionUtils SessionUtilsI
 }
 
-func NewChatsHandler(chatService ChatsService, sessionRepo SessionRepository) *ChatsHandler {
+func NewChatsHandler(chatService ChatsService, sessionUtils SessionUtilsI) *ChatsHandler {
 	return &ChatsHandler{
 		chatService:  chatService,
 		sessionUtils: sessionUtils,

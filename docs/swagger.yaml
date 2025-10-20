@@ -31,7 +31,7 @@ definitions:
         type: array
       messages:
         items:
-          $ref: '#/definitions/dto.MessageDTO'
+          type: object
         type: array
       name:
         type: string
@@ -44,7 +44,7 @@ definitions:
         format: uuid
         type: string
       last_message:
-        $ref: '#/definitions/dto.MessageDTO'
+        type: object
       name:
         type: string
       type:
@@ -71,15 +71,9 @@ definitions:
     - password
     - phone_number
     type: object
-  dto.MessageDTO:
+  dto.PostContactDTO:
     properties:
-      created_at:
-        type: string
-      sender_avatar:
-        type: string
-      sender_name:
-        type: string
-      string:
+      contact_id:
         type: string
     type: object
   dto.RegisterRequest:
@@ -265,6 +259,74 @@ paths:
       summary: Получить информацию о чате
       tags:
       - chats
+  /contacts:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех контактов текущего пользователя с полной
+        информацией о пользователях
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список контактов успешно получен
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Получение списка контактов
+      tags:
+      - contacts
+    post:
+      consumes:
+      - application/json
+      description: Добавляет нового пользователя в список контактов текущего пользователя
+      parameters:
+      - description: Данные контакта для добавления
+        in: body
+        name: contact
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PostContactDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Контакт успешно добавлен
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Неверные данные запроса
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Добавление контакта
+      tags:
+      - contacts
   /login:
     post:
       consumes:

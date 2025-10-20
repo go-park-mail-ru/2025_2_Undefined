@@ -31,6 +31,10 @@ import (
 	messageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
 	messageTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/message"
 	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
+
+	contactRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/contact"
+	contactTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/contact"
+	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
 )
 
 type App struct {
@@ -68,7 +72,11 @@ func NewApp(conf *config.Config) (*App, error) {
 	messageRepo := messageRepository.NewMessageRepository(db)
 	listenerMap := messageUsecase.NewListenerMap()
 	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, listenerMap)
-	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionrepo)
+	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionutils)
+
+	contactRepo := contactRepository.New(db)
+	contactUC := contactUsecase.New(contactRepo, userRepo)
+	contactHandler := contactTransport.New(contactUC, sessionutils)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
@@ -104,6 +112,12 @@ func NewApp(conf *config.Config) (*App, error) {
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
 		messageRouter.HandleFunc("/message/ws", messageHandler.HandleMessages)
+	}
+
+	contactRouter := protectedRouter.PathPrefix("/contacts").Subrouter()
+	{
+		contactRouter.HandleFunc("", contactHandler.CreateContact).Methods(http.MethodPost)
+		contactRouter.HandleFunc("", contactHandler.GetContacts).Methods(http.MethodGet)
 	}
 
 	// Swagger

@@ -165,6 +165,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/contacts": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех контактов текущего пользователя с полной информацией о пользователях",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "summary": "Получение списка контактов",
+                "responses": {
+                    "200": {
+                        "description": "Список контактов успешно получен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Добавляет нового пользователя в список контактов текущего пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "summary": "Добавление контакта",
+                "parameters": [
+                    {
+                        "description": "Данные контакта для добавления",
+                        "name": "contact",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.PostContactDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Контакт успешно добавлен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные данные запроса",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "description": "Аутентифицирует пользователя по номеру телефона и паролю, создает сессию",
@@ -401,7 +503,7 @@ const docTemplate = `{
                 "messages": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.MessageDTO"
+                        "type": "object"
                     }
                 },
                 "name": {
@@ -420,7 +522,7 @@ const docTemplate = `{
                     "format": "uuid"
                 },
                 "last_message": {
-                    "$ref": "#/definitions/dto.MessageDTO"
+                    "type": "object"
                 },
                 "name": {
                     "type": "string"
@@ -462,19 +564,10 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.MessageDTO": {
+        "dto.PostContactDTO": {
             "type": "object",
             "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "sender_avatar": {
-                    "type": "string"
-                },
-                "sender_name": {
-                    "type": "string"
-                },
-                "string": {
+                "contact_id": {
                     "type": "string"
                 }
             }

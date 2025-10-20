@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
+	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 	"github.com/google/uuid"
@@ -42,7 +42,7 @@ func New(authrepo AuthRepository, userrepo UserRepository, sessionrepo SessionRe
 	}
 }
 
-func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
+func (uc *AuthUsecase) Register(req *AuthDTO.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
 	const op = "AuthUsecase.Register"
 	errorsValidation := make([]errs.ValidationError, 0)
 
@@ -101,7 +101,7 @@ func (uc *AuthUsecase) Register(req *AuthModels.RegisterRequest, device string) 
 	return newsSession, nil
 }
 
-func (uc *AuthUsecase) Login(req *AuthModels.LoginRequest, device string) (uuid.UUID, error) {
+func (uc *AuthUsecase) Login(req *AuthDTO.LoginRequest, device string) (uuid.UUID, error) {
 	const op = "AuthUsecase.Login"
 	user, err := uc.userrepo.GetUserByPhone(req.PhoneNumber)
 	if err != nil || user == nil {

@@ -19,9 +19,9 @@ DROP TABLE IF EXISTS attachment;
 DROP TABLE IF EXISTS session;
 DROP TABLE IF EXISTS message;
 DROP TABLE IF EXISTS chat_member;
+DROP TABLE IF EXISTS contact;
 DROP TABLE IF EXISTS chat;
 DROP TABLE IF EXISTS "user";
-DROP TABLE IF EXISTS contact;
 
 -- Типы перечислений
 DROP TYPE IF EXISTS chat_type_enum;

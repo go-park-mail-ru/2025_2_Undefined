@@ -8,7 +8,7 @@ import (
 type ChatViewInformationDTO struct {
 	ID          uuid.UUID             `json:"id" swaggertype:"string" format:"uuid"`
 	Name        string                `json:"name"`
-	LastMessage dtoMessage.MessageDTO `json:"last_message"`
+	LastMessage dtoMessage.MessageDTO `json:"last_message" swaggertype:"object"`
 	Type        string                `json:"type"`
 }
 
@@ -20,7 +20,7 @@ type ChatDetailedInformationDTO struct {
 	IsMember  bool                    `json:"is_member"`
 	IsPrivate bool                    `json:"is_private"`
 	Type      string                  `json:"type"`
-	Messages  []dtoMessage.MessageDTO `json:"messages"`
+	Messages  []dtoMessage.MessageDTO `json:"messages" swaggertype:"array,object"`
 	Members   []UserInfoChatDTO       `json:"members"`
 }
 
