@@ -6,15 +6,13 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
-	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
 
-type SessionRepository interface {
-	GetSession(sessionID uuid.UUID) (*session.Session, error)
+type SessionUtilsI interface {
+	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
 }
 
 type ChatsServiceInterface interface {
@@ -24,14 +22,14 @@ type ChatsServiceInterface interface {
 }
 
 type ChatsHandler struct {
-	chatService ChatsServiceInterface
-	sessionRepo SessionRepository
+	chatService  ChatsServiceInterface
+	sessionUtils SessionUtilsI
 }
 
-func NewChatsHandler(chatService ChatsServiceInterface, sessionRepo SessionRepository) *ChatsHandler {
+func NewChatsHandler(chatService ChatsServiceInterface, sessionUtils SessionUtilsI) *ChatsHandler {
 	return &ChatsHandler{
-		chatService: chatService,
-		sessionRepo: sessionRepo,
+		chatService:  chatService,
+		sessionUtils: sessionUtils,
 	}
 }
 
@@ -48,7 +46,7 @@ func NewChatsHandler(chatService ChatsServiceInterface, sessionRepo SessionRepos
 // @Router       /chats [get]
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	// Получаем id пользователя из сессии
-	userUUID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
@@ -118,7 +116,7 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 	}
 
 	// Получаем id пользователя из сессии
-	userUUID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return

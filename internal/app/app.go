@@ -14,6 +14,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	sessionrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/session"
+	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 
 	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
@@ -46,18 +47,19 @@ func NewApp(conf *config.Config) (*App, error) {
 	}
 
 	sessionrepo := sessionrepo.New(db)
+	sessionutils := sessionutils.NewSessionUtils(sessionrepo)
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo)
-	userHandler := usert.New(userUC, sessionrepo)
+	userHandler := usert.New(userUC, sessionutils)
 
 	authRepo := authrepo.New(db)
 	authUC := authuc.New(authRepo, userRepo, sessionrepo)
-	authHandler := autht.New(authUC, sessionrepo)
+	authHandler := autht.New(authUC, sessionutils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
-	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionrepo)
+	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionutils)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()

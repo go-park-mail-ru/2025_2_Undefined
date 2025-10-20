@@ -8,14 +8,13 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
-	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
 
-type SessionRepository interface {
-	GetSession(sessionID uuid.UUID) (*session.Session, error)
+type SessionUtilsI interface {
+	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
 	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
 }
 
@@ -24,14 +23,14 @@ type UserUsecase interface {
 }
 
 type UserHandler struct {
-	uc          UserUsecase
-	sessionRepo SessionRepository
+	uc           UserUsecase
+	sessionUtils SessionUtilsI
 }
 
-func New(uc UserUsecase, sessionRepo SessionRepository) *UserHandler {
+func New(uc UserUsecase, sessionUtils SessionUtilsI) *UserHandler {
 	return &UserHandler{
-		uc:          uc,
-		sessionRepo: sessionRepo,
+		uc:           uc,
+		sessionUtils: sessionUtils,
 	}
 }
 
@@ -48,7 +47,7 @@ func New(uc UserUsecase, sessionRepo SessionRepository) *UserHandler {
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetCurrentUser"
 
-	userID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -81,7 +80,7 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetSessionsByUser"
 
-	userID, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -89,7 +88,7 @@ func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sessions, err := h.sessionRepo.GetSessionsByUserID(userID)
+	sessions, err := h.sessionUtils.GetSessionsByUserID(userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
