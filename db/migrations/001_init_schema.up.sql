@@ -104,6 +104,16 @@ CREATE TABLE message_attachment (
     PRIMARY KEY (message_id, attachment_id)
 );
 
+CREATE TABLE contact (
+    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    contact_user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, contact_user_id),
+    
+    CONSTRAINT check_not_self_contact CHECK (user_id != contact_user_id)
+);
+
 -- Триггеры
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -120,3 +130,4 @@ CREATE TRIGGER update_attachment_updated_at BEFORE UPDATE ON attachment FOR EACH
 CREATE TRIGGER update_avatar_chat_updated_at BEFORE UPDATE ON avatar_chat FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_avatar_user_updated_at BEFORE UPDATE ON avatar_user FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_message_attachment_updated_at BEFORE UPDATE ON message_attachment FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_contact_updated_at BEFORE UPDATE ON contact FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

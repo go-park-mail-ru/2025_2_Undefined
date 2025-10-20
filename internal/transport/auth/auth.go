@@ -9,10 +9,8 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
-	sessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
@@ -20,8 +18,8 @@ import (
 	"github.com/mssola/user_agent"
 )
 
-type SessionRepository interface {
-	GetSession(sessionID uuid.UUID) (*session.Session, error)
+type SessionUtilsI interface {
+	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
 }
 
 type AuthUsecase interface {
@@ -31,14 +29,14 @@ type AuthUsecase interface {
 }
 
 type AuthHandler struct {
-	uc          AuthUsecase
-	sessionRepo SessionRepository
+	uc           AuthUsecase
+	sessionUtils SessionUtilsI
 }
 
-func New(uc AuthUsecase, sessionRepo SessionRepository) *AuthHandler {
+func New(uc AuthUsecase, sessionUtils SessionUtilsI) *AuthHandler {
 	return &AuthHandler{
-		uc:          uc,
-		sessionRepo: sessionRepo,
+		uc:           uc,
+		sessionUtils: sessionUtils,
 	}
 }
 
@@ -175,7 +173,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Router       /logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Logout"
-	_, err := sessionUtils.GetUserIDFromSession(r, h.sessionRepo)
+	_, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session"))
 		log.Printf("Error: %v", wrappedErr)
