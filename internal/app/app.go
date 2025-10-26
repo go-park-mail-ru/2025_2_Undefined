@@ -15,6 +15,7 @@ import (
 
 	sessionrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/session"
 	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
+	sessionuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
 
 	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
@@ -55,7 +56,8 @@ func NewApp(conf *config.Config) (*App, error) {
 	}
 
 	sessionrepo := sessionrepo.New(db)
-	sessionutils := sessionutils.NewSessionUtils(sessionrepo)
+	sessionuc := sessionuc.New(sessionrepo)
+	sessionutils := sessionutils.NewSessionUtils(sessionuc)
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo)
