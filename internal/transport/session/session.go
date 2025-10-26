@@ -12,24 +12,24 @@ import (
 	"github.com/google/uuid"
 )
 
-type SessionRepository interface {
+type SessionUsecase interface {
 	GetSession(sessionID uuid.UUID) (*session.Session, error)
 	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
 }
 
 type SessionUtils struct {
-	sessionRepo SessionRepository
+	uc SessionUsecase
 }
 
-func NewSessionUtils(sessionRepo SessionRepository) *SessionUtils {
+func NewSessionUtils(uc SessionUsecase) *SessionUtils {
 	return &SessionUtils{
-		sessionRepo: sessionRepo,
+		uc: uc,
 	}
 }
 
 // GetUserIDFromSession извлекает ID пользователя из сессии в cookie
 func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
-	const op = "session.GetUserIDFromSession"
+	const op = "SessionUtils.GetUserIDFromSession"
 
 	// Получаем сессию из куки
 	sessionCookie, err := r.Cookie(domains.SessionName)
@@ -47,7 +47,7 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 	}
 
 	// Получаем информацию о сессии
-	sessionInfo, err := s.sessionRepo.GetSession(sessionID)
+	sessionInfo, err := s.uc.GetSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
 		log.Printf("Error: %v", wrappedErr)
@@ -59,5 +59,21 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 
 // GetSessionsByUserID получает все сессии пользователя
 func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error) {
-	return s.sessionRepo.GetSessionsByUserID(userID)
+	const op = "SessionUtils.GetSessionsByUserID"
+
+	if userID == uuid.Nil {
+		err := errors.New("user ID is required")
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return nil, wrappedErr
+	}
+
+	sessions, err := s.uc.GetSessionsByUserID(userID)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return nil, wrappedErr
+	}
+
+	return sessions, nil
 }

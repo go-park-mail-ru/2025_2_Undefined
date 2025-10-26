@@ -99,7 +99,5 @@ func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.SendJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"contacts": contacts,
-	})
+	response.SendJSONResponse(w, http.StatusOK, contacts)
 }
