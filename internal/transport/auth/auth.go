@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
@@ -30,12 +30,14 @@ type AuthUsecase interface {
 
 type AuthHandler struct {
 	uc           AuthUsecase
+	config       *config.Config
 	sessionUtils SessionUtilsI
 }
 
-func New(uc AuthUsecase, sessionUtils SessionUtilsI) *AuthHandler {
+func New(uc AuthUsecase, config *config.Config, sessionUtils SessionUtilsI) *AuthHandler {
 	return &AuthHandler{
 		uc:           uc,
+		config:       config,
 		sessionUtils: sessionUtils,
 	}
 }
@@ -111,7 +113,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie.Set(w, sessionID.String(), domains.SessionName)
+	cookie.Set(w, sessionID.String(), h.config.SessionConfig.Signature)
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -157,7 +159,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie.Set(w, sessionID.String(), domains.SessionName)
+	cookie.Set(w, sessionID.String(), h.config.SessionConfig.Signature)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -182,7 +184,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID сессии из cookie для удаления
-	sessionCookie, err := r.Cookie(domains.SessionName)
+	sessionCookie, err := r.Cookie(h.config.SessionConfig.Signature)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
 		log.Printf("Error: %v", wrappedErr)
@@ -205,6 +207,6 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	cookie.Unset(w, domains.SessionName)
+	cookie.Unset(w, h.config.SessionConfig.Signature)
 	utils.SendJSONResponse(w, http.StatusOK, nil)
 }

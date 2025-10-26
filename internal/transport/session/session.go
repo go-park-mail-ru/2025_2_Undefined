@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	"github.com/google/uuid"
@@ -18,12 +18,14 @@ type SessionUsecase interface {
 }
 
 type SessionUtils struct {
-	uc SessionUsecase
+	uc     SessionUsecase
+	config *config.Config
 }
 
-func NewSessionUtils(uc SessionUsecase) *SessionUtils {
+func NewSessionUtils(uc SessionUsecase, config *config.Config) *SessionUtils {
 	return &SessionUtils{
-		uc: uc,
+		uc:     uc,
+		config: config,
 	}
 }
 
@@ -32,7 +34,7 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 	const op = "SessionUtils.GetUserIDFromSession"
 
 	// Получаем сессию из куки
-	sessionCookie, err := r.Cookie(domains.SessionName)
+	sessionCookie, err := r.Cookie(s.config.SessionConfig.Signature)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
 		log.Printf("Error: %v", wrappedErr)
