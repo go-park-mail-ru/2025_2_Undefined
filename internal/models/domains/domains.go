@@ -1,7 +1,8 @@
 package domains
 
 type (
-	UserIDKey struct{}
+	UserIDKey        struct{}
+	ContextKeyLogger struct{}
 )
 
 const (

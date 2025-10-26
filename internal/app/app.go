@@ -11,6 +11,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
@@ -86,9 +87,16 @@ func NewApp(conf *config.Config) (*App, error) {
 	contactUC := contactUsecase.New(contactRepo, userRepo)
 	contactHandler := contactTransport.New(contactUC, sessionUtils)
 
+	// Настройка логгера
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
 	router.Use(corsMiddleware)
+	router.Use(func(next http.Handler) http.Handler {
+		return middleware.AccessLogMiddleware(logger, next)
+	})
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 

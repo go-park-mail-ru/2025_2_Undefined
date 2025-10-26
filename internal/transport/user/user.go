@@ -1,8 +1,6 @@
 package transport
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
@@ -49,21 +47,17 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	user, err := h.uc.GetUserById(userID)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrUserNotFound)
-		log.Printf("Error: %v", wrappedErr)
 		cookie.Unset(w, "session_token")
-		utils.SendError(w, http.StatusUnauthorized, errs.ErrUserNotFound.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrUserNotFound.Error())
 		return
 	}
-	utils.SendJSONResponse(w, http.StatusOK, user)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, user)
 }
 
 // GetSessionsByUser получает все сессии текущего пользователя
@@ -82,18 +76,14 @@ func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) 
 
 	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	sessions, err := h.sessionUtils.GetSessionsByUserID(userID)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	utils.SendJSONResponse(w, http.StatusOK, sessions)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, sessions)
 }

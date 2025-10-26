@@ -1,14 +1,12 @@
 package middleware
 
 import (
-	"errors"
-	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	cookieUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
@@ -24,48 +22,36 @@ func AuthMiddleware(conf *config.Config, sessionUC *SessionUC.SessionUsecase) fu
 			// Получаем сессию из куки
 			cookie, err := r.Cookie(conf.SessionConfig.Signature)
 			if err != nil {
-				wrappedErr := fmt.Errorf("%s: %w", op, errors.New("Session required"))
-				log.Printf("Error: %v", wrappedErr)
-				cookieUtils.Unset(w, conf.SessionConfig.Signature)
-				utils.SendError(w, http.StatusUnauthorized, "Session required")
+				cookieUtils.Unset(w, domains.SessionName)
+				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Session required")
 				return
 			}
 
 			// Парсим UUID сессии
 			sessionID, err := uuid.Parse(cookie.Value)
 			if err != nil {
-				wrappedErr := fmt.Errorf("%s: %w", op, errors.New("Invalid session ID"))
-				log.Printf("Error: %v", wrappedErr)
-				cookieUtils.Unset(w, conf.SessionConfig.Signature)
-				utils.SendError(w, http.StatusUnauthorized, "Invalid session ID")
+				cookieUtils.Unset(w, domains.SessionName)
+				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Invalid session ID")
 				return
 			}
 			sess, err := sessionUC.GetSession(sessionID)
 			if err != nil {
-				err = errors.New("Error in getting session")
-				wrappedErr := fmt.Errorf("%s: %w", op, err)
-				log.Printf("Error: %v", wrappedErr)
 				cookieUtils.Unset(w, conf.SessionConfig.Signature)
-				utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
+				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}
 
 			// Проверяем истекла ли сессия
 			if time.Since(sess.Last_seen) > conf.SessionConfig.LifeSpan {
-				err = errors.New("session expired")
-				wrappedErr := fmt.Errorf("%s: %w", op, err)
-				log.Printf("Error: %v", wrappedErr)
 				cookieUtils.Unset(w, conf.SessionConfig.Signature)
-				utils.SendError(w, http.StatusUnauthorized, err.Error())
+				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "session expired")
 				return
 			}
 			// Обновляем сессию
 			err = sessionUC.UpdateSession(sessionID)
 			if err != nil {
-				wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
-				log.Printf("Error: %v", wrappedErr)
-				cookieUtils.Unset(w, conf.SessionConfig.Signature)
-				utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
+				cookieUtils.Unset(w, domains.SessionName)
+				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}
 

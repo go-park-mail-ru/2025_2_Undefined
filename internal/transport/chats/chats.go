@@ -45,19 +45,20 @@ func NewChatsHandler(chatService ChatsService, sessionUtils SessionUtilsI) *Chat
 // @Failure      401  {object}  dto.ErrorDTO                "Неавторизованный доступ"
 // @Router       /chats [get]
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsHandler.GetChats"
 	// Получаем id пользователя из сессии
 	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	chats, err := h.chatService.GetChats(userUUID)
 	if err != nil {
-		utils.SendError(w, http.StatusBadRequest, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
-	utils.SendJSONResponse(w, http.StatusOK, chats)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, chats)
 }
 
 // PostChats создает новый чат
@@ -73,20 +74,21 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  dto.ErrorDTO                  "Неавторизованный доступ"
 // @Router       /chats [post]
 func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsHandler.PostChats"
 	chatDTO := &dto.ChatCreateInformationDTO{}
 
 	if err := json.NewDecoder(r.Body).Decode(chatDTO); err != nil {
-		utils.SendError(w, http.StatusBadRequest, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	idOfCreatedChat, err := h.chatService.CreateChat(*chatDTO)
 	if err != nil {
-		utils.SendError(w, http.StatusBadRequest, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	utils.SendJSONResponse(w, http.StatusCreated, dto.IdDTO{ID: idOfCreatedChat})
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusCreated, dto.IdDTO{ID: idOfCreatedChat})
 }
 
 // GetInformationAboutChat получает детальную информацию о чате
@@ -102,31 +104,32 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 // @Failure      401     {object}  dto.ErrorDTO                    "Неавторизованный доступ"
 // @Router       /chats/{chatId} [get]
 func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsHandler.GetInformationAboutChat"
 	// Получаем id чата из пути
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 2 {
-		utils.SendError(w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
 	idStr := parts[len(parts)-1]
 	chatUUID, err := uuid.Parse(idStr)
 	if err != nil {
-		utils.SendError(w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
 
 	// Получаем id пользователя из сессии
 	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	informationDTO, err := h.chatService.GetInformationAboutChat(userUUID, chatUUID)
 	if err != nil {
-		utils.SendError(w, http.StatusBadRequest, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	utils.SendJSONResponse(w, http.StatusOK, informationDTO)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, informationDTO)
 }

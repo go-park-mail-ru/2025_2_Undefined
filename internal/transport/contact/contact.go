@@ -46,29 +46,30 @@ func New(uc ContactUsecase, sessionUtils SessionUtilsI) *ContactHandler {
 // @Security     ApiKeyAuth
 // @Router       /contacts [post]
 func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
+	const op = "ContactHandler.CreateContact"
 	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		response.SendError(r.Context(), op, w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
 	var req ContactDTO.PostContactDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.SendError(w, http.StatusBadRequest, "Invalid JSON")
+		response.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid JSON")
 		return
 	}
 
 	if userID == req.ContactUserID {
-		response.SendError(w, http.StatusBadRequest, "Cannot add yourself as contact")
+		response.SendError(r.Context(), op, w, http.StatusBadRequest, "Cannot add yourself as contact")
 		return
 	}
 
 	if err := h.uc.CreateContact(&req, userID); err != nil {
 		if errors.Is(err, errs.ErrIsDuplicateKey) {
-			response.SendError(w, http.StatusConflict, "contact already exists")
+			response.SendError(r.Context(), op, w, http.StatusConflict, "contact already exists")
 			return
 		}
-		response.SendError(w, http.StatusInternalServerError, "failed to create contact")
+		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to create contact")
 		return
 	}
 
@@ -87,17 +88,18 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 // @Security     ApiKeyAuth
 // @Router       /contacts [get]
 func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
+	const op = "ContactHandler.GetContacts"
 	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		response.SendError(w, http.StatusUnauthorized, "Unauthorized")
+		response.SendError(r.Context(), op, w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
 	contacts, err := h.uc.GetContacts(userID)
 	if err != nil {
-		response.SendError(w, http.StatusInternalServerError, "Failed to get contacts")
+		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "Failed to get contacts")
 		return
 	}
 
-	response.SendJSONResponse(w, http.StatusOK, contacts)
+	response.SendJSONResponse(r.Context(), op, w, http.StatusOK, contacts)
 }
