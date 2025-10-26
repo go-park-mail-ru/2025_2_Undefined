@@ -441,6 +441,43 @@
                     }
                 }
             }
+        },
+        "/ws/messages": {
+            "get": {
+                "security": [
+                    {
+                        "Cookie": []
+                    }
+                ],
+                "description": "Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.\nПосле установки соединения клиент может отправлять сообщения в формате CreateMessageDTO\nи получать уведомления о новых сообщениях в формате MessageDTO.\n\n**Протокол WebSocket:**\n\n**Отправка сообщения (клиент → сервер):**\n```json\n{\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n```\n\n**Получение сообщения (сервер → клиент):**\n```json\n{\n\"sender_name\": \"Имя отправителя\",\n\"sender_avatar\": \"https://example.com/avatar.jpg\",\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n```\n\n**Обработка ошибок:**\n```json\n{\n\"error\": \"Описание ошибки\"\n}\n```",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Установить WebSocket соединение для сообщений",
+                "responses": {
+                    "101": {
+                        "description": "WebSocket соединение установлено"
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера при установке WebSocket соединения",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
