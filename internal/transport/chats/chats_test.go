@@ -1,6 +1,20 @@
 package transport
 
-/*
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+)
+
 // Мок сервиса для тестирования
 type mockChatsService struct {
 	chats             []dto.ChatViewInformationDTO
@@ -8,6 +22,19 @@ type mockChatsService struct {
 	getChatError      error
 	chatDetailedError error
 	chatDetailed      *dto.ChatDetailedInformationDTO
+}
+
+// Мок утилит сессий для тестирования
+type mockSessionUtils struct {
+	userID uuid.UUID
+	err    error
+}
+
+func (m *mockSessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
+	if m.err != nil {
+		return uuid.Nil, m.err
+	}
+	return m.userID, nil
 }
 
 func (m *mockChatsService) GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error) {
@@ -33,7 +60,8 @@ func (m *mockChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*d
 
 func TestPostChats_Success(t *testing.T) {
 	mockService := &mockChatsService{}
-	handler := NewChatsHandler(mockService)
+	mockSessionUtils := &mockSessionUtils{userID: uuid.New()}
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "Test Chat",
@@ -66,7 +94,8 @@ func TestPostChats_Success(t *testing.T) {
 
 func TestPostChats_BadJSON(t *testing.T) {
 	mockService := &mockChatsService{}
-	handler := NewChatsHandler(mockService)
+	mockSessionUtils := &mockSessionUtils{userID: uuid.New()}
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodPost, "/chats", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -80,7 +109,8 @@ func TestPostChats_BadJSON(t *testing.T) {
 
 func TestGetInformationAboutChat_BadUUID(t *testing.T) {
 	mockService := &mockChatsService{}
-	handler := NewChatsHandler(mockService)
+	mockSessionUtils := &mockSessionUtils{userID: uuid.New()}
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodGet, "/chats/invalid-uuid", nil)
 	w := httptest.NewRecorder()
@@ -93,7 +123,8 @@ func TestGetInformationAboutChat_BadUUID(t *testing.T) {
 
 func TestGetInformationAboutChat_NoCookie(t *testing.T) {
 	mockService := &mockChatsService{}
-	handler := NewChatsHandler(mockService)
+	mockSessionUtils := &mockSessionUtils{err: errors.New("unauthorized")}
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	testUUID := uuid.New()
 	req := httptest.NewRequest(http.MethodGet, "/chats/"+testUUID.String(), nil)
@@ -107,7 +138,8 @@ func TestGetInformationAboutChat_NoCookie(t *testing.T) {
 
 func TestGetChats_NoCookie(t *testing.T) {
 	mockService := &mockChatsService{}
-	handler := NewChatsHandler(mockService)
+	mockSessionUtils := &mockSessionUtils{err: errors.New("unauthorized")}
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodGet, "/chats", nil)
 	w := httptest.NewRecorder()
@@ -120,18 +152,21 @@ func TestGetChats_NoCookie(t *testing.T) {
 
 func TestNewChatsHandler(t *testing.T) {
 	mockService := &mockChatsService{}
+	mockSessionUtils := &mockSessionUtils{userID: uuid.New()}
 
-	handler := NewChatsHandler(mockService)
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	assert.NotNil(t, handler)
 	assert.Equal(t, mockService, handler.chatService)
+	assert.Equal(t, mockSessionUtils, handler.sessionUtils)
 }
 
 func TestPostChats_ServiceError(t *testing.T) {
 	mockService := &mockChatsService{
 		createChatError: errors.New("service error"),
 	}
-	handler := NewChatsHandler(mockService)
+	mockSessionUtils := &mockSessionUtils{userID: uuid.New()}
+	handler := NewChatsHandler(mockService, mockSessionUtils)
 
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "Test Chat",
@@ -153,4 +188,3 @@ func TestPostChats_ServiceError(t *testing.T) {
 	resp := w.Result()
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
-*/

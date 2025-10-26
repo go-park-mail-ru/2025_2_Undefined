@@ -10,6 +10,7 @@ import (
 
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -62,6 +63,48 @@ func NewMessageHandler(messageUsecase MessageUsecase, chatsUsecase ChatsService,
 	}
 }
 
+// HandleMessages устанавливает WebSocket соединение для обмена сообщениями
+// @Summary      Установить WebSocket соединение для сообщений
+// @Description  Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.
+// @Description  После установки соединения клиент может отправлять сообщения в формате CreateMessageDTO
+// @Description  и получать уведомления о новых сообщениях в формате MessageDTO.
+// @Description
+// @Description  **Протокол WebSocket:**
+// @Description
+// @Description  **Отправка сообщения (клиент → сервер):**
+// @Description  ```json
+// @Description  {
+// @Description    "text": "Текст сообщения",
+// @Description    "created_at": "2025-01-15T10:30:00Z",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **Получение сообщения (сервер → клиент):**
+// @Description  ```json
+// @Description  {
+// @Description    "sender_name": "Имя отправителя",
+// @Description    "sender_avatar": "https://example.com/avatar.jpg",
+// @Description    "text": "Текст сообщения",
+// @Description    "created_at": "2025-01-15T10:30:00Z",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **Обработка ошибок:**
+// @Description  ```json
+// @Description  {
+// @Description    "error": "Описание ошибки"
+// @Description  }
+// @Description  ```
+// @Tags         messages
+// @Accept       json
+// @Produce      json
+// @Security     Cookie
+// @Success      101  "WebSocket соединение установлено"
+// @Failure      401  {object}  dto.ErrorDTO  "Пользователь не авторизован"
+// @Failure      500  {object}  dto.ErrorDTO  "Ошибка сервера при установке WebSocket соединения"
+// @Router       /ws/messages [get]
 func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	userId, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
