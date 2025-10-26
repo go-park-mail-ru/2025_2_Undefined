@@ -13,7 +13,7 @@ import (
 type Config struct {
 	DBConfig         *DBConfig
 	ServerConfig     *ServerConfig
-	JWTConfig        *JWTConfig
+	SessionConfig    *SessionConfig
 	MigrationsConfig *MigrationsConfig
 }
 
@@ -32,9 +32,9 @@ type ServerConfig struct {
 	Port string
 }
 
-type JWTConfig struct {
-	Signature     string
-	TokenLifeSpan time.Duration
+type SessionConfig struct {
+	Signature string
+	LifeSpan  time.Duration
 }
 
 type MigrationsConfig struct {
@@ -63,9 +63,9 @@ func NewConfig() (*Config, error) {
 		Port: raw.ServerPort,
 	}
 
-	jwtConfig := &JWTConfig{
-		Signature:     raw.JwtSignature,
-		TokenLifeSpan: raw.JwtTokenLife,
+	sessionConfig := &SessionConfig{
+		Signature: raw.Signature,
+		LifeSpan:  raw.SessionTokenLife,
 	}
 
 	migrationsConfig := &MigrationsConfig{
@@ -75,21 +75,21 @@ func NewConfig() (*Config, error) {
 	return &Config{
 		DBConfig:         dbConfig,
 		ServerConfig:     serverConfig,
-		JWTConfig:        jwtConfig,
+		SessionConfig:    sessionConfig,
 		MigrationsConfig: migrationsConfig,
 	}, nil
 }
 
 type yamlConfig struct {
-	ServerPort     string        `yaml:"SERVER_PORT"`
-	JwtSignature   string        `yaml:"JWT_SIGNATURE"`
-	PostgresUser   string        `yaml:"POSTGRES_USER"`
-	PostgresPass   string        `yaml:"POSTGRES_PASSWORD"`
-	PostgresDB     string        `yaml:"POSTGRES_DB"`
-	PostgresPort   int           `yaml:"POSTGRES_PORT"`
-	PostgresHost   string        `yaml:"POSTGRES_HOST"`
-	MigrationsPath string        `yaml:"MIGRATIONS_PATH"`
-	JwtTokenLife   time.Duration `yaml:"JWT_TOKEN_LIFESPAN"`
+	ServerPort       string        `yaml:"SERVER_PORT"`
+	Signature        string        `yaml:"SESSION_SIGNATURE"`
+	PostgresUser     string        `yaml:"POSTGRES_USER"`
+	PostgresPass     string        `yaml:"POSTGRES_PASSWORD"`
+	PostgresDB       string        `yaml:"POSTGRES_DB"`
+	PostgresPort     int           `yaml:"POSTGRES_PORT"`
+	PostgresHost     string        `yaml:"POSTGRES_HOST"`
+	MigrationsPath   string        `yaml:"MIGRATIONS_PATH"`
+	SessionTokenLife time.Duration `yaml:"SESSION_TOKEN_LIFESPAN"`
 }
 
 func loadYamlConfig(path string) (*yamlConfig, error) {
@@ -99,15 +99,15 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 	}
 
 	var cfg struct {
-		ServerPort     string `yaml:"SERVER_PORT"`
-		JwtSignature   string `yaml:"JWT_SIGNATURE"`
-		PostgresUser   string `yaml:"POSTGRES_USER"`
-		PostgresPass   string `yaml:"POSTGRES_PASSWORD"`
-		PostgresDB     string `yaml:"POSTGRES_DB"`
-		PostgresPort   string `yaml:"POSTGRES_PORT"`
-		PostgresHost   string `yaml:"POSTGRES_HOST"`
-		MigrationsPath string `yaml:"MIGRATIONS_PATH"`
-		JwtTokenLife   string `yaml:"JWT_TOKEN_LIFESPAN"`
+		ServerPort       string `yaml:"SERVER_PORT"`
+		Signature        string `yaml:"SESSION_SIGNATURE"`
+		PostgresUser     string `yaml:"POSTGRES_USER"`
+		PostgresPass     string `yaml:"POSTGRES_PASSWORD"`
+		PostgresDB       string `yaml:"POSTGRES_DB"`
+		PostgresPort     string `yaml:"POSTGRES_PORT"`
+		PostgresHost     string `yaml:"POSTGRES_HOST"`
+		MigrationsPath   string `yaml:"MIGRATIONS_PATH"`
+		SessionTokenLife string `yaml:"SESSION_TOKEN_LIFESPAN"`
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -117,8 +117,8 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 	if cfg.ServerPort == "" {
 		return nil, errors.New("SERVER_PORT is required")
 	}
-	if cfg.JwtSignature == "" {
-		return nil, errors.New("JWT_SIGNATURE is required")
+	if cfg.Signature == "" {
+		return nil, errors.New("SESSION_SIGNATURE is required")
 	}
 
 	port, err := strconv.Atoi(cfg.PostgresPort)
@@ -126,22 +126,22 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		return nil, errors.New("invalid POSTGRES_PORT value")
 	}
 
-	tokenLife := 24 * time.Hour // значение по умолчанию
-	if cfg.JwtTokenLife != "" {
-		if tl, err := time.ParseDuration(cfg.JwtTokenLife); err == nil {
+	tokenLife := 30 * 24 * time.Hour // значение по умолчанию
+	if cfg.SessionTokenLife != "" {
+		if tl, err := time.ParseDuration(cfg.SessionTokenLife); err == nil {
 			tokenLife = tl
 		}
 	}
 
 	return &yamlConfig{
-		ServerPort:     cfg.ServerPort,
-		JwtSignature:   cfg.JwtSignature,
-		PostgresUser:   cfg.PostgresUser,
-		PostgresPass:   cfg.PostgresPass,
-		PostgresDB:     cfg.PostgresDB,
-		PostgresPort:   port,
-		PostgresHost:   cfg.PostgresHost,
-		MigrationsPath: cfg.MigrationsPath,
-		JwtTokenLife:   tokenLife,
+		ServerPort:       cfg.ServerPort,
+		Signature:        cfg.Signature,
+		PostgresUser:     cfg.PostgresUser,
+		PostgresPass:     cfg.PostgresPass,
+		PostgresDB:       cfg.PostgresDB,
+		PostgresPort:     port,
+		PostgresHost:     cfg.PostgresHost,
+		MigrationsPath:   cfg.MigrationsPath,
+		SessionTokenLife: tokenLife,
 	}, nil
 }

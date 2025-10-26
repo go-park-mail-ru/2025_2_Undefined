@@ -57,7 +57,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	sessionrepo := sessionrepo.New(db)
 	sessionuc := sessionuc.New(sessionrepo)
-	sessionutils := sessionutils.NewSessionUtils(sessionuc)
+	sessionutils := sessionutils.NewSessionUtils(sessionuc, conf)
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo)
@@ -65,7 +65,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	authRepo := authrepo.New(db)
 	authUC := authuc.New(authRepo, userRepo, sessionrepo)
-	authHandler := autht.New(authUC, sessionutils)
+	authHandler := autht.New(authUC, conf, sessionutils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
@@ -91,12 +91,12 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
 		authRouter.Handle("/logout",
-			middleware.AuthMiddleware(sessionrepo)(http.HandlerFunc(authHandler.Logout)),
+			middleware.AuthMiddleware(conf, sessionuc)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
 	}
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware(sessionrepo))
+	protectedRouter.Use(middleware.AuthMiddleware(conf, sessionuc))
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{

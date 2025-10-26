@@ -12,6 +12,7 @@ import (
 type SessionRepository interface {
 	GetSession(sessionID uuid.UUID) (*session.Session, error)
 	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
+	UpdateSession(sessionID uuid.UUID) error
 }
 
 type SessionUsecase struct {
@@ -61,4 +62,24 @@ func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*session.Sess
 	}
 
 	return sessions, nil
+}
+
+func (uc *SessionUsecase) UpdateSessionByUserID(userID uuid.UUID) error {
+	const op = "SessionUsecase.UpdateSessionByUserID"
+
+	if userID == uuid.Nil {
+		err := errors.New("user ID is required")
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return wrappedErr
+	}
+
+	err := uc.sessionrepo.UpdateSession(userID)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return wrappedErr
+	}
+
+	return nil
 }
