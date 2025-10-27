@@ -10,6 +10,8 @@ import (
 )
 
 type SessionRepository interface {
+	AddSession(userID uuid.UUID, device string) (uuid.UUID, error)
+	DeleteSession(sessionID uuid.UUID) error
 	GetSession(sessionID uuid.UUID) (*session.Session, error)
 	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
 	UpdateSession(sessionID uuid.UUID) error
@@ -64,17 +66,17 @@ func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*session.Sess
 	return sessions, nil
 }
 
-func (uc *SessionUsecase) UpdateSessionByUserID(userID uuid.UUID) error {
-	const op = "SessionUsecase.UpdateSessionByUserID"
+func (uc *SessionUsecase) UpdateSession(sessionID uuid.UUID) error {
+	const op = "SessionUsecase.UpdateSession"
 
-	if userID == uuid.Nil {
-		err := errors.New("user ID is required")
+	if sessionID == uuid.Nil {
+		err := errors.New("session ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return wrappedErr
 	}
 
-	err := uc.sessionrepo.UpdateSession(userID)
+	err := uc.sessionrepo.UpdateSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
