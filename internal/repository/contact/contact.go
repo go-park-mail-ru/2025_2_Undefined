@@ -1,12 +1,12 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
-	"log"
 	"time"
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/contact"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -34,8 +34,12 @@ func New(db *sql.DB) *ContactRepository {
 	}
 }
 
-func (r *ContactRepository) CreateContact(user_id uuid.UUID, contact_user_id uuid.UUID) error {
+func (r *ContactRepository) CreateContact(ctx context.Context, user_id uuid.UUID, contact_user_id uuid.UUID) error {
 	const op = "ContactRepository.CreateContact"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", user_id.String()).WithField("contact_user_id", contact_user_id.String())
+	logger.Debug("Starting database operation: create contact")
+
 	err := r.db.QueryRow(createContactQuery,
 		user_id, contact_user_id, time.Now(), time.Now()).
 		Scan(&user_id)
@@ -43,24 +47,27 @@ func (r *ContactRepository) CreateContact(user_id uuid.UUID, contact_user_id uui
 		// Проверяем является ли ошибка наруением уникального ограничения
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			err = errs.ErrIsDuplicateKey
-			wrappedErr := fmt.Errorf("%s: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
+			logger.WithError(err).Error("Database operation failed: duplicate key constraint violation")
 			return err
 		}
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(err).Error("Database operation failed: create contact query")
 		return err
 	}
+
+	logger.Info("Database operation completed successfully: contact created")
 	return nil
 }
 
-func (r *ContactRepository) GetContactsByUserID(user_id uuid.UUID) ([]*models.Contact, error) {
+func (r *ContactRepository) GetContactsByUserID(ctx context.Context, user_id uuid.UUID) ([]*models.Contact, error) {
 	const op = "ContactRepository.GetContactsByUserID"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", user_id.String())
+	logger.Debug("Starting database operation: get contacts by user ID")
+
 	rows, err := r.db.Query(getContactsByUserIDQuery, user_id)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		return nil, wrappedErr
+		logger.WithError(err).Error("Database operation failed: get contacts query")
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -69,17 +76,16 @@ func (r *ContactRepository) GetContactsByUserID(user_id uuid.UUID) ([]*models.Co
 		var contact models.Contact
 		err := rows.Scan(&contact.UserID, &contact.ContactUserID, &contact.CreatedAt, &contact.UpdatedAt)
 		if err != nil {
-			wrappedErr := fmt.Errorf("%s: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
-			return nil, wrappedErr
+			logger.WithError(err).Error("Database operation failed: scan contact row")
+			return nil, err
 		}
 		contacts = append(contacts, &contact)
 	}
 	if err = rows.Err(); err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		return nil, wrappedErr
+		logger.WithError(err).Error("Database operation failed: rows iteration error")
+		return nil, err
 	}
 
+	logger.WithField("contacts_count", len(contacts)).Info("Database operation completed successfully: contacts retrieved")
 	return contacts, nil
 }

@@ -1,6 +1,8 @@
 package message
 
 import (
+	"context"
+
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	"github.com/google/uuid"
@@ -9,24 +11,24 @@ import (
 )
 
 type MockMessageRepo struct {
-	InsertMessageFunc func(msg modelsMessage.CreateMessage) (uuid.UUID, error)
+	InsertMessageFunc func(ctx context.Context, msg modelsMessage.CreateMessage) (uuid.UUID, error)
 }
 
-func (r *MockMessageRepo) InsertMessage(msg modelsMessage.CreateMessage) (uuid.UUID, error) {
-	return r.InsertMessageFunc(msg)
+func (r *MockMessageRepo) InsertMessage(ctx context.Context, msg modelsMessage.CreateMessage) (uuid.UUID, error) {
+	return r.InsertMessageFunc(ctx, msg)
 }
 
 type MockUserRepo struct {
-	GetUserByIDFunc   func(id uuid.UUID) (*UserModels.User, error)
-	GetUsersNamesFunc func(usersIds []uuid.UUID) ([]string, error)
+	GetUserByIDFunc   func(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
+	GetUsersNamesFunc func(ctx context.Context, usersIds []uuid.UUID) ([]string, error)
 }
 
-func (r *MockUserRepo) GetUserByID(id uuid.UUID) (*UserModels.User, error) {
-	return r.GetUserByIDFunc(id)
+func (r *MockUserRepo) GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error) {
+	return r.GetUserByIDFunc(ctx, id)
 }
 
-func (r *MockUserRepo) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
-	return r.GetUsersNamesFunc(usersIds)
+func (r *MockUserRepo) GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error) {
+	return r.GetUsersNamesFunc(ctx, usersIds)
 }
 
 type MockListenerMap struct {

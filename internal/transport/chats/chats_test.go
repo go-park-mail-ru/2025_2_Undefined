@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -37,21 +38,21 @@ func (m *mockSessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, err
 	return m.userID, nil
 }
 
-func (m *mockChatsService) GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error) {
+func (m *mockChatsService) GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error) {
 	if m.getChatError != nil {
 		return nil, m.getChatError
 	}
 	return m.chats, nil
 }
 
-func (m *mockChatsService) CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error) {
+func (m *mockChatsService) CreateChat(ctx context.Context, chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error) {
 	if m.createChatError != nil {
 		return uuid.Nil, m.createChatError
 	}
 	return uuid.New(), nil
 }
 
-func (m *mockChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error) {
+func (m *mockChatsService) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error) {
 	if m.chatDetailedError != nil {
 		return nil, m.chatDetailedError
 	}

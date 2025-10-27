@@ -1,10 +1,12 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
@@ -15,12 +17,12 @@ import (
 )
 
 type AuthRepository interface {
-	CreateUser(name string, phone string, password_hash string) (*UserModels.User, error)
+	CreateUser(ctx context.Context, name string, phone string, password_hash string) (*UserModels.User, error)
 }
 
 type UserRepository interface {
-	GetUserByPhone(phone string) (*UserModels.User, error)
-	GetUserByID(id uuid.UUID) (*UserModels.User, error)
+	GetUserByPhone(ctx context.Context, phone string) (*UserModels.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 }
 
 type SessionRepository interface {
@@ -42,11 +44,11 @@ func New(authrepo AuthRepository, userrepo UserRepository, sessionrepo SessionRe
 	}
 }
 
-func (uc *AuthUsecase) Register(req *AuthDTO.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
+func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
 	const op = "AuthUsecase.Register"
 	errorsValidation := make([]errs.ValidationError, 0)
 
-	existing, _ := uc.userrepo.GetUserByPhone(req.PhoneNumber)
+	existing, _ := uc.userrepo.GetUserByPhone(ctx, req.PhoneNumber)
 	if existing != nil {
 		errorsValidation = append(errorsValidation, errs.ValidationError{
 			Field:   "phone_number",
@@ -71,7 +73,7 @@ func (uc *AuthUsecase) Register(req *AuthDTO.RegisterRequest, device string) (uu
 		}
 	}
 
-	user, err := uc.authrepo.CreateUser(req.Name, req.PhoneNumber, string(hashedPassword))
+	user, err := uc.authrepo.CreateUser(ctx, req.Name, req.PhoneNumber, string(hashedPassword))
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -101,9 +103,9 @@ func (uc *AuthUsecase) Register(req *AuthDTO.RegisterRequest, device string) (uu
 	return newsSession, nil
 }
 
-func (uc *AuthUsecase) Login(req *AuthDTO.LoginRequest, device string) (uuid.UUID, error) {
+func (uc *AuthUsecase) Login(ctx context.Context, req *AuthDTO.LoginRequest, device string) (uuid.UUID, error) {
 	const op = "AuthUsecase.Login"
-	user, err := uc.userrepo.GetUserByPhone(req.PhoneNumber)
+	user, err := uc.userrepo.GetUserByPhone(ctx, req.PhoneNumber)
 	if err != nil || user == nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
 		log.Printf("Error: %v", wrappedErr)
@@ -126,14 +128,19 @@ func (uc *AuthUsecase) Login(req *AuthDTO.LoginRequest, device string) (uuid.UUI
 	return newSession, nil
 }
 
-func (uc *AuthUsecase) Logout(SessionID uuid.UUID) error {
+func (uc *AuthUsecase) Logout(ctx context.Context, SessionID uuid.UUID) error {
 	const op = "AuthUsecase.Logout"
+
+	logger := domains.GetLogger(ctx)
+	logger.WithField("session_id", SessionID).Debug("Starting session logout")
+
 	err := uc.sessionrepo.DeleteSession(SessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("Failed to delete session")
 		return wrappedErr
 	}
 
+	logger.Info("Session logout successful")
 	return nil
 }

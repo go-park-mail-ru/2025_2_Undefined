@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
@@ -17,7 +18,7 @@ type SessionUtilsI interface {
 }
 
 type UserUsecase interface {
-	GetUserById(id uuid.UUID) (*UserModels.User, error)
+	GetUserById(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 }
 
 type UserHandler struct {
@@ -51,7 +52,7 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.uc.GetUserById(userID)
+	user, err := h.uc.GetUserById(r.Context(), userID)
 	if err != nil {
 		cookie.Unset(w, "session_token")
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrUserNotFound.Error())

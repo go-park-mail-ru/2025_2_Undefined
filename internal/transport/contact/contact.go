@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,8 +17,8 @@ type SessionUtilsI interface {
 }
 
 type ContactUsecase interface {
-	CreateContact(req *ContactDTO.PostContactDTO, userID uuid.UUID) error
-	GetContacts(userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error)
+	CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error
+	GetContacts(ctx context.Context, userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error)
 }
 
 type ContactHandler struct {
@@ -64,7 +65,7 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.uc.CreateContact(&req, userID); err != nil {
+	if err := h.uc.CreateContact(r.Context(), &req, userID); err != nil {
 		if errors.Is(err, errs.ErrIsDuplicateKey) {
 			response.SendError(r.Context(), op, w, http.StatusConflict, "contact already exists")
 			return
@@ -95,7 +96,7 @@ func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contacts, err := h.uc.GetContacts(userID)
+	contacts, err := h.uc.GetContacts(r.Context(), userID)
 	if err != nil {
 		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "Failed to get contacts")
 		return

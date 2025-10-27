@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -19,7 +20,8 @@ func TestAuthRepository_CreateUser_GenerateUsernameError(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM "user"`).
 		WillReturnError(errors.New("database error"))
 
-	user, err := repo.CreateUser("Test User", "+79998887766", "hashed_password")
+	ctx := context.Background()
+	user, err := repo.CreateUser(ctx, "Test User", "+79998887766", "hashed_password")
 
 	assert.Error(t, err)
 	assert.Equal(t, "database error", err.Error())
@@ -40,7 +42,8 @@ func TestAuthRepository_checkUsernameExists_True(t *testing.T) {
 		WithArgs("existinguser").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-	exists, err := repo.checkUsernameExists("existinguser")
+	ctx := context.Background()
+	exists, err := repo.checkUsernameExists(ctx, "existinguser")
 
 	assert.NoError(t, err)
 	assert.True(t, exists)
@@ -60,7 +63,8 @@ func TestAuthRepository_checkUsernameExists_False(t *testing.T) {
 		WithArgs("newuser").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	exists, err := repo.checkUsernameExists("newuser")
+	ctx := context.Background()
+	exists, err := repo.checkUsernameExists(ctx, "newuser")
 
 	assert.NoError(t, err)
 	assert.False(t, exists)
@@ -80,7 +84,8 @@ func TestAuthRepository_checkUsernameExists_Error(t *testing.T) {
 		WithArgs("testuser").
 		WillReturnError(errors.New("database error"))
 
-	exists, err := repo.checkUsernameExists("testuser")
+	ctx := context.Background()
+	exists, err := repo.checkUsernameExists(ctx, "testuser")
 
 	assert.Error(t, err)
 	assert.Equal(t, "database error", err.Error())
@@ -104,7 +109,8 @@ func TestAuthRepository_generateUsername_Success(t *testing.T) {
 		WithArgs("user_10").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	username, err := repo.generateUsername()
+	ctx := context.Background()
+	username, err := repo.generateUsername(ctx)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "user_10", username)
@@ -123,7 +129,8 @@ func TestAuthRepository_generateUsername_CountError(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM "user"`).
 		WillReturnError(errors.New("count error"))
 
-	username, err := repo.generateUsername()
+	ctx := context.Background()
+	username, err := repo.generateUsername(ctx)
 
 	assert.Error(t, err)
 	assert.Equal(t, "count error", err.Error())
@@ -147,7 +154,8 @@ func TestAuthRepository_generateUsername_UsernameExistsCheckError(t *testing.T) 
 		WithArgs("user_5").
 		WillReturnError(errors.New("check error"))
 
-	username, err := repo.generateUsername()
+	ctx := context.Background()
+	username, err := repo.generateUsername(ctx)
 
 	assert.Error(t, err)
 	assert.Equal(t, "check error", err.Error())
@@ -171,7 +179,8 @@ func TestAuthRepository_generateUsername_FallbackToUUID(t *testing.T) {
 		WithArgs("user_7").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-	username, err := repo.generateUsername()
+	ctx := context.Background()
+	username, err := repo.generateUsername(ctx)
 
 	assert.NoError(t, err)
 	assert.Contains(t, username, "user_")

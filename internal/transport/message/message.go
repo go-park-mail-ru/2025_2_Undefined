@@ -42,12 +42,12 @@ type SessionUtilsI interface {
 }
 
 type MessageUsecase interface {
-	AddMessage(msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error
+	AddMessage(ctx context.Context, msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error
 	SubscribeUserToChats(ctx context.Context, userId uuid.UUID, chatsDTO []dto.ChatViewInformationDTO) <-chan dtoMessage.MessageDTO
 }
 
 type ChatsService interface {
-	GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
+	GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
 }
 
 type MessageHandler struct {
@@ -139,7 +139,7 @@ func (h *MessageHandler) readMessages(ctx context.Context, cancel context.Cancel
 		"user_id":   userId.String(),
 	})
 
-	chatsViewDTO, err := h.chatsUsecase.GetChats(userId)
+	chatsViewDTO, err := h.chatsUsecase.GetChats(ctx, userId)
 	if err != nil {
 		h.writeJSONErrorWebSocket(conn, err.Error())
 		logger.WithError(err).Error("Failed to get chats for user")
@@ -213,7 +213,7 @@ func (h *MessageHandler) sendMessages(ctx context.Context, cancel context.Cancel
 			msg.CreatedAt = time.Now()
 		}
 
-		if err := h.messageUsecase.AddMessage(msg, userId); err != nil {
+		if err := h.messageUsecase.AddMessage(ctx, msg, userId); err != nil {
 			logger.WithError(err).Error("Failed to add message")
 			h.writeJSONErrorWebSocket(conn, err.Error())
 			continue

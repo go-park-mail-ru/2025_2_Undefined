@@ -16,13 +16,18 @@ func AccessLogMiddleware(logger *logrus.Logger, next http.Handler) http.Handler 
 		requestID := fmt.Sprintf("%016x", rand.Int())[:10]
 
 		middlewareLogger := logger.WithFields(logrus.Fields{
+			"mode":        "access_log",
 			"request_id":  requestID,
 			"method":      r.Method,
 			"remote_addr": r.RemoteAddr,
 			"path":        r.URL.Path,
 		})
 
-		contextLogger := logrus.NewEntry(logger).WithField("request_id", requestID)
+		contextLogger := logrus.NewEntry(logger).WithFields(logrus.Fields{
+			"mode":       "application",
+			"request_id": requestID,
+		})
+
 		ctx := context.WithValue(r.Context(), domains.ContextKeyLogger{}, contextLogger)
 
 		startTime := time.Now()

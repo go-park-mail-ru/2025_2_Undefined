@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,9 +23,9 @@ type SessionUtilsI interface {
 }
 
 type AuthUsecase interface {
-	Register(req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
-	Login(req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
-	Logout(SessionID uuid.UUID) error
+	Register(ctx context.Context, req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
+	Login(ctx context.Context, req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
+	Logout(ctx context.Context, SessionID uuid.UUID) error
 }
 
 type AuthHandler struct {
@@ -91,7 +92,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Получаем информацию об устройстве из User-Agent
 	device := getDeviceFromUserAgent(r)
 
-	sessionID, validationErr := h.uc.Register(&req, device)
+	sessionID, validationErr := h.uc.Register(r.Context(), &req, device)
 	if validationErr != nil {
 		utils.SendValidationErrors(r.Context(), op, w, http.StatusBadRequest, *validationErr)
 		return
@@ -138,7 +139,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Получаем информацию об устройстве из User-Agent
 	device := getDeviceFromUserAgent(r)
 
-	sessionID, err := h.uc.Login(&req, device)
+	sessionID, err := h.uc.Login(r.Context(), &req, device)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidCredentials.Error())
 		return
@@ -179,7 +180,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.uc.Logout(sessionID)
+	err = h.uc.Logout(r.Context(), sessionID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return

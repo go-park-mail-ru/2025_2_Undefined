@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -16,9 +17,9 @@ type SessionUtilsI interface {
 }
 
 type ChatsService interface {
-	GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
-	CreateChat(chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error)
-	GetInformationAboutChat(userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error)
+	GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
+	CreateChat(ctx context.Context, chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error)
+	GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error)
 }
 
 type ChatsHandler struct {
@@ -53,7 +54,7 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chats, err := h.chatService.GetChats(userUUID)
+	chats, err := h.chatService.GetChats(r.Context(), userUUID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
@@ -82,7 +83,7 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idOfCreatedChat, err := h.chatService.CreateChat(*chatDTO)
+	idOfCreatedChat, err := h.chatService.CreateChat(r.Context(), *chatDTO)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
@@ -125,7 +126,7 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	informationDTO, err := h.chatService.GetInformationAboutChat(userUUID, chatUUID)
+	informationDTO, err := h.chatService.GetInformationAboutChat(r.Context(), userUUID, chatUUID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
