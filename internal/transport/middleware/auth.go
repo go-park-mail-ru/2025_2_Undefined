@@ -60,7 +60,7 @@ func AuthMiddleware(conf *config.Config, sessionUC *SessionUC.SessionUsecase) fu
 				return
 			}
 			// Обновляем сессию
-			err = sessionUC.UpdateSessionByUserID(sessionID)
+			err = sessionUC.UpdateSession(sessionID)
 			if err != nil {
 				wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
 				log.Printf("Error: %v", wrappedErr)

@@ -73,9 +73,20 @@ start:
 clear: 
 	@echo "Остановка приложения и очистка БД..."
 	docker compose down
+	docker compose up -d db auth_redis
+	sleep 2
 	docker compose run --rm app ./migrate down
 	docker compose run --rm app ./migrate up
+	docker compose down
 	@echo "Очистка завершена"
+
+clear-redis:
+	@echo "Очистка Redis..."
+	docker compose up -d auth_redis
+	sleep 2
+	docker compose run --rm app ./migrate clear-redis
+	docker compose down
+	@echo "Redis очищен"
 
 swagger:
 	swag init -g cmd/app/main.go -o docs

@@ -39,6 +39,23 @@ services:
       retries: 5
     networks:
       - gramm-network
+  
+  auth_redis:
+    image: redis:alpine
+    command: redis-server --bind 0.0.0.0 --port 6380 --requirepass password
+    ports:
+      - "6380:6380"
+    volumes:
+      - auth_redis_data:/data
+    environment:
+      REDIS_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -h localhost -p 6380 -a password ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gramm-network
 
 networks:
   gramm-network:
@@ -46,3 +63,4 @@ networks:
 
 volumes:
   postgres_data:
+  auth_redis_data:

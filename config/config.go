@@ -15,6 +15,7 @@ type Config struct {
 	ServerConfig     *ServerConfig
 	SessionConfig    *SessionConfig
 	MigrationsConfig *MigrationsConfig
+	RedisConfig      *RedisConfig
 }
 
 type DBConfig struct {
@@ -26,6 +27,13 @@ type DBConfig struct {
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
+}
+
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
 }
 
 type ServerConfig struct {
@@ -59,6 +67,13 @@ func NewConfig() (*Config, error) {
 		ConnMaxLifetime: 5 * time.Minute,
 	}
 
+	redisConfig := &RedisConfig{
+		Port:     raw.AuthPort,
+		Host:     raw.AuthHost,
+		Password: raw.AuthPass,
+		DB:       raw.AuthDB,
+	}
+
 	serverConfig := &ServerConfig{
 		Port: raw.ServerPort,
 	}
@@ -77,6 +92,7 @@ func NewConfig() (*Config, error) {
 		ServerConfig:     serverConfig,
 		SessionConfig:    sessionConfig,
 		MigrationsConfig: migrationsConfig,
+		RedisConfig:      redisConfig,
 	}, nil
 }
 
@@ -90,6 +106,10 @@ type yamlConfig struct {
 	PostgresHost     string        `yaml:"POSTGRES_HOST"`
 	MigrationsPath   string        `yaml:"MIGRATIONS_PATH"`
 	SessionTokenLife time.Duration `yaml:"SESSION_TOKEN_LIFESPAN"`
+	AuthPass         string        `yaml:"AUTH_REDIS_PASSWORD"`
+	AuthDB           int           `yaml:"AUTH_REDIS_DB"`
+	AuthPort         string        `yaml:"AUTH_REDIS_PORT"`
+	AuthHost         string        `yaml:"AUTH_REDIS_HOST"`
 }
 
 func loadYamlConfig(path string) (*yamlConfig, error) {
@@ -108,6 +128,10 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		PostgresHost     string `yaml:"POSTGRES_HOST"`
 		MigrationsPath   string `yaml:"MIGRATIONS_PATH"`
 		SessionTokenLife string `yaml:"SESSION_TOKEN_LIFESPAN"`
+		AuthPass         string `yaml:"AUTH_REDIS_PASSWORD"`
+		AuthDB           string `yaml:"AUTH_REDIS_DB"`
+		AuthPort         string `yaml:"AUTH_REDIS_PORT"`
+		AuthHost         string `yaml:"AUTH_REDIS_HOST"`
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -133,6 +157,19 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		}
 	}
 
+	authDb, err := strconv.Atoi(cfg.AuthDB)
+	if err != nil {
+		return nil, errors.New("invalid POSTGRES_PORT value")
+	}
+
+	if cfg.AuthPort == "" {
+		return nil, errors.New("AUTH_Redis_PORT is required")
+	}
+
+	if cfg.AuthHost == "" {
+		return nil, errors.New("AUTH_Redis_Host is required")
+	}
+
 	return &yamlConfig{
 		ServerPort:       cfg.ServerPort,
 		Signature:        cfg.Signature,
@@ -143,5 +180,9 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		PostgresHost:     cfg.PostgresHost,
 		MigrationsPath:   cfg.MigrationsPath,
 		SessionTokenLife: tokenLife,
+		AuthPass:         cfg.AuthPass,
+		AuthDB:           authDb,
+		AuthPort:         cfg.AuthPort,
+		AuthHost:         cfg.AuthHost,
 	}, nil
 }

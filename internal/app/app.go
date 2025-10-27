@@ -13,7 +13,8 @@ import (
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 
-	sessionrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/session"
+	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
+	redisSessionRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis/session"
 	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	sessionuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
 
@@ -39,9 +40,9 @@ import (
 )
 
 type App struct {
-	conf   *config.Config
-	db     *sql.DB
-	router *mux.Router
+	conf        *config.Config
+	db          *sql.DB
+	router      *mux.Router
 }
 
 func NewApp(conf *config.Config) (*App, error) {
@@ -55,30 +56,35 @@ func NewApp(conf *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	sessionrepo := sessionrepo.New(db)
-	sessionuc := sessionuc.New(sessionrepo)
-	sessionutils := sessionutils.NewSessionUtils(sessionuc, conf)
+	redisClient, err := redisClient.NewClient(conf.RedisConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to redis: %v", err)
+	}
+
+	sessionRepo := redisSessionRepo.New(redisClient.Client, conf.SessionConfig.LifeSpan)
+	sessionUC := sessionuc.New(sessionRepo)
+	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf)
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo)
-	userHandler := usert.New(userUC, sessionutils)
+	userHandler := usert.New(userUC, sessionUtils)
 
 	authRepo := authrepo.New(db)
-	authUC := authuc.New(authRepo, userRepo, sessionrepo)
-	authHandler := autht.New(authUC, conf, sessionutils)
+	authUC := authuc.New(authRepo, userRepo, sessionRepo)
+	authHandler := autht.New(authUC, conf, sessionUtils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
-	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionutils)
+	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionUtils)
 
 	messageRepo := messageRepository.NewMessageRepository(db)
 	listenerMap := messageUsecase.NewListenerMap()
 	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, listenerMap)
-	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionutils)
+	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionUtils)
 
 	contactRepo := contactRepository.New(db)
 	contactUC := contactUsecase.New(contactRepo, userRepo)
-	contactHandler := contactTransport.New(contactUC, sessionutils)
+	contactHandler := contactTransport.New(contactUC, sessionUtils)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
@@ -91,12 +97,12 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
 		authRouter.Handle("/logout",
-			middleware.AuthMiddleware(conf, sessionuc)(http.HandlerFunc(authHandler.Logout)),
+			middleware.AuthMiddleware(conf, sessionUC)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
 	}
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware(conf, sessionuc))
+	protectedRouter.Use(middleware.AuthMiddleware(conf, sessionUC))
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
@@ -126,9 +132,9 @@ func NewApp(conf *config.Config) (*App, error) {
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	return &App{
-		conf:   conf,
-		db:     db,
-		router: router,
+		conf:        conf,
+		db:          db,
+		router:      router,
 	}, nil
 }
 
