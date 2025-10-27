@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
@@ -38,7 +39,8 @@ func TestChatsRepository_GetChats_Success(t *testing.T) {
 		WithArgs(userID).
 		WillReturnRows(rows)
 
-	chats, err := repo.GetChats(userID)
+	ctx := context.Background()
+	chats, err := repo.GetChats(ctx, userID)
 
 	assert.NoError(t, err)
 	assert.Len(t, chats, 2)
@@ -67,7 +69,8 @@ func TestChatsRepository_GetChats_Error(t *testing.T) {
 		WithArgs(userID).
 		WillReturnError(fmt.Errorf("database error"))
 
-	chats, err := repo.GetChats(userID)
+	ctx := context.Background()
+	chats, err := repo.GetChats(ctx, userID)
 
 	assert.Error(t, err)
 	assert.Nil(t, chats)
@@ -104,7 +107,8 @@ func TestChatsRepository_GetLastMessagesOfChats_Success(t *testing.T) {
 		WithArgs(userID).
 		WillReturnRows(rows)
 
-	messages, err := repo.GetLastMessagesOfChats(userID)
+	ctx := context.Background()
+	messages, err := repo.GetLastMessagesOfChats(ctx, userID)
 
 	assert.NoError(t, err)
 	assert.Len(t, messages, 1)
@@ -139,7 +143,8 @@ func TestChatsRepository_GetChat_Success(t *testing.T) {
 		WithArgs(userID, chatID).
 		WillReturnRows(rows)
 
-	chat, err := repo.GetChat(userID, chatID)
+	ctx := context.Background()
+	chat, err := repo.GetChat(ctx, userID, chatID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, chat)
@@ -170,7 +175,8 @@ func TestChatsRepository_GetChat_NotFound(t *testing.T) {
 		WithArgs(userID, chatID).
 		WillReturnError(sql.ErrNoRows)
 
-	chat, err := repo.GetChat(userID, chatID)
+	ctx := context.Background()
+	chat, err := repo.GetChat(ctx, userID, chatID)
 
 	assert.Error(t, err)
 	assert.Nil(t, chat)
@@ -205,7 +211,8 @@ func TestChatsRepository_GetUsersOfChat_Success(t *testing.T) {
 		WithArgs(chatID).
 		WillReturnRows(rows)
 
-	users, err := repo.GetUsersOfChat(chatID)
+	ctx := context.Background()
+	users, err := repo.GetUsersOfChat(ctx, chatID)
 
 	assert.NoError(t, err)
 	assert.Len(t, users, 2)
@@ -246,7 +253,8 @@ func TestChatsRepository_GetMessagesOfChat_Success(t *testing.T) {
 		WithArgs(chatID, offset, limit).
 		WillReturnRows(rows)
 
-	messages, err := repo.GetMessagesOfChat(chatID, offset, limit)
+	ctx := context.Background()
+	messages, err := repo.GetMessagesOfChat(ctx, chatID, offset, limit)
 
 	assert.NoError(t, err)
 	assert.Len(t, messages, 1)
@@ -305,7 +313,8 @@ func TestChatsRepository_CreateChat_Success(t *testing.T) {
 	// Коммит транзакции
 	mock.ExpectCommit()
 
-	err = repo.CreateChat(chat, usersInfo, usersNames)
+	ctx := context.Background()
+	err = repo.CreateChat(ctx, chat, usersInfo, usersNames)
 
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -330,7 +339,8 @@ func TestChatsRepository_CreateChat_InvalidInput(t *testing.T) {
 	usersInfo := []modelsChats.UserInfo{{UserID: uuid.New(), Role: "admin"}}
 	usersNames := []string{"User1", "User2"}
 
-	err = repo.CreateChat(chat, usersInfo, usersNames)
+	ctx := context.Background()
+	err = repo.CreateChat(ctx, chat, usersInfo, usersNames)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid input")
@@ -362,7 +372,8 @@ func TestChatsRepository_GetUserInfo_Success(t *testing.T) {
 		WithArgs(userID, chatID).
 		WillReturnRows(rows)
 
-	userInfo, err := repo.GetUserInfo(userID, chatID)
+	ctx := context.Background()
+	userInfo, err := repo.GetUserInfo(ctx, userID, chatID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, userInfo)

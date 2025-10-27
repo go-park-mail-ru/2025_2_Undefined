@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -37,7 +38,8 @@ func TestMessageRepository_InsertMessage_Success(t *testing.T) {
 		WithArgs(msg.ChatID, msg.UserID, msg.Text, msg.CreatedAt, msg.Type).
 		WillReturnRows(rows)
 
-	gotID, err := repo.InsertMessage(msg)
+	ctx := context.Background()
+	gotID, err := repo.InsertMessage(ctx, msg)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedID, gotID)
 
@@ -66,7 +68,8 @@ func TestMessageRepository_InsertMessage_DBError(t *testing.T) {
 		WithArgs(msg.ChatID, msg.UserID, msg.Text, msg.CreatedAt, msg.Type).
 		WillReturnError(fmt.Errorf("db error"))
 
-	gotID, err := repo.InsertMessage(msg)
+	ctx := context.Background()
+	gotID, err := repo.InsertMessage(ctx, msg)
 	assert.Error(t, err)
 	assert.Equal(t, uuid.Nil, gotID)
 

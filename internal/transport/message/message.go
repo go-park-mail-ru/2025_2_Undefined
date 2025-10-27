@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{
@@ -41,12 +42,12 @@ type SessionUtilsI interface {
 }
 
 type MessageUsecase interface {
-	AddMessage(msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error
+	AddMessage(ctx context.Context, msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error
 	SubscribeUserToChats(ctx context.Context, userId uuid.UUID, chatsDTO []dto.ChatViewInformationDTO) <-chan dtoMessage.MessageDTO
 }
 
 type ChatsService interface {
-	GetChats(userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
+	GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
 }
 
 type MessageHandler struct {
@@ -106,24 +107,25 @@ func NewMessageHandler(messageUsecase MessageUsecase, chatsUsecase ChatsService,
 // @Failure      500  {object}  dto.ErrorDTO  "Ошибка сервера при установке WebSocket соединения"
 // @Router       /ws/messages [get]
 func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) {
+	const op = "MessageHandler.HandleMessages"
 	userId, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		response.SendError(w, http.StatusUnauthorized, err.Error())
+		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		response.SendError(w, http.StatusInternalServerError, "Failed to upgrade to WebSocket")
+		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "Failed to upgrade to WebSocket")
 		return
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	// Горутины для отправки и приёма сообщений по WebSocket.
-	go h.sendMessages(cancel, conn, userId)
+	go h.sendMessages(ctx, cancel, conn, userId)
 	go h.readMessages(ctx, cancel, conn, userId)
 
 	<-ctx.Done()
@@ -132,10 +134,15 @@ func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) 
 func (h *MessageHandler) readMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userId uuid.UUID) {
 	defer cancel()
 
-	chatsViewDTO, err := h.chatsUsecase.GetChats(userId)
+	logger := domains.GetLogger(ctx).WithFields(logrus.Fields{
+		"operation": "MessageHandler.readMessages",
+		"user_id":   userId.String(),
+	})
+
+	chatsViewDTO, err := h.chatsUsecase.GetChats(ctx, userId)
 	if err != nil {
 		h.writeJSONErrorWebSocket(conn, err.Error())
-		log.Printf("Failed to get chats for user %s: %v", userId.String(), err)
+		logger.WithError(err).Error("Failed to get chats for user")
 		return
 	}
 
@@ -152,7 +159,7 @@ func (h *MessageHandler) readMessages(ctx context.Context, cancel context.Cancel
 			}
 
 			if err := conn.WriteJSON(msg); err != nil {
-				log.Printf("Failed to write message to user with id %s: %v", userId.String(), err)
+				logger.WithError(err).Error("Failed to write message to user")
 				return
 			}
 
@@ -161,36 +168,43 @@ func (h *MessageHandler) readMessages(ctx context.Context, cancel context.Cancel
 
 		case <-time.After(30 * time.Second):
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("Failed to send ping to user with id %s: %v", userId.String(), err)
+				logger.WithError(err).Error("Failed to send ping to user")
 				return
 			}
 		}
 	}
 }
 
-func (h *MessageHandler) sendMessages(cancel context.CancelFunc, conn *websocket.Conn, userId uuid.UUID) {
+func (h *MessageHandler) sendMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userId uuid.UUID) {
 	defer cancel()
+
+	logger := domains.GetLogger(ctx).WithFields(logrus.Fields{
+		"operation": "MessageHandler.sendMessages",
+		"user_id":   userId.String(),
+	})
 
 	for {
 		var msg dtoMessage.CreateMessageDTO
 		if err := conn.ReadJSON(&msg); err != nil {
 			// Ошибка чтения — закрываем соединение и отменяем контекст
 			if shouldCloseConnection(err) {
-				log.Printf("ws closing connection for user %s: %v", userId.String(), err)
+				logger.WithError(err).Info("WebSocket connection closing")
 				return
 			}
 			h.writeJSONErrorWebSocket(conn, err.Error())
-			log.Printf("ws read error for user %s: %v", userId.String(), err)
+			logger.WithError(err).Error("WebSocket read error")
 			continue
 		}
 
 		// Валидация входящего сообщения
 		if msg.ChatId == uuid.Nil {
+			logger.Error("chat_id is required")
 			h.writeJSONErrorWebSocket(conn, "chat_id is required")
 			continue
 		}
 
 		if msg.Text == "" {
+			logger.Error("text is required")
 			h.writeJSONErrorWebSocket(conn, "text is required")
 			continue
 		}
@@ -199,8 +213,8 @@ func (h *MessageHandler) sendMessages(cancel context.CancelFunc, conn *websocket
 			msg.CreatedAt = time.Now()
 		}
 
-		if err := h.messageUsecase.AddMessage(msg, userId); err != nil {
-			log.Printf("failed to add message from user %s: %v", userId.String(), err)
+		if err := h.messageUsecase.AddMessage(ctx, msg, userId); err != nil {
+			logger.WithError(err).Error("Failed to add message")
 			h.writeJSONErrorWebSocket(conn, err.Error())
 			continue
 		}

@@ -1,13 +1,13 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
@@ -23,9 +23,9 @@ type SessionUtilsI interface {
 }
 
 type AuthUsecase interface {
-	Register(req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
-	Login(req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
-	Logout(SessionID uuid.UUID) error
+	Register(ctx context.Context, req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
+	Login(ctx context.Context, req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
+	Logout(ctx context.Context, SessionID uuid.UUID) error
 }
 
 type AuthHandler struct {
@@ -77,37 +77,29 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Register"
 	var req AuthModels.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrBadRequest)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
 
 	// Валидируем все поля и собираем все ошибки
 	validationErrors := validation.ValidateRegisterRequest(&req)
 	if len(validationErrors) > 0 {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("validationErrors"))
-		log.Printf("Error: %v", wrappedErr)
 		validationDTO := validation.ConvertToValidationErrorsDTO(validationErrors)
-		utils.SendValidationErrors(w, http.StatusBadRequest, validationDTO)
+		utils.SendValidationErrors(r.Context(), op, w, http.StatusBadRequest, validationDTO)
 		return
 	}
 
 	// Получаем информацию об устройстве из User-Agent
 	device := getDeviceFromUserAgent(r)
 
-	sessionID, validationErr := h.uc.Register(&req, device)
+	sessionID, validationErr := h.uc.Register(r.Context(), &req, device)
 	if validationErr != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("registration error"))
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendValidationErrors(w, http.StatusBadRequest, *validationErr)
+		utils.SendValidationErrors(r.Context(), op, w, http.StatusBadRequest, *validationErr)
 		return
 	}
 
 	if sessionID == uuid.Nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("session ID is missing"))
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendValidationErrors(w, http.StatusBadRequest, dto.ValidationErrorsDTO{
+		utils.SendValidationErrors(r.Context(), op, w, http.StatusBadRequest, dto.ValidationErrorsDTO{
 			Message: "session ID is missing",
 		})
 		return
@@ -132,30 +124,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Login"
 	var req AuthModels.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrBadRequest)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
 
 	// Валидируем все поля и собираем все ошибки
 	validationErrors := validation.ValidateLoginRequest(&req)
 	if len(validationErrors) > 0 {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("validationErrors"))
-		log.Printf("Error: %v", wrappedErr)
 		validationDTO := validation.ConvertToValidationErrorsDTO(validationErrors)
-		utils.SendValidationErrors(w, http.StatusBadRequest, validationDTO)
+		utils.SendValidationErrors(r.Context(), op, w, http.StatusBadRequest, validationDTO)
 		return
 	}
 
 	// Получаем информацию об устройстве из User-Agent
 	device := getDeviceFromUserAgent(r)
 
-	sessionID, err := h.uc.Login(&req, device)
+	sessionID, err := h.uc.Login(r.Context(), &req, device)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, errs.ErrInvalidCredentials.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidCredentials.Error())
 		return
 	}
 
@@ -177,36 +163,28 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Logout"
 	_, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session"))
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	// Получаем ID сессии из cookie для удаления
 	sessionCookie, err := r.Cookie(h.config.SessionConfig.Signature)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
 	}
 
 	sessionID, err := uuid.Parse(sessionCookie.Value)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session ID"))
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, "invalid session ID")
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "invalid session ID")
 		return
 	}
 
-	err = h.uc.Logout(sessionID)
+	err = h.uc.Logout(r.Context(), sessionID)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
-		utils.SendError(w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	cookie.Unset(w, h.config.SessionConfig.Signature)
-	utils.SendJSONResponse(w, http.StatusOK, nil)
+	cookie.Unset(w, domains.SessionName)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
 }

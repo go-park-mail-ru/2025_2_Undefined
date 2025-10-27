@@ -62,8 +62,8 @@ func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageReposito
 	return uc
 }
 
-func (uc *MessageUsecase) AddMessage(msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error {
-	user, err := uc.userRepository.GetUserByID(userId)
+func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error {
+	user, err := uc.userRepository.GetUserByID(ctx, userId)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (uc *MessageUsecase) AddMessage(msg dtoMessage.CreateMessageDTO, userId uui
 		UserID:    userId,
 	}
 
-	_, err = uc.messageRepository.InsertMessage(msgCreateModel)
+	_, err = uc.messageRepository.InsertMessage(ctx, msgCreateModel)
 	if err != nil {
 		return err
 	}

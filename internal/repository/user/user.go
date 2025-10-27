@@ -1,12 +1,14 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"strings"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
 )
@@ -38,62 +40,88 @@ func New(db *sql.DB) *UserRepository {
 	}
 }
 
-func (r *UserRepository) GetUserByPhone(phone string) (*models.User, error) {
+func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*models.User, error) {
 	const op = "UserRepository.GetUserByPhone"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("phone", phone)
+	logger.Debug("Starting database operation: get user by phone")
+
 	var user models.User
 	err := r.db.QueryRow(getUserByPhoneQuery, phone).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logger.Debug("Database operation completed: user not found")
 			err = errors.New("user not found")
 			return nil, err
 		}
+		logger.WithError(err).Error("Database operation failed: get user by phone query")
 		return nil, err
 	}
+
+	logger.WithField("user_id", user.ID.String()).Info("Database operation completed successfully: user found by phone")
 	return &user, nil
 }
 
-func (r *UserRepository) GetUserByUsername(username string) (*models.User, error) {
+func (r *UserRepository) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	const op = "UserRepository.GetUserByUsername"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("username", username)
+	logger.Debug("Starting database operation: get user by username")
+
 	var user models.User
 	err := r.db.QueryRow(getUserByUsernameQuery, username).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logger.Debug("Database operation completed: user not found")
 			err = errors.New("user not found")
 			return nil, err
 		}
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(err).Error("Database operation failed: get user by username query")
 		return nil, err
 	}
+
+	logger.WithField("user_id", user.ID.String()).Info("Database operation completed successfully: user found by username")
 	return &user, nil
 }
 
-func (r *UserRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
+func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	const op = "UserRepository.GetUserByID"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", id.String())
+	logger.Debug("Starting database operation: get user by ID")
+
 	var user models.User
 	err := r.db.QueryRow(getUserByIDQuery, id).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			logger.Debug("Database operation completed: user not found")
 			err = errors.New("user not found")
 			return nil, err
 		}
+		logger.WithError(err).Error("Database operation failed: get user by ID query")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return nil, err
 	}
+
+	logger.Info("Database operation completed successfully: user found by ID")
 	return &user, nil
 }
 
-func (r *UserRepository) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
+func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error) {
 	const op = "UserRepository.GetUsersNames"
 
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("users_count", len(usersIds))
+	logger.Debug("Starting database operation: get users names by IDs")
+
 	if len(usersIds) == 0 {
+		logger.Debug("Database operation completed: empty users list provided")
 		return []string{}, nil
 	}
 
@@ -111,6 +139,7 @@ func (r *UserRepository) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
+		logger.WithError(err).Error("Database operation failed: get users names query")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return nil, err
@@ -121,6 +150,7 @@ func (r *UserRepository) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
+			logger.WithError(err).Error("Database operation failed: scan user name row")
 			wrappedErr := fmt.Errorf("%s: %w", op, err)
 			log.Printf("Error: %v", wrappedErr)
 			return nil, err
@@ -128,5 +158,6 @@ func (r *UserRepository) GetUsersNames(usersIds []uuid.UUID) ([]string, error) {
 		result = append(result, name)
 	}
 
+	logger.WithField("names_count", len(result)).Info("Database operation completed successfully: users names retrieved")
 	return result, nil
 }

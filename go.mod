@@ -9,6 +9,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mssola/user_agent v0.6.0
 	github.com/redis/go-redis/v9 v9.16.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.42.0
@@ -21,6 +22,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe // indirect
 	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 )
 
 require (

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +11,7 @@ import (
 )
 
 type UserRepository interface {
-	GetUserByID(id uuid.UUID) (*UserModels.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 }
 
 type UserUsecase struct {
@@ -23,9 +24,9 @@ func New(userrepo UserRepository) *UserUsecase {
 	}
 }
 
-func (uc *UserUsecase) GetUserById(id uuid.UUID) (*UserModels.User, error) {
+func (uc *UserUsecase) GetUserById(ctx context.Context, id uuid.UUID) (*UserModels.User, error) {
 	const op = "AuthUsecase.GetUserById"
-	user, err := uc.userrepo.GetUserByID(id)
+	user, err := uc.userrepo.GetUserByID(ctx, id)
 	if err != nil {
 		err = errors.New("Error getting user by ID")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)

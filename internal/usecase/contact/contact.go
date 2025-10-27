@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -12,12 +13,12 @@ import (
 )
 
 type ContactRepository interface {
-	CreateContact(user_id uuid.UUID, contact_user_id uuid.UUID) error
-	GetContactsByUserID(user_id uuid.UUID) ([]*ContactModels.Contact, error)
+	CreateContact(ctx context.Context, user_id uuid.UUID, contact_user_id uuid.UUID) error
+	GetContactsByUserID(ctx context.Context, user_id uuid.UUID) ([]*ContactModels.Contact, error)
 }
 
 type UserRepository interface {
-	GetUserByID(id uuid.UUID) (*UserModels.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 }
 
 type ContactUsecase struct {
@@ -32,9 +33,9 @@ func New(contactrepo ContactRepository, userrepo UserRepository) *ContactUsecase
 	}
 }
 
-func (uc *ContactUsecase) CreateContact(req *ContactDTO.PostContactDTO, userID uuid.UUID) error {
+func (uc *ContactUsecase) CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error {
 	const op = "ContactUsecase.CreateContact"
-	err := uc.contactrepo.CreateContact(userID, req.ContactUserID)
+	err := uc.contactrepo.CreateContact(ctx, userID, req.ContactUserID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -44,9 +45,9 @@ func (uc *ContactUsecase) CreateContact(req *ContactDTO.PostContactDTO, userID u
 	return nil
 }
 
-func (uc *ContactUsecase) GetContacts(userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error) {
+func (uc *ContactUsecase) GetContacts(ctx context.Context, userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error) {
 	const op = "ContactUsecase.GetContacts"
-	contactsModels, err := uc.contactrepo.GetContactsByUserID(userID)
+	contactsModels, err := uc.contactrepo.GetContactsByUserID(ctx, userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -59,7 +60,7 @@ func (uc *ContactUsecase) GetContacts(userID uuid.UUID) ([]*ContactDTO.GetContac
 
 	ContactsDTO := make([]*ContactDTO.GetContactsDTO, len(contactsModels))
 	for i, contact := range contactsModels {
-		contactUserInfoModels, err := uc.userrepo.GetUserByID(contact.ContactUserID)
+		contactUserInfoModels, err := uc.userrepo.GetUserByID(ctx, contact.ContactUserID)
 		if err != nil {
 			wrappedErr := fmt.Errorf("%s: %w", op, err)
 			log.Printf("Error: %v", wrappedErr)

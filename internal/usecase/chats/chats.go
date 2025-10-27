@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
@@ -24,13 +25,13 @@ func NewChatsService(chatsRepo interfaceChatsUsecase.ChatsRepository, usersRepo 
 	}
 }
 
-func (s *ChatsService) GetChats(userId uuid.UUID) ([]dtoChats.ChatViewInformationDTO, error) {
-	chats, err := s.chatsRepo.GetChats(userId)
+func (s *ChatsService) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoChats.ChatViewInformationDTO, error) {
+	chats, err := s.chatsRepo.GetChats(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	lastMessages, err := s.chatsRepo.GetLastMessagesOfChats(userId)
+	lastMessages, err := s.chatsRepo.GetLastMessagesOfChats(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -65,23 +66,23 @@ func (s *ChatsService) GetChats(userId uuid.UUID) ([]dtoChats.ChatViewInformatio
 	return result, nil
 }
 
-func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
-	chat, err := s.chatsRepo.GetChat(userId, chatId)
+func (s *ChatsService) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
+	chat, err := s.chatsRepo.GetChat(ctx, userId, chatId)
 	if err != nil {
 		return nil, err
 	}
 
-	messages, err := s.chatsRepo.GetMessagesOfChat(chatId, 0, 20)
+	messages, err := s.chatsRepo.GetMessagesOfChat(ctx, chatId, 0, 20)
 	if err != nil {
 		return nil, err
 	}
 
-	users, err := s.chatsRepo.GetUsersOfChat(chatId)
+	users, err := s.chatsRepo.GetUsersOfChat(ctx, chatId)
 	if err != nil {
 		return nil, err
 	}
 
-	userInfo, err := s.chatsRepo.GetUserInfo(userId, chatId)
+	userInfo, err := s.chatsRepo.GetUserInfo(ctx, userId, chatId)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +137,7 @@ func (s *ChatsService) GetInformationAboutChat(userId, chatId uuid.UUID) (*dtoCh
 	return result, nil
 }
 
-func (s *ChatsService) CreateChat(chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
+func (s *ChatsService) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
 	chat := modelsChats.Chat{
 		ID:          uuid.New(),
 		Name:        chatDTO.Name,
@@ -149,7 +150,7 @@ func (s *ChatsService) CreateChat(chatDTO dtoChats.ChatCreateInformationDTO) (uu
 		usersIds[i] = memberDTO.UserId
 	}
 
-	usersNames, err := s.usersRepo.GetUsersNames(usersIds)
+	usersNames, err := s.usersRepo.GetUsersNames(ctx, usersIds)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("can't create chat: %w", err)
 	}
@@ -163,7 +164,7 @@ func (s *ChatsService) CreateChat(chatDTO dtoChats.ChatCreateInformationDTO) (uu
 		}
 	}
 
-	err = s.chatsRepo.CreateChat(chat, usersInfo, usersNames)
+	err = s.chatsRepo.CreateChat(ctx, chat, usersInfo, usersNames)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("can't create chat: %w", err)
 	}
