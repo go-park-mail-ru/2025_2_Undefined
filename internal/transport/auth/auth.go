@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
@@ -185,6 +184,6 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	cookie.Unset(w, domains.SessionName)
+	cookie.Unset(w, h.sessionConfig.Signature)
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
 }

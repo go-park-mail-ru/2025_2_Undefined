@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	cookieUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
@@ -22,7 +21,7 @@ func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.Sess
 			// Получаем сессию из куки
 			cookie, err := r.Cookie(sessionConf.Signature)
 			if err != nil {
-				cookieUtils.Unset(w, domains.SessionName)
+				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Session required")
 				return
 			}
@@ -30,7 +29,7 @@ func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.Sess
 			// Парсим UUID сессии
 			sessionID, err := uuid.Parse(cookie.Value)
 			if err != nil {
-				cookieUtils.Unset(w, domains.SessionName)
+				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Invalid session ID")
 				return
 			}
@@ -50,7 +49,7 @@ func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.Sess
 			// Обновляем сессию
 			err = sessionUC.UpdateSession(sessionID)
 			if err != nil {
-				cookieUtils.Unset(w, domains.SessionName)
+				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}
