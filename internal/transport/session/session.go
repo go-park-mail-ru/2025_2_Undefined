@@ -18,14 +18,14 @@ type SessionUsecase interface {
 }
 
 type SessionUtils struct {
-	uc     SessionUsecase
-	config *config.Config
+	uc            SessionUsecase
+	sessionConfig *config.SessionConfig
 }
 
-func NewSessionUtils(uc SessionUsecase, config *config.Config) *SessionUtils {
+func NewSessionUtils(uc SessionUsecase, sessionConfig *config.SessionConfig) *SessionUtils {
 	return &SessionUtils{
-		uc:     uc,
-		config: config,
+		uc:            uc,
+		sessionConfig: sessionConfig,
 	}
 }
 
@@ -34,7 +34,7 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 	const op = "SessionUtils.GetUserIDFromSession"
 
 	// Получаем сессию из куки
-	sessionCookie, err := r.Cookie(s.config.SessionConfig.Signature)
+	sessionCookie, err := r.Cookie(s.sessionConfig.Signature)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
 		log.Printf("Error: %v", wrappedErr)
