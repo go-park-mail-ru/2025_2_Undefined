@@ -41,9 +41,9 @@ import (
 )
 
 type App struct {
-	conf        *config.Config
-	db          *sql.DB
-	router      *mux.Router
+	conf   *config.Config
+	db     *sql.DB
+	router *mux.Router
 }
 
 func NewApp(conf *config.Config) (*App, error) {
@@ -64,7 +64,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	sessionRepo := redisSessionRepo.New(redisClient.Client, conf.SessionConfig.LifeSpan)
 	sessionUC := sessionuc.New(sessionRepo)
-	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf)
+	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf.SessionConfig)
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo)
@@ -72,7 +72,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	authRepo := authrepo.New(db)
 	authUC := authuc.New(authRepo, userRepo, sessionRepo)
-	authHandler := autht.New(authUC, conf, sessionUtils)
+	authHandler := autht.New(authUC, conf.SessionConfig, sessionUtils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
@@ -105,12 +105,12 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
 		authRouter.Handle("/logout",
-			middleware.AuthMiddleware(conf, sessionUC)(http.HandlerFunc(authHandler.Logout)),
+			middleware.AuthMiddleware(conf.SessionConfig, sessionUC)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
 	}
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware(conf, sessionUC))
+	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
@@ -140,9 +140,9 @@ func NewApp(conf *config.Config) (*App, error) {
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	return &App{
-		conf:        conf,
-		db:          db,
-		router:      router,
+		conf:   conf,
+		db:     db,
+		router: router,
 	}, nil
 }
 

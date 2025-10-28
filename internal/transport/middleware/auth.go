@@ -15,12 +15,12 @@ import (
 )
 
 // AuthMiddleware создает middleware для проверки аутентификации через сессии
-func AuthMiddleware(conf *config.Config, sessionUC *SessionUC.SessionUsecase) func(http.Handler) http.Handler {
+func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.SessionUsecase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			const op = "AuthMiddleware"
 			// Получаем сессию из куки
-			cookie, err := r.Cookie(conf.SessionConfig.Signature)
+			cookie, err := r.Cookie(sessionConf.Signature)
 			if err != nil {
 				cookieUtils.Unset(w, domains.SessionName)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Session required")
@@ -36,14 +36,14 @@ func AuthMiddleware(conf *config.Config, sessionUC *SessionUC.SessionUsecase) fu
 			}
 			sess, err := sessionUC.GetSession(sessionID)
 			if err != nil {
-				cookieUtils.Unset(w, conf.SessionConfig.Signature)
+				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}
 
 			// Проверяем истекла ли сессия
-			if time.Since(sess.Last_seen) > conf.SessionConfig.LifeSpan {
-				cookieUtils.Unset(w, conf.SessionConfig.Signature)
+			if time.Since(sess.Last_seen) > sessionConf.LifeSpan {
+				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "session expired")
 				return
 			}

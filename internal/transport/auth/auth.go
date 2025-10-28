@@ -29,16 +29,16 @@ type AuthUsecase interface {
 }
 
 type AuthHandler struct {
-	uc           AuthUsecase
-	config       *config.Config
-	sessionUtils SessionUtilsI
+	uc            AuthUsecase
+	sessionConfig *config.SessionConfig
+	sessionUtils  SessionUtilsI
 }
 
-func New(uc AuthUsecase, config *config.Config, sessionUtils SessionUtilsI) *AuthHandler {
+func New(uc AuthUsecase, sessionConfig *config.SessionConfig, sessionUtils SessionUtilsI) *AuthHandler {
 	return &AuthHandler{
-		uc:           uc,
-		config:       config,
-		sessionUtils: sessionUtils,
+		uc:            uc,
+		sessionConfig: sessionConfig,
+		sessionUtils:  sessionUtils,
 	}
 }
 
@@ -105,7 +105,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie.Set(w, sessionID.String(), h.config.SessionConfig.Signature)
+	cookie.Set(w, sessionID.String(), h.sessionConfig.Signature)
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -145,7 +145,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie.Set(w, sessionID.String(), h.config.SessionConfig.Signature)
+	cookie.Set(w, sessionID.String(), h.sessionConfig.Signature)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -168,7 +168,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID сессии из cookie для удаления
-	sessionCookie, err := r.Cookie(h.config.SessionConfig.Signature)
+	sessionCookie, err := r.Cookie(h.sessionConfig.Signature)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrJWTIsRequired.Error())
 		return
