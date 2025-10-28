@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	UserDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
@@ -18,7 +18,7 @@ type SessionUtilsI interface {
 }
 
 type UserUsecase interface {
-	GetUserById(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
+	GetUserById(ctx context.Context, id uuid.UUID) (*UserDto.User, error)
 }
 
 type UserHandler struct {
@@ -40,7 +40,7 @@ func New(uc UserUsecase, sessionUtils SessionUtilsI) *UserHandler {
 // @Accept       json
 // @Produce      json
 // @Security     ApiKeyAuth
-// @Success      200  {object}  models.User   "Информация о пользователе"
+// @Success      200  {object}  dto.User   "Информация о пользователе"
 // @Failure      401  {object}  dto.ErrorDTO      "Неавторизованный доступ"
 // @Router       /me [get]
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
