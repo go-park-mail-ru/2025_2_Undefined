@@ -9,7 +9,6 @@ import (
 type User struct {
 	ID           uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
 	PhoneNumber  string    `json:"phone_number"`
-	PasswordHash string    `json:"-"`
 	Name         string    `json:"name"`
 	Username     string    `json:"username"`
 	Bio          string    `json:"bio"`

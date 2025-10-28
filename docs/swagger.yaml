@@ -153,28 +153,6 @@ definitions:
       message:
         type: string
     type: object
-  models.User:
-    properties:
-      account_type:
-        type: string
-      avatar:
-        type: string
-      bio:
-        type: string
-      created_at:
-        type: string
-      id:
-        format: uuid
-        type: string
-      name:
-        type: string
-      phone_number:
-        type: string
-      updated_at:
-        type: string
-      username:
-        type: string
-    type: object
   session.Session:
     properties:
       created_at:
@@ -412,7 +390,7 @@ paths:
         "200":
           description: Информация о пользователе
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/dto.User'
         "401":
           description: Неавторизованный доступ
           schema:

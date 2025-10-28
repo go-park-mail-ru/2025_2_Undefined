@@ -13,14 +13,14 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
-	PhoneNumber  string    `json:"phone_number"`
-	PasswordHash string    `json:"-"`
-	Name         string    `json:"name"`
-	Username     string    `json:"username"`
-	Bio          string    `json:"bio"`
-	Avatar       *string   `json:"avatar"`
-	AccountType  string    `json:"account_type"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           uuid.UUID
+	PhoneNumber  string
+	PasswordHash string
+	Name         string
+	Username     string
+	Bio          string
+	Avatar       *string
+	AccountType  string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
