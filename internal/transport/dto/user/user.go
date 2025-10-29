@@ -7,13 +7,21 @@ import (
 )
 
 type User struct {
-	ID           uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
-	PhoneNumber  string    `json:"phone_number"`
-	Name         string    `json:"name"`
-	Username     string    `json:"username"`
-	Bio          string    `json:"bio"`
-	Avatar       *string   `json:"avatar"`
-	AccountType  string    `json:"account_type"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
+	PhoneNumber string    `json:"phone_number"`
+	Name        string    `json:"name"`
+	Username    string    `json:"username"`
+	Bio         string    `json:"bio"`
+	Avatar      *string   `json:"avatar"`
+	AccountType string    `json:"account_type"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type GetUserByPhone struct {
+	PhoneNumber string `json:"phone_number"`
+}
+
+type GetUserByUsername struct {
+	Username string `json:"username"`
 }

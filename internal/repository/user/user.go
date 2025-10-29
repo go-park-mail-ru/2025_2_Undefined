@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
 )
@@ -101,7 +102,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.Debug("Database operation completed: user not found")
-			err = errors.New("user not found")
+			err = errs.ErrUserNotFound
 			return nil, err
 		}
 		logger.WithError(err).Error("Database operation failed: get user by ID query")

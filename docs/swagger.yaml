@@ -66,6 +66,16 @@ definitions:
       user_id:
         type: string
     type: object
+  dto.GetUserByPhone:
+    properties:
+      phone_number:
+        type: string
+    type: object
+  dto.GetUserByUsername:
+    properties:
+      username:
+        type: string
+    type: object
   dto.IdDTO:
     properties:
       id:
@@ -322,6 +332,10 @@ paths:
           description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
         "500":
           description: Внутренняя ошибка сервера
           schema:
@@ -449,6 +463,74 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Получить список сессий пользователя
+      tags:
+      - user
+  /user/by-phone:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает полные данные о пользователе по указанному номеру телефона
+      parameters:
+      - description: Запрос с номером телефона
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetUserByPhone'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о пользователе
+          schema:
+            $ref: '#/definitions/dto.User'
+        "400":
+          description: Неверный формат номера телефона
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Получить информацию о пользователе по номеру телефона
+      tags:
+      - user
+  /user/by-username:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает полные данные о пользователе по указанному имени пользователя
+      parameters:
+      - description: Запрос с именем пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetUserByUsername'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о пользователе
+          schema:
+            $ref: '#/definitions/dto.User'
+        "400":
+          description: Неверный формат имени пользователя
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Получить информацию о пользователе по имени пользователя
       tags:
       - user
   /ws/messages:
