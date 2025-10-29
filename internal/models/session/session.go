@@ -1,4 +1,4 @@
-package session
+package models
 
 import (
 	"time"
@@ -7,9 +7,9 @@ import (
 )
 
 type Session struct {
-	ID         uuid.UUID `json:"id"`
-	UserID     uuid.UUID `json:"-"`
-	Device     string    `json:"device"`
-	Created_at time.Time `json:"created_at"`
-	Last_seen  time.Time `json:"last_seen"`
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Device     string
+	Created_at time.Time
+	Last_seen  time.Time
 }

@@ -101,6 +101,17 @@ definitions:
     - password
     - phone_number
     type: object
+  dto.Session:
+    properties:
+      created_at:
+        type: string
+      device:
+        type: string
+      id:
+        type: string
+      last_seen:
+        type: string
+    type: object
   dto.User:
     properties:
       account_type:
@@ -151,17 +162,6 @@ definitions:
           $ref: '#/definitions/dto.ValidationErrorDTO'
         type: array
       message:
-        type: string
-    type: object
-  session.Session:
-    properties:
-      created_at:
-        type: string
-      device:
-        type: string
-      id:
-        type: string
-      last_seen:
         type: string
     type: object
 host: localhost:8080
@@ -436,7 +436,7 @@ paths:
           description: Список сессий пользователя
           schema:
             items:
-              $ref: '#/definitions/session.Session'
+              $ref: '#/definitions/dto.Session'
             type: array
         "401":
           description: Неавторизованный доступ

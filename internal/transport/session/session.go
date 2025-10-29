@@ -8,13 +8,13 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	"github.com/google/uuid"
 )
 
 type SessionUsecase interface {
-	GetSession(sessionID uuid.UUID) (*session.Session, error)
-	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
+	GetSession(sessionID uuid.UUID) (*dto.Session, error)
+	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
 }
 
 type SessionUtils struct {
@@ -60,7 +60,7 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 }
 
 // GetSessionsByUserID получает все сессии пользователя
-func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error) {
+func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
 	const op = "SessionUtils.GetSessionsByUserID"
 
 	if userID == uuid.Nil {
