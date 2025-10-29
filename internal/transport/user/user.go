@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	UserDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
@@ -14,7 +14,7 @@ import (
 
 type SessionUtilsI interface {
 	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
-	GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error)
+	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
 }
 
 type UserUsecase interface {
@@ -68,7 +68,7 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Security     ApiKeyAuth
-// @Success      200  {array}   session.Session  "Список сессий пользователя"
+// @Success      200  {array}   dto.Session  "Список сессий пользователя"
 // @Failure      401  {object}  dto.ErrorDTO     "Неавторизованный доступ"
 // @Failure      500  {object}  dto.ErrorDTO     "Внутренняя ошибка сервера"
 // @Router       /sessions [get]

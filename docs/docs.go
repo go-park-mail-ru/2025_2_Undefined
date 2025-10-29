@@ -429,7 +429,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/session.Session"
+                                "$ref": "#/definitions/dto.Session"
                             }
                         }
                     },
@@ -639,6 +639,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.Session": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "device": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.User": {
             "type": "object",
             "properties": {
@@ -712,23 +729,6 @@ const docTemplate = `{
                     }
                 },
                 "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "session.Session": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "device": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_seen": {
                     "type": "string"
                 }
             }

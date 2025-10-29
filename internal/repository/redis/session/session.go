@@ -169,7 +169,7 @@ func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
 	return nil
 }
 
-func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*session.Session, error) {
+func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*models.Session, error) {
 	const op = "SessionRepository.GetSession"
 
 	ctx := context.Background()
@@ -192,7 +192,7 @@ func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*session.Session, e
 		return nil, wrappedErr
 	}
 
-	sess := &session.Session{
+	sess := &models.Session{
 		ID:         sessionID,
 		UserID:     data.UserID,
 		Device:     data.Device,
@@ -203,7 +203,7 @@ func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*session.Session, e
 	return sess, nil
 }
 
-func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error) {
+func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Session, error) {
 	const op = "SessionRepository.GetSessionsByUserID"
 
 	ctx := context.Background()
@@ -218,10 +218,10 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*session.Se
 	}
 
 	if len(sessionIDs) == 0 {
-		return []*session.Session{}, nil
+		return []*models.Session{}, nil
 	}
 
-	var sessions []*session.Session
+	var sessions []*models.Session
 	for _, sessionIDStr := range sessionIDs {
 		sessionID, err := uuid.Parse(sessionIDStr)
 		if err != nil {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	AuthModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
+	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
@@ -22,8 +22,8 @@ type SessionUtilsI interface {
 }
 
 type AuthUsecase interface {
-	Register(ctx context.Context, req *AuthModels.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
-	Login(ctx context.Context, req *AuthModels.LoginRequest, device string) (uuid.UUID, error)
+	Register(ctx context.Context, req *AuthDTO.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO)
+	Login(ctx context.Context, req *AuthDTO.LoginRequest, device string) (uuid.UUID, error)
 	Logout(ctx context.Context, SessionID uuid.UUID) error
 }
 
@@ -74,7 +74,7 @@ func getDeviceFromUserAgent(r *http.Request) string {
 // @Router       /register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Register"
-	var req AuthModels.RegisterRequest
+	var req AuthDTO.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
@@ -121,7 +121,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Router       /login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthHandler.Login"
-	var req AuthModels.LoginRequest
+	var req AuthDTO.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return

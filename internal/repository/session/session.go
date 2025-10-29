@@ -48,7 +48,7 @@ func New(db *sql.DB) *SessionRepository {
 
 func (r *SessionRepository) AddSession(UserID uuid.UUID, device string) (uuid.UUID, error) {
 	const op = "SessionRepository.AddSession"
-	NewSession := &session.Session{
+	NewSession := &models.Session{
 		ID:         uuid.New(),
 		UserID:     UserID,
 		Device:     device,
@@ -107,13 +107,13 @@ func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
 	return nil
 }
 
-func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*session.Session, error) {
+func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*models.Session, error) {
 	const op = "SessionRepository.GetSession"
-	
-	var sess session.Session
+
+	var sess models.Session
 	err := r.db.QueryRow(getSessionQuery, sessionID).Scan(
 		&sess.ID, &sess.UserID, &sess.Device, &sess.Created_at, &sess.Last_seen)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("%s: session not found", op)
@@ -122,13 +122,13 @@ func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*session.Session, e
 		log.Printf("Error: %v", wrappedErr)
 		return nil, wrappedErr
 	}
-	
+
 	return &sess, nil
 }
 
-func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*session.Session, error) {
+func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Session, error) {
 	const op = "SessionRepository.GetSessionsByUserID"
-	
+
 	rows, err := r.db.Query(getSessionsByUserIDQuery, userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
@@ -136,10 +136,10 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*session.Se
 		return nil, wrappedErr
 	}
 	defer rows.Close()
-	
-	var sessions []*session.Session
+
+	var sessions []*models.Session
 	for rows.Next() {
-		var sess session.Session
+		var sess models.Session
 		err := rows.Scan(&sess.ID, &sess.UserID, &sess.Device, &sess.Created_at, &sess.Last_seen)
 		if err != nil {
 			wrappedErr := fmt.Errorf("%s: %w", op, err)
@@ -148,12 +148,12 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*session.Se
 		}
 		sessions = append(sessions, &sess)
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return nil, wrappedErr
 	}
-	
+
 	return sessions, nil
 }

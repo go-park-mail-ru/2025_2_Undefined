@@ -90,6 +90,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	// Настройка логгера
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.SetLevel(logrus.WarnLevel)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
