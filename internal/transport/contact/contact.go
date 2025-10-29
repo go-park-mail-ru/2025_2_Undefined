@@ -43,6 +43,7 @@ func New(uc ContactUsecase, sessionUtils SessionUtilsI) *ContactHandler {
 // @Success      201   "Контакт успешно добавлен"
 // @Failure      400   {object}  dto.ErrorDTO  			  "Неверные данные запроса"
 // @Failure      401   {object}  dto.ErrorDTO 			  "Неавторизованный доступ"
+// @Failure      404   {object}  dto.ErrorDTO 			  "Пользователь не найден"
 // @Failure      500   {object}  dto.ErrorDTO          	  "Внутренняя ошибка сервера"
 // @Security     ApiKeyAuth
 // @Router       /contacts [post]
@@ -70,7 +71,11 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 			response.SendError(r.Context(), op, w, http.StatusConflict, "contact already exists")
 			return
 		}
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to create contact")
+		if errors.Is(err, errs.ErrUserNotFound) {
+			response.SendError(r.Context(), op, w, http.StatusNotFound, errs.ErrUserNotFound.Error())
+			return
+		}
+		response.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

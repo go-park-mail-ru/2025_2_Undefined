@@ -50,6 +50,11 @@ func (r *ContactRepository) CreateContact(ctx context.Context, user_id uuid.UUID
 			logger.WithError(err).Error("Database operation failed: duplicate key constraint violation")
 			return err
 		}
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23503" {
+			err = errs.ErrUserNotFound
+			logger.WithError(err).Error("Database operation failed: user not found")
+			return err
+		}
 		logger.WithError(err).Error("Database operation failed: create contact query")
 		return err
 	}

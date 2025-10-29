@@ -35,7 +35,15 @@ func New(contactrepo ContactRepository, userrepo UserRepository) *ContactUsecase
 
 func (uc *ContactUsecase) CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error {
 	const op = "ContactUsecase.CreateContact"
-	err := uc.contactrepo.CreateContact(ctx, userID, req.ContactUserID)
+
+	_, err := uc.userrepo.GetUserByID(ctx, userID)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return wrappedErr
+	}
+
+	err = uc.contactrepo.CreateContact(ctx, userID, req.ContactUserID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)

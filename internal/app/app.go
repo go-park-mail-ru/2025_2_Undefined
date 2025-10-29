@@ -124,6 +124,8 @@ func NewApp(conf *config.Config) (*App, error) {
 	{
 		userRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/sessions", userHandler.GetSessionsByUser).Methods(http.MethodGet)
+		userRouter.HandleFunc("/user/by-phone", userHandler.GetUserByPhone).Methods(http.MethodPost)
+		userRouter.HandleFunc("/user/by-username", userHandler.GetUserByUsername).Methods(http.MethodPost)
 	}
 
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
