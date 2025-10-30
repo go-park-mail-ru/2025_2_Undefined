@@ -16,7 +16,6 @@ DROP TABLE IF EXISTS message_attachment;
 DROP TABLE IF EXISTS avatar_user;
 DROP TABLE IF EXISTS avatar_chat;
 DROP TABLE IF EXISTS attachment;
-DROP TABLE IF EXISTS session;
 DROP TABLE IF EXISTS message;
 DROP TABLE IF EXISTS chat_member;
 DROP TABLE IF EXISTS contact;

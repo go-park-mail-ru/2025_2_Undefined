@@ -54,16 +54,6 @@ CREATE TABLE message (
     CONSTRAINT check_message_text_length CHECK (LENGTH(text) >= 1 AND LENGTH(text) <= 4000)
 );
 
-CREATE TABLE session (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    device TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    CONSTRAINT check_device_length CHECK (LENGTH(device) >= 1 AND LENGTH(device) <= 200)
-);
-
 CREATE TABLE attachment (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     file_name TEXT NOT NULL,
