@@ -25,9 +25,9 @@ type ChatDetailedInformationDTO struct {
 }
 
 type ChatCreateInformationDTO struct {
-	Name    string            `json:"name"`
-	Type    string            `json:"type"` // Тип чата - канал, диалог или группа
-	Members []UserInfoChatDTO `json:"members"`
+	Name    string             `json:"name"`
+	Type    string             `json:"type"` // Тип чата - канал, диалог или группа
+	Members []AddChatMemberDTO `json:"members"`
 }
 
 type UserInfoChatDTO struct {
@@ -35,6 +35,15 @@ type UserInfoChatDTO struct {
 	UserName   string    `json:"user_name"`
 	UserAvatar *string   `json:"user_avatar"`
 	Role       string    `json:"role"` // Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)
+}
+
+type AddChatMemberDTO struct {
+	UserId uuid.UUID `json:"user_id" swaggertype:"string" format:"uuid"`
+	Role   string    `json:"role"` // Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)
+}
+
+type AddUsersToChatDTO struct {
+	Users []AddChatMemberDTO `json:"members"`
 }
 
 type IdDTO struct {

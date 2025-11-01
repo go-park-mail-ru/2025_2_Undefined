@@ -118,6 +118,7 @@ func NewApp(conf *config.Config) (*App, error) {
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.GetInformationAboutChat).Methods(http.MethodGet)
 		chatRouter.HandleFunc("", chatsHandler.GetChats).Methods(http.MethodGet)
 		chatRouter.HandleFunc("", chatsHandler.PostChats).Methods(http.MethodPost)
+		chatRouter.HandleFunc("/{chat_id}/members", chatsHandler.AddUsersToChat).Methods(http.MethodPatch)
 	}
 
 	userRouter := protectedRouter.PathPrefix("").Subrouter()

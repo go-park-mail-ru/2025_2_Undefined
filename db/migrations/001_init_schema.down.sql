@@ -11,19 +11,22 @@ DROP TRIGGER IF EXISTS update_contact_updated_at ON contact;
 -- Удаляем функции
 DROP FUNCTION IF EXISTS update_updated_at_column;
 
--- Таблицы
-DROP TABLE IF EXISTS message_attachment;
-DROP TABLE IF EXISTS avatar_user;
-DROP TABLE IF EXISTS avatar_chat;
-DROP TABLE IF EXISTS attachment;
-DROP TABLE IF EXISTS message;
-DROP TABLE IF EXISTS chat_member;
-DROP TABLE IF EXISTS contact;
-DROP TABLE IF EXISTS chat;
-DROP TABLE IF EXISTS "user";
+-- Таблицы (в порядке зависимостей: сначала зависимые, потом родительские)
+-- Таблицы, которые ссылаются на другие таблицы через внешние ключи
+DROP TABLE IF EXISTS message_attachment;  -- ссылается на message, attachment, user
+DROP TABLE IF EXISTS avatar_user;        -- ссылается на attachment, user
+DROP TABLE IF EXISTS avatar_chat;        -- ссылается на attachment, chat
+DROP TABLE IF EXISTS contact;            -- ссылается на user (дважды)
+DROP TABLE IF EXISTS message;            -- ссылается на chat, user
+DROP TABLE IF EXISTS chat_member;        -- ссылается на user, chat
 
--- Типы перечислений
-DROP TYPE IF EXISTS chat_type_enum;
-DROP TYPE IF EXISTS user_type_enum;
-DROP TYPE IF EXISTS chat_member_role_enum;
+-- Таблицы без внешних ключей или с минимальными зависимостями
+DROP TABLE IF EXISTS attachment;         -- не ссылается на другие таблицы
+DROP TABLE IF EXISTS chat;               -- не ссылается на другие таблицы
+DROP TABLE IF EXISTS "user";             -- на неё ссылаются другие, удаляем последней
+
+-- Типы перечислений (удаляем после всех таблиц, которые их используют)
 DROP TYPE IF EXISTS message_type_enum;
+DROP TYPE IF EXISTS chat_member_role_enum;
+DROP TYPE IF EXISTS user_type_enum;
+DROP TYPE IF EXISTS chat_type_enum;
