@@ -217,7 +217,7 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	logger.Debug("Starting database operation: create chat with transaction")
 
 	if len(usersInfo) != len(usersNames) || len(usersInfo) == 0 {
-		err := fmt.Errorf("invalid input: usersInfo and usersNames must have the same non-zero length")
+		err := fmt.Errorf("invalid input of users ids: usersInfo and usersNames must have the same non-zero length")
 		logger.WithError(err).Error("Database operation failed: invalid input parameters")
 		return err
 	}
@@ -241,28 +241,16 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	}
 
 	// 2. Вставка участников чата
-	query := `INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES `
-	values := []interface{}{}
-	placeholders := []string{}
-
-	for _, userInfo := range usersInfo {
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d::chat_member_role_enum)",
-			len(values)+1, len(values)+2, len(values)+3))
-		values = append(values, userInfo.UserID, chat.ID, userInfo.Role)
-	}
-
-	query += strings.Join(placeholders, ", ")
-	logger.Debug("Executing database query: INSERT chat members")
-	_, err = tx.Exec(query, values...)
+	err = r.insertUsersToChat(ctx, tx, chat.ID, usersInfo)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: insert chat members")
 		return err
 	}
 
 	// 3. Вставка системных сообщений
-	query = `INSERT INTO message (chat_id, user_id, text, message_type) VALUES `
-	values = []interface{}{}
-	placeholders = []string{}
+	query := `INSERT INTO message (chat_id, user_id, text, message_type) VALUES `
+	values := []interface{}{}
+	placeholders := []string{}
 
 	for i, userName := range usersNames {
 
@@ -311,4 +299,59 @@ func (r *ChatsRepository) GetUserInfo(ctx context.Context, userId, chatId uuid.U
 
 	logger.Info("Database operation completed successfully: user info retrieved")
 	return userInfo, nil
+}
+
+func (r *ChatsRepository) InsertUsersToChat(ctx context.Context, chatID uuid.UUID, usersInfo []modelsChats.UserInfo) error {
+	const op = "ChatsRepository.InsertUsersToChat"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String()).WithField("users_count", len(usersInfo))
+	logger.Debug("Starting database operation: insert users to chat")
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: begin transaction")
+		return err
+	}
+	defer tx.Rollback()
+
+	err = r.insertUsersToChat(ctx, tx, chatID, usersInfo)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: insert users to chat")
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.WithError(err).Error("Database operation failed: commit transaction")
+		return err
+	}
+
+	logger.Info("Database operation completed successfully: users inserted to chat")
+
+	return nil
+}
+
+func (r *ChatsRepository) insertUsersToChat(ctx context.Context, tx *sql.Tx, chatID uuid.UUID, usersInfo []modelsChats.UserInfo) error {
+	const op = "ChatsRepository.insertUsersToChat"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String()).WithField("users_count", len(usersInfo))
+
+	query := `INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES `
+	values := []interface{}{}
+	placeholders := []string{}
+
+	for _, userInfo := range usersInfo {
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d::chat_member_role_enum)",
+			len(values)+1, len(values)+2, len(values)+3))
+		values = append(values, userInfo.UserID, chatID, userInfo.Role)
+	}
+
+	query += strings.Join(placeholders, ", ")
+	logger.Debug("Executing database query: INSERT chat members")
+	_, err := tx.Exec(query, values...)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: insert chat members")
+		return err
+	}
+
+	return nil
 }

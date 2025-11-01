@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
@@ -152,7 +151,7 @@ func (s *ChatsService) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCrea
 
 	usersNames, err := s.usersRepo.GetUsersNames(ctx, usersIds)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("can't create chat: %w", err)
+		return uuid.Nil, err
 	}
 
 	usersInfo := make([]modelsChats.UserInfo, len(chatDTO.Members))
@@ -166,7 +165,25 @@ func (s *ChatsService) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCrea
 
 	err = s.chatsRepo.CreateChat(ctx, chat, usersInfo, usersNames)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("can't create chat: %w", err)
+		return uuid.Nil, err
 	}
 	return chat.ID, nil
+}
+
+func (s *ChatsService) AddUsersToChat(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+	usersInfo := make([]modelsChats.UserInfo, len(users))
+	for i, user := range users {
+		usersInfo[i] = modelsChats.UserInfo{
+			UserID: user.UserId,
+			ChatID: chatID,
+			Role:   user.Role,
+		}
+	}
+
+	err := s.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

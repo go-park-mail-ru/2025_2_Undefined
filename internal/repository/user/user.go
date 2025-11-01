@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -106,8 +105,6 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 			return nil, err
 		}
 		logger.WithError(err).Error("Database operation failed: get user by ID query")
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
 		return nil, err
 	}
 
@@ -141,8 +138,6 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get users names query")
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
 		return nil, err
 	}
 	defer rows.Close()
@@ -152,8 +147,6 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan user name row")
-			wrappedErr := fmt.Errorf("%s: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
 			return nil, err
 		}
 		result = append(result, name)

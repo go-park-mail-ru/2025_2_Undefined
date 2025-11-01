@@ -396,3 +396,39 @@ func TestNewChatsRepository(t *testing.T) {
 	assert.NotNil(t, repo)
 	assert.Equal(t, db, repo.db)
 }
+
+func TestChatsRepository_InsertUsersToChat_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to open sqlmock database: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewChatsRepository(db)
+
+	chatID := uuid.New()
+	userID1 := uuid.New()
+	userID2 := uuid.New()
+
+	usersInfo := []modelsChats.UserInfo{
+		{UserID: userID1, ChatID: chatID, Role: "admin"},
+		{UserID: userID2, ChatID: chatID, Role: "member"},
+	}
+
+	// Ожидаем начало транзакции
+	mock.ExpectBegin()
+
+	// Ожидаем вставку участников чата
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES ($1, $2, $3::chat_member_role_enum), ($4, $5, $6::chat_member_role_enum)`)).
+		WithArgs(userID1, chatID, "admin", userID2, chatID, "member").
+		WillReturnResult(sqlmock.NewResult(2, 2))
+
+	// Ожидаем коммит транзакции
+	mock.ExpectCommit()
+
+	ctx := context.Background()
+	err = repo.InsertUsersToChat(ctx, chatID, usersInfo)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

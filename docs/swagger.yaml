@@ -1,10 +1,27 @@
 basePath: /api/v1
 definitions:
+  dto.AddChatMemberDTO:
+    properties:
+      role:
+        description: Роль пользователя в чате - админ(писать и добавлять участников),
+          участник(писать), зритель (только просмотр)
+        type: string
+      user_id:
+        format: uuid
+        type: string
+    type: object
+  dto.AddUsersToChatDTO:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/dto.AddChatMemberDTO'
+        type: array
+    type: object
   dto.ChatCreateInformationDTO:
     properties:
       members:
         items:
-          $ref: '#/definitions/dto.UserInfoChatDTO'
+          $ref: '#/definitions/dto.AddChatMemberDTO'
         type: array
       name:
         type: string
@@ -278,6 +295,42 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Получить информацию о чате
+      tags:
+      - chats
+  /chats/{chatId}/members:
+    patch:
+      consumes:
+      - application/json
+      description: Добавляет указанных пользователей в существующий чат
+      parameters:
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Список пользователей для добавления
+        in: body
+        name: users
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddUsersToChatDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Добавить пользователей в чат
       tags:
       - chats
   /contacts:

@@ -3,6 +3,7 @@ package response
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -34,16 +35,58 @@ func SendError(ctx context.Context, op string, w http.ResponseWriter, status int
 	logger.WithField("error_message", message).Error("request failed")
 }
 
-// Функция отправки ошибки с проставлением статуса ответа в зависимости от сообщения.
-// Сообщение сравнивается с ошибками из models/errs. Если нету совпадению, то возвращается
-// http.StatusBadRequest
-func SendErrorWithAutoStatus(ctx context.Context, op string, w http.ResponseWriter, message string) {
-	if message == errs.ErrServiceIsOverloaded.Error() {
-		SendError(ctx, op, w, http.StatusServiceUnavailable, message)
+// SendErrorWithAutoStatus автоматически определяет HTTP статус код на основе типа ошибки.
+//
+// Функция использует errors.Is() для проверки типа ошибки, что позволяет корректно
+// обрабатывать wrapped ошибки (созданные через fmt.Errorf("context: %w", err)).
+// Автоматически выбирает соответствующий HTTP статус код:
+//
+// - ErrServiceIsOverloaded -> 503 Service Unavailable
+// - ErrNotFound, ErrUserNotFound -> 404 Not Found
+// - ErrInvalidToken, ErrInvalidCredentials, ErrJWTIsRequired -> 401 Unauthorized
+// - ErrIsDuplicateKey -> 409 Conflict
+// - ErrRequiredFieldsMissing -> 422 Unprocessable Entity
+// - Все остальные ошибки -> 400 Bad Request (по умолчанию)
+//
+// Преимущества errors.Is() над строковым сравнением:
+// - Работает с wrapped ошибками
+// - Не зависит от изменения текста ошибки
+// - Более производительно и типобезопасно
+func SendErrorWithAutoStatus(ctx context.Context, op string, w http.ResponseWriter, err error) {
+	// 503 Service Unavailable - сервис недоступен или перегружен
+	if errors.Is(err, errs.ErrServiceIsOverloaded) {
+		SendError(ctx, op, w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
 
-	SendError(ctx, op, w, http.StatusBadRequest, message)
+	// 404 Not Found - ресурс не найден
+	if errors.Is(err, errs.ErrNotFound) || errors.Is(err, errs.ErrUserNotFound) {
+		SendError(ctx, op, w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	// 401 Unauthorized - неавторизованный доступ
+	if errors.Is(err, errs.ErrInvalidToken) ||
+		errors.Is(err, errs.ErrInvalidCredentials) ||
+		errors.Is(err, errs.ErrJWTIsRequired) {
+		SendError(ctx, op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	// 409 Conflict - конфликт данных (дубликат)
+	if errors.Is(err, errs.ErrIsDuplicateKey) {
+		SendError(ctx, op, w, http.StatusConflict, err.Error())
+		return
+	}
+
+	// 422 Unprocessable Entity - отсутствуют обязательные поля
+	if errors.Is(err, errs.ErrRequiredFieldsMissing) {
+		SendError(ctx, op, w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	// По умолчанию - 400 Bad Request
+	SendError(ctx, op, w, http.StatusBadRequest, err.Error())
 }
 
 func SendValidationErrors(ctx context.Context, op string, w http.ResponseWriter, status int, validationErrors dto.ValidationErrorsDTO) {

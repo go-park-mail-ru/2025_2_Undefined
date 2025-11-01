@@ -46,7 +46,7 @@ test-coverage:
 	@echo "Запуск тестов с покрытием кода..."
 	go test -v -coverprofile=coverage.out -coverpkg=./... ./...
 	@echo "Исключаем docs.go, fill.go, mock*.go из покрытия..."
-	grep -v -E "(docs|fill\.go|mock.*\.go)" coverage.out > coverage_filtered.out || true
+	grep -v -E "(docs|fill\.go|mock.*\.go|generate\.go)" coverage.out > coverage_filtered.out || true
 	@echo "Результаты покрытия:"
 	go tool cover -func=coverage_filtered.out | grep total
 
@@ -90,3 +90,7 @@ clear-redis:
 
 swagger:
 	swag init -g cmd/app/main.go -o docs
+
+generate-mocks:
+	@echo "Генерация моков через go generate..."
+	go generate ./...

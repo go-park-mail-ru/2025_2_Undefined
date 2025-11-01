@@ -1,36 +1,27 @@
 package transport
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	chatsInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
+	sessionInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
 
-type SessionUtilsI interface {
-	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
-}
-
-type ChatsService interface {
-	GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
-	CreateChat(ctx context.Context, chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error)
-	GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error)
-}
-
 type ChatsHandler struct {
-	chatService  ChatsService
-	sessionUtils SessionUtilsI
+	chatUsecase    chatsInterface.ChatsUsecase
+	sessionUsecase sessionInterface.SessionUsecase
 }
 
-func NewChatsHandler(chatService ChatsService, sessionUtils SessionUtilsI) *ChatsHandler {
+func NewChatsHandler(chatUsecase chatsInterface.ChatsUsecase, sessionUsecase sessionInterface.SessionUsecase) *ChatsHandler {
 	return &ChatsHandler{
-		chatService:  chatService,
-		sessionUtils: sessionUtils,
+		chatUsecase:    chatUsecase,
+		sessionUsecase: sessionUsecase,
 	}
 }
 
@@ -48,13 +39,13 @@ func NewChatsHandler(chatService ChatsService, sessionUtils SessionUtilsI) *Chat
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	const op = "ChatsHandler.GetChats"
 	// Получаем id пользователя из сессии
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := h.sessionUsecase.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	chats, err := h.chatService.GetChats(r.Context(), userUUID)
+	chats, err := h.chatUsecase.GetChats(r.Context(), userUUID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
@@ -76,20 +67,64 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Router       /chats [post]
 func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 	const op = "ChatsHandler.PostChats"
-	chatDTO := &dto.ChatCreateInformationDTO{}
+	chatDTO := &dtoChats.ChatCreateInformationDTO{}
 
 	if err := json.NewDecoder(r.Body).Decode(chatDTO); err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	idOfCreatedChat, err := h.chatService.CreateChat(r.Context(), *chatDTO)
+	if strings.TrimSpace(chatDTO.Name) == "" {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "name is required and cannot be empty")
+		return
+	}
+	if strings.TrimSpace(chatDTO.Type) == "" {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "type is required and cannot be empty")
+		return
+	}
+	if len(chatDTO.Members) == 0 {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "members field is required and cannot be empty")
+		return
+	}
+
+	for i, member := range chatDTO.Members {
+		if member.UserId == uuid.Nil {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "user_id is required for all members")
+			return
+		}
+
+		if strings.TrimSpace(member.Role) == "" {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role is required for all members")
+			return
+		}
+
+		if member.Role != "admin" && member.Role != "writer" && member.Role != "viewer" {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role must be one of: admin, writer, viewer")
+			return
+		}
+		chatDTO.Members[i].Role = strings.TrimSpace(member.Role)
+	}
+
+	// Проверка на дубликаты пользователей в создаваемом чате
+	memberIds := make(map[uuid.UUID]bool)
+	for _, member := range chatDTO.Members {
+		if memberIds[member.UserId] {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "duplicate user_id found in members")
+			return
+		}
+		memberIds[member.UserId] = true
+	}
+
+	// Обрезаем пробелы в основных полях
+	chatDTO.Type = strings.TrimSpace(chatDTO.Type)
+
+	idOfCreatedChat, err := h.chatUsecase.CreateChat(r.Context(), *chatDTO)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	utils.SendJSONResponse(r.Context(), op, w, http.StatusCreated, dto.IdDTO{ID: idOfCreatedChat})
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusCreated, dtoChats.IdDTO{ID: idOfCreatedChat})
 }
 
 // GetInformationAboutChat получает детальную информацию о чате
@@ -120,17 +155,95 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 	}
 
 	// Получаем id пользователя из сессии
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := h.sessionUsecase.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	informationDTO, err := h.chatService.GetInformationAboutChat(r.Context(), userUUID, chatUUID)
+	informationDTO, err := h.chatUsecase.GetInformationAboutChat(r.Context(), userUUID, chatUUID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, informationDTO)
+}
+
+// AddUsersToChat добавляет пользователей в чат
+// @Summary      Добавить пользователей в чат
+// @Description  Добавляет указанных пользователей в существующий чат
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        chatId  path      string                     true  "ID чата"  format(uuid)
+// @Param        users   body      dto.AddUsersToChatDTO      true  "Список пользователей для добавления"
+// @Success      200
+// @Failure      400     {object}  dto.ErrorDTO               "Некорректный запрос"
+// @Failure      401     {object}  dto.ErrorDTO               "Неавторизованный доступ"
+// @Router       /chats/{chatId}/members [patch]
+func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsHandler.AddUsersToChat"
+
+	// Получаем id чата из пути
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		utils.SendErrorWithAutoStatus(r.Context(), op, w, errs.ErrBadRequest)
+		return
+	}
+
+	idStr := parts[len(parts)-2]
+	chatUUID, err := uuid.Parse(idStr)
+	if err != nil {
+		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		return
+	}
+
+	addUsersDTO := &dtoChats.AddUsersToChatDTO{}
+	if err := json.NewDecoder(r.Body).Decode(addUsersDTO); err != nil {
+		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		return
+	}
+
+	if len(addUsersDTO.Users) == 0 {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "users field is required and cannot be empty")
+		return
+	}
+
+	for i, user := range addUsersDTO.Users {
+		if user.UserId == uuid.Nil {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "user_id is required for all users")
+			return
+		}
+
+		if strings.TrimSpace(user.Role) == "" {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role is required for all users")
+			return
+		}
+
+		if user.Role != "admin" && user.Role != "writer" && user.Role != "viewer" {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role must be one of: admin, writer, viewer")
+			return
+		}
+		addUsersDTO.Users[i].Role = strings.TrimSpace(user.Role)
+	}
+
+	// Проверка на дубликаты пользователей
+	userIds := make(map[uuid.UUID]bool)
+	for _, user := range addUsersDTO.Users {
+		if userIds[user.UserId] {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "duplicate user_id found in request")
+			return
+		}
+		userIds[user.UserId] = true
+	}
+
+	err = h.chatUsecase.AddUsersToChat(r.Context(), chatUUID, addUsersDTO.Users)
+	if err != nil {
+		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
 }
