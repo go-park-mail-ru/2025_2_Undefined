@@ -10,3 +10,7 @@ type LoginRequest struct {
 	PhoneNumber string `json:"phone_number" validate:"required"`
 	Password    string `json:"password" validate:"required"`
 }
+
+type AuthResponse struct {
+	CSRFToken string `json:"csrf_token"`
+}

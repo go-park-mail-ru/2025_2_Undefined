@@ -72,7 +72,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	authRepo := authrepo.New(db)
 	authUC := authuc.New(authRepo, userRepo, sessionRepo)
-	authHandler := autht.New(authUC, conf.SessionConfig, sessionUtils)
+	authHandler := autht.New(authUC, conf.SessionConfig, conf.CSRFConfig, sessionUtils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
@@ -112,6 +112,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
 	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
+	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig.Secret))
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
@@ -168,7 +169,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

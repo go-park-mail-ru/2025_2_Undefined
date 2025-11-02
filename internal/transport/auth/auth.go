@@ -11,6 +11,7 @@ import (
 	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/csrf"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 	"github.com/google/uuid"
@@ -30,13 +31,15 @@ type AuthUsecase interface {
 type AuthHandler struct {
 	uc            AuthUsecase
 	sessionConfig *config.SessionConfig
+	csrfConfig    *config.CSRFConfig
 	sessionUtils  SessionUtilsI
 }
 
-func New(uc AuthUsecase, sessionConfig *config.SessionConfig, sessionUtils SessionUtilsI) *AuthHandler {
+func New(uc AuthUsecase, sessionConfig *config.SessionConfig, csrfConfig *config.CSRFConfig, sessionUtils SessionUtilsI) *AuthHandler {
 	return &AuthHandler{
 		uc:            uc,
 		sessionConfig: sessionConfig,
+		csrfConfig:    csrfConfig,
 		sessionUtils:  sessionUtils,
 	}
 }
@@ -69,7 +72,7 @@ func getDeviceFromUserAgent(r *http.Request) string {
 // @Accept       json
 // @Produce      json
 // @Param        user  body  dto.RegisterRequest  true  "Данные для регистрации"
-// @Success      201   "Пользователь успешно зарегистрирован"
+// @Success      201   {object}  dto.AuthResponse  "Пользователь успешно зарегистрирован"
 // @Failure      400   {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Router       /register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -104,8 +107,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Генерируем CSRF токен
+	csrfToken := csrf.GenerateCSRFToken(sessionID.String(), h.csrfConfig.Secret)
+
 	cookie.Set(w, sessionID.String(), h.sessionConfig.Signature)
-	w.WriteHeader(http.StatusCreated)
+
+	response := AuthDTO.AuthResponse{
+		CSRFToken: csrfToken,
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusCreated, response)
 }
 
 // Login аутентифицирует пользователя
@@ -115,7 +126,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        credentials  body  dto.LoginRequest  true  "Креденшиалы для входа"
-// @Success      200  "Вход выполнен успешно"
+// @Success      200  {object}  dto.AuthResponse  "Вход выполнен успешно"
 // @Failure      400  {object}  dto.ValidationErrorsDTO  "Ошибки валидации"
 // @Failure      401  {object}  dto.ErrorDTO  "Неверные креденшиалы"
 // @Router       /login [post]
@@ -144,8 +155,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Генерируем CSRF токен
+	csrfToken := csrf.GenerateCSRFToken(sessionID.String(), h.csrfConfig.Secret)
+
 	cookie.Set(w, sessionID.String(), h.sessionConfig.Signature)
-	w.WriteHeader(http.StatusOK)
+
+	response := AuthDTO.AuthResponse{
+		CSRFToken: csrfToken,
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, response)
 }
 
 // Logout завершает сессию пользователя
