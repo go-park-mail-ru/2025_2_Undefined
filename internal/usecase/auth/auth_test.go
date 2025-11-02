@@ -1,479 +1,415 @@
 package usecase
 
-/*
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"golang.org/x/crypto/bcrypt"
+)
+
 type MockAuthRepository struct {
-	CreateUserFunc        func(name string, phone string, passwordHash string) (*UserModels.User, error)
-	GetUserByPhoneFunc    func(phone string) (*UserModels.User, error)
-	GetUserByUsernameFunc func(username string) (*UserModels.User, error)
-	GetUserByIDFunc       func(id uuid.UUID) (*UserModels.User, error)
+	mock.Mock
 }
 
-
-func (m *MockAuthRepository) CreateUser(name string, phone string, passwordHash string) (*UserModels.User, error) {
-	if m.CreateUserFunc != nil {
-		return m.CreateUserFunc(name, phone, passwordHash)
+func (m *MockAuthRepository) CreateUser(ctx context.Context, name string, phone string, passwordHash string) (*UserModels.User, error) {
+	args := m.Called(ctx, name, phone, passwordHash)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*UserModels.User), args.Error(1)
 }
 
-func (m *MockAuthRepository) GetUserByPhone(phone string) (*UserModels.User, error) {
-	if m.GetUserByPhoneFunc != nil {
-		return m.GetUserByPhoneFunc(phone)
+type MockUserRepository struct {
+	mock.Mock
+}
+
+func (m *MockUserRepository) GetUserByPhone(ctx context.Context, phone string) (*UserModels.User, error) {
+	args := m.Called(ctx, phone)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, errors.New("not found")
+	return args.Get(0).(*UserModels.User), args.Error(1)
 }
 
-func (m *MockAuthRepository) GetUserByUsername(username string) (*UserModels.User, error) {
-	if m.GetUserByUsernameFunc != nil {
-		return m.GetUserByUsernameFunc(username)
+func (m *MockUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, errors.New("not found")
+	return args.Get(0).(*UserModels.User), args.Error(1)
 }
 
-func (m *MockAuthRepository) GetUserByID(id uuid.UUID) (*UserModels.User, error) {
-	if m.GetUserByIDFunc != nil {
-		return m.GetUserByIDFunc(id)
-	}
-	return nil, errors.New("not found")
+type MockSessionRepository struct {
+	mock.Mock
 }
 
-type MockTokenRepository struct {
-	AddToBlacklistFunc       func(token string) error
-	IsInBlacklistFunc        func(token string) bool
-	CleanupExpiredTokensFunc func()
+func (m *MockSessionRepository) AddSession(userID uuid.UUID, device string) (uuid.UUID, error) {
+	args := m.Called(userID, device)
+	return args.Get(0).(uuid.UUID), args.Error(1)
 }
 
-func (m *MockTokenRepository) AddToBlacklist(token string) error {
-	if m.AddToBlacklistFunc != nil {
-		return m.AddToBlacklistFunc(token)
-	}
-	return nil
+func (m *MockSessionRepository) DeleteSession(sessionID uuid.UUID) error {
+	args := m.Called(sessionID)
+	return args.Error(0)
 }
 
-func (m *MockTokenRepository) IsInBlacklist(token string) bool {
-	if m.IsInBlacklistFunc != nil {
-		return m.IsInBlacklistFunc(token)
-	}
-	return false
-}
+func TestAuthUsecase_Register_Success(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
 
-func (m *MockTokenRepository) CleanupExpiredTokens() {
-	if m.CleanupExpiredTokensFunc != nil {
-		m.CleanupExpiredTokensFunc()
-	}
-}
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
 
-// FailingTokenator для тестирования ошибок создания токена
-type FailingTokenator struct{}
-
-func (ft *FailingTokenator) CreateJWT(userID string) (string, error) {
-	return "", errors.New("token creation failed")
-}
-
-func (ft *FailingTokenator) ParseJWT(tokenString string) (*jwt.JWTClaims, error) {
-	return nil, errors.New("parse failed")
-}
-
-func TestRegister_Success(t *testing.T) {
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
-			assert.Equal(t, "Test User", name)
-			assert.Equal(t, "+79998887766", phone)
-			assert.NotEmpty(t, passwordHash)
-
-			err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte("password123"))
-			assert.NoError(t, err)
-
-			return &UserModels.User{
-				ID:           uuid.New(),
-				Name:         name,
-				PhoneNumber:  phone,
-				PasswordHash: passwordHash,
-				AccountType:  UserModels.UserAccount,
-			}, nil
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
+	req := &AuthDTO.RegisterRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
 		Name:        "Test User",
 	}
+	device := "test-device"
+	userID := uuid.New()
+	sessionID := uuid.New()
 
-	token, err := service.Register(req)
-	assert.Nil(t, err)
-	assert.NotEmpty(t, token)
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(nil, errors.New("not found"))
+
+	mockAuthRepo.On("CreateUser", ctx, req.Name, req.PhoneNumber, mock.AnythingOfType("string")).
+		Return(&UserModels.User{
+			ID:           userID,
+			Name:         req.Name,
+			PhoneNumber:  req.PhoneNumber,
+			PasswordHash: "hashed_password",
+			AccountType:  UserModels.UserAccount,
+		}, nil)
+
+	mockSessionRepo.On("AddSession", userID, device).Return(sessionID, nil)
+
+	result, validationErr := uc.Register(ctx, req, device)
+
+	assert.Nil(t, validationErr)
+	assert.Equal(t, sessionID, result)
+	mockUserRepo.AssertExpectations(t)
+	mockAuthRepo.AssertExpectations(t)
+	mockSessionRepo.AssertExpectations(t)
 }
 
-func TestRegister_PhoneAlreadyExists(t *testing.T) {
+func TestAuthUsecase_Register_PhoneAlreadyExists(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	req := &AuthDTO.RegisterRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "password123",
+		Name:        "Test User",
+	}
+	device := "test-device"
+
 	existingUser := &UserModels.User{
 		ID:          uuid.New(),
-		PhoneNumber: "+79998887766",
+		PhoneNumber: req.PhoneNumber,
 	}
 
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			if phone == "+79998887766" {
-				return existingUser, nil
-			}
-			return nil, errors.New("not found")
-		},
-	}
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(existingUser, nil)
 
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
+	result, validationErr := uc.Register(ctx, req, device)
 
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
+	assert.Equal(t, uuid.Nil, result)
+	assert.NotNil(t, validationErr)
+	assert.Len(t, validationErr.Errors, 1)
+	assert.Equal(t, "phone_number", validationErr.Errors[0].Field)
+	assert.Equal(t, "a user with such a phone already exists", validationErr.Errors[0].Message)
+	mockUserRepo.AssertExpectations(t)
+}
 
-	req := &AuthModels.RegisterRequest{
+func TestAuthUsecase_Register_CreateUserError(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	req := &AuthDTO.RegisterRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
 		Name:        "Test User",
 	}
 
-	token, err := service.Register(req)
-	assert.NotNil(t, err)
-	assert.Equal(t, "Ошибка валидации", err.Message)
-	assert.Len(t, err.Errors, 1)
-	assert.Equal(t, "phone_number", err.Errors[0].Field)
-	assert.Equal(t, "a user with such a phone already exists", err.Errors[0].Message)
-	assert.Empty(t, token)
+	device := "test-device"
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(nil, errors.New("not found"))
+	mockAuthRepo.On("CreateUser", ctx, req.Name, req.PhoneNumber, mock.AnythingOfType("string")).
+		Return(nil, errors.New("database error"))
+
+	result, validationErr := uc.Register(ctx, req, device)
+
+	assert.Equal(t, uuid.Nil, result)
+	assert.NotNil(t, validationErr)
+	assert.Equal(t, "database error", validationErr.Message)
+	mockUserRepo.AssertExpectations(t)
+	mockAuthRepo.AssertExpectations(t)
 }
 
-func TestRegister_CreateUserError(t *testing.T) {
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
-			return nil, errors.New("database error")
-		},
-	}
+func TestAuthUsecase_Register_UserNotCreated(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
 
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
 
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
+	req := &AuthDTO.RegisterRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
 		Name:        "Test User",
 	}
+	device := "test-device"
 
-	token, err := service.Register(req)
-	assert.NotNil(t, err)
-	assert.Equal(t, "database error", err.Message)
-	assert.Empty(t, token)
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(nil, errors.New("not found"))
+	mockAuthRepo.On("CreateUser", ctx, req.Name, req.PhoneNumber, mock.AnythingOfType("string")).
+		Return(nil, nil)
+
+	result, validationErr := uc.Register(ctx, req, device)
+
+	assert.Equal(t, uuid.Nil, result)
+	assert.NotNil(t, validationErr)
+	assert.Equal(t, "user not created", validationErr.Message)
+	mockUserRepo.AssertExpectations(t)
+	mockAuthRepo.AssertExpectations(t)
 }
 
-func TestRegister_UserNotCreated(t *testing.T) {
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
-			return nil, nil
-		},
-	}
+func TestAuthUsecase_Register_SessionCreationError(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
 
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
 
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
+	req := &AuthDTO.RegisterRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
 		Name:        "Test User",
 	}
-
-	token, err := service.Register(req)
-	assert.NotNil(t, err)
-	assert.Equal(t, "user not created", err.Message)
-	assert.Empty(t, token)
-}
-
-func TestLogin_Success(t *testing.T) {
+	device := "test-device"
 	userID := uuid.New()
-	correctPassword := "password123"
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
+
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(nil, errors.New("not found"))
+
+	mockAuthRepo.On("CreateUser", ctx, req.Name, req.PhoneNumber, mock.AnythingOfType("string")).
+		Return(&UserModels.User{
+			ID:           userID,
+			Name:         req.Name,
+			PhoneNumber:  req.PhoneNumber,
+			PasswordHash: "hashed_password",
+			AccountType:  UserModels.UserAccount,
+		}, nil)
+
+	mockSessionRepo.On("AddSession", userID, device).Return(uuid.Nil, errors.New("session creation failed"))
+
+	result, validationErr := uc.Register(ctx, req, device)
+
+	assert.Equal(t, uuid.Nil, result)
+	assert.NotNil(t, validationErr)
+	assert.Equal(t, "session creation failed", validationErr.Message)
+	mockUserRepo.AssertExpectations(t)
+	mockAuthRepo.AssertExpectations(t)
+	mockSessionRepo.AssertExpectations(t)
+}
+
+func TestAuthUsecase_Login_Success(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	req := &AuthDTO.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "password123",
+	}
+	device := "test-device"
+	userID := uuid.New()
+	sessionID := uuid.New()
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 
 	user := &UserModels.User{
 		ID:           userID,
-		PhoneNumber:  "+79998887766",
+		PhoneNumber:  req.PhoneNumber,
 		PasswordHash: string(hashedPassword),
 	}
 
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			if phone == "+79998887766" {
-				return user, nil
-			}
-			return nil, errors.New("not found")
-		},
-	}
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(user, nil)
+	mockSessionRepo.On("AddSession", userID, device).Return(sessionID, nil)
 
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
+	result, err := uc.Login(ctx, req, device)
 
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.LoginRequest{
-		PhoneNumber: "+79998887766",
-		Password:    correctPassword,
-	}
-
-	token, err := service.Login(req)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, token)
+	assert.Equal(t, sessionID, result)
+	mockUserRepo.AssertExpectations(t)
+	mockSessionRepo.AssertExpectations(t)
 }
 
-func TestLogin_UserNotFound(t *testing.T) {
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("user not found")
-		},
-	}
+func TestAuthUsecase_Login_UserNotFound(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
 
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
 
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.LoginRequest{
-		PhoneNumber: "+79990001122",
-		Password:    "password123",
-	}
-
-	token, err := service.Login(req)
-	assert.Error(t, err)
-	assert.Equal(t, errs.ErrInvalidCredentials, err)
-	assert.Empty(t, token)
-}
-
-func TestLogin_InvalidPassword(t *testing.T) {
-	userID := uuid.New()
-	correctPassword := "password123"
-	wrongPassword := "wrongpassword"
-
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
-	user := &UserModels.User{
-		ID:           userID,
-		PhoneNumber:  "+79998887766",
-		PasswordHash: string(hashedPassword),
-	}
-
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			if phone == "+79998887766" {
-				return user, nil
-			}
-			return nil, errors.New("not found")
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.LoginRequest{
-		PhoneNumber: "+79998887766",
-		Password:    wrongPassword,
-	}
-
-	token, err := service.Login(req)
-	assert.Error(t, err)
-	assert.Equal(t, errs.ErrInvalidCredentials, err)
-	assert.Empty(t, token)
-}
-
-func TestLogin_UserIsNil(t *testing.T) {
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, nil
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	req := &AuthModels.LoginRequest{
+	req := &AuthDTO.LoginRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
 	}
+	device := "test-device"
 
-	token, err := service.Login(req)
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(nil, errors.New("user not found"))
+
+	result, err := uc.Login(ctx, req, device)
+
+	assert.Equal(t, uuid.Nil, result)
 	assert.Error(t, err)
 	assert.Equal(t, errs.ErrInvalidCredentials, err)
-	assert.Empty(t, token)
+	mockUserRepo.AssertExpectations(t)
 }
 
-func TestLogout_Success(t *testing.T) {
-	mockRepo := &MockAuthRepository{}
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{
-		AddToBlacklistFunc: func(token string) error {
-			return nil
-		},
-	}
+func TestAuthUsecase_Login_UserIsNil(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
 
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
 
-	token, _ := mockTokenator.CreateJWT(uuid.New().String())
-
-	err := service.Logout(token)
-	assert.NoError(t, err)
-}
-
-func TestLogout_InvalidToken(t *testing.T) {
-	mockRepo := &MockAuthRepository{}
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	err := service.Logout("invalid.token.string")
-	assert.Error(t, err)
-	assert.Equal(t, "invalid or expired token", err.Error())
-}
-
-func TestLogout_BlacklistError(t *testing.T) {
-	mockRepo := &MockAuthRepository{}
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{
-		AddToBlacklistFunc: func(token string) error {
-			return errors.New("blacklist error")
-		},
-	}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	token, _ := mockTokenator.CreateJWT(uuid.New().String())
-
-	err := service.Logout(token)
-	assert.Error(t, err)
-	assert.Equal(t, "blacklist error", err.Error())
-}
-
-func TestGetUserById_Success(t *testing.T) {
-	userID := uuid.New()
-	expectedUser := &UserModels.User{
-		ID:          userID,
-		Name:        "Test User",
-		PhoneNumber: "+79998887766",
-	}
-
-	mockRepo := &MockAuthRepository{
-		GetUserByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
-			assert.Equal(t, userID, id)
-			return expectedUser, nil
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	user, err := service.GetUserById(userID)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedUser, user)
-}
-
-func TestGetUserById_Error(t *testing.T) {
-	userID := uuid.New()
-
-	mockRepo := &MockAuthRepository{
-		GetUserByIDFunc: func(id uuid.UUID) (*UserModels.User, error) {
-			return nil, errors.New("user not found")
-		},
-	}
-
-	mockTokenator := jwt.NewTokenator()
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, mockTokenator, mockTokenRepo)
-
-	user, err := service.GetUserById(userID)
-	assert.Error(t, err)
-	assert.Equal(t, "Error getting user by ID", err.Error())
-	assert.Nil(t, user)
-}
-
-func TestRegister_TokenCreationError(t *testing.T) {
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return nil, errors.New("not found")
-		},
-		CreateUserFunc: func(name string, phone string, passwordHash string) (*UserModels.User, error) {
-			return &UserModels.User{
-				ID:           uuid.New(),
-				Name:         name,
-				PhoneNumber:  phone,
-				PasswordHash: passwordHash,
-			}, nil
-		},
-	}
-
-	failingTokenator := &FailingTokenator{}
-	mockTokenRepo := &MockTokenRepository{}
-
-	service := New(mockRepo, failingTokenator, mockTokenRepo)
-
-	req := &AuthModels.RegisterRequest{
+	req := &AuthDTO.LoginRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
-		Name:        "Test User",
 	}
+	device := "test-device"
 
-	token, err := service.Register(req)
-	assert.NotNil(t, err)
-	assert.Equal(t, "token creation failed", err.Message)
-	assert.Empty(t, token)
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(nil, nil)
+
+	result, err := uc.Login(ctx, req, device)
+
+	assert.Equal(t, uuid.Nil, result)
+	assert.Error(t, err)
+	assert.Equal(t, errs.ErrInvalidCredentials, err)
+	mockUserRepo.AssertExpectations(t)
 }
 
-func TestLogin_TokenCreationError(t *testing.T) {
+func TestAuthUsecase_Login_InvalidPassword(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	req := &AuthDTO.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "wrongpassword",
+	}
+	device := "test-device"
 	userID := uuid.New()
-	correctPassword := "password123"
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.DefaultCost)
 
 	user := &UserModels.User{
 		ID:           userID,
-		PhoneNumber:  "+79998887766",
+		PhoneNumber:  req.PhoneNumber,
 		PasswordHash: string(hashedPassword),
 	}
 
-	mockRepo := &MockAuthRepository{
-		GetUserByPhoneFunc: func(phone string) (*UserModels.User, error) {
-			return user, nil
-		},
-	}
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(user, nil)
 
-	failingTokenator := &FailingTokenator{}
-	mockTokenRepo := &MockTokenRepository{}
+	result, err := uc.Login(ctx, req, device)
 
-	service := New(mockRepo, failingTokenator, mockTokenRepo)
-
-	req := &AuthModels.LoginRequest{
-		PhoneNumber: "+79998887766",
-		Password:    correctPassword,
-	}
-
-	token, err := service.Login(req)
+	assert.Equal(t, uuid.Nil, result)
 	assert.Error(t, err)
-	assert.Equal(t, "token creation failed", err.Error())
-	assert.Empty(t, token)
+	assert.Equal(t, errs.ErrInvalidCredentials, err)
+	mockUserRepo.AssertExpectations(t)
 }
-*/
+
+func TestAuthUsecase_Login_SessionCreationError(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	req := &AuthDTO.LoginRequest{
+		PhoneNumber: "+79998887766",
+		Password:    "password123",
+	}
+	device := "test-device"
+	userID := uuid.New()
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+
+	user := &UserModels.User{
+		ID:           userID,
+		PhoneNumber:  req.PhoneNumber,
+		PasswordHash: string(hashedPassword),
+	}
+
+	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(user, nil)
+	mockSessionRepo.On("AddSession", userID, device).Return(uuid.Nil, errors.New("session creation failed"))
+
+	result, err := uc.Login(ctx, req, device)
+
+	assert.Equal(t, uuid.Nil, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session creation failed")
+	mockUserRepo.AssertExpectations(t)
+	mockSessionRepo.AssertExpectations(t)
+}
+
+func TestAuthUsecase_Logout_Success(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	sessionID := uuid.New()
+
+	mockSessionRepo.On("DeleteSession", sessionID).Return(nil)
+
+	err := uc.Logout(ctx, sessionID)
+
+	assert.NoError(t, err)
+	mockSessionRepo.AssertExpectations(t)
+}
+
+func TestAuthUsecase_Logout_SessionDeleteError(t *testing.T) {
+	ctx := context.Background()
+	mockAuthRepo := new(MockAuthRepository)
+	mockUserRepo := new(MockUserRepository)
+	mockSessionRepo := new(MockSessionRepository)
+
+	uc := New(mockAuthRepo, mockUserRepo, mockSessionRepo)
+
+	sessionID := uuid.New()
+
+	mockSessionRepo.On("DeleteSession", sessionID).Return(errors.New("delete session failed"))
+
+	err := uc.Logout(ctx, sessionID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "delete session failed")
+	mockSessionRepo.AssertExpectations(t)
+}
