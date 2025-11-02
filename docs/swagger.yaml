@@ -17,6 +17,11 @@ definitions:
           $ref: '#/definitions/dto.AddChatMemberDTO'
         type: array
     type: object
+  dto.AuthResponse:
+    properties:
+      csrf_token:
+        type: string
+    type: object
   dto.ChatCreateInformationDTO:
     properties:
       members:
@@ -416,6 +421,8 @@ paths:
       responses:
         "200":
           description: Вход выполнен успешно
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
         "400":
           description: Ошибки валидации
           schema:
@@ -484,6 +491,8 @@ paths:
       responses:
         "201":
           description: Пользователь успешно зарегистрирован
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
         "400":
           description: Ошибки валидации
           schema:

@@ -348,7 +348,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Вход выполнен успешно"
+                        "description": "Вход выполнен успешно",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuthResponse"
+                        }
                     },
                     "400": {
                         "description": "Ошибки валидации",
@@ -456,7 +459,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Пользователь успешно зарегистрирован"
+                        "description": "Пользователь успешно зарегистрирован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AuthResponse"
+                        }
                     },
                     "400": {
                         "description": "Ошибки валидации",
@@ -674,6 +680,14 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.AddChatMemberDTO"
                     }
+                }
+            }
+        },
+        "dto.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "csrf_token": {
+                    "type": "string"
                 }
             }
         },

@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/stretchr/testify/assert/yaml"
+	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
 	DBConfig         *DBConfig
 	ServerConfig     *ServerConfig
 	SessionConfig    *SessionConfig
+	CSRFConfig       *CSRFConfig
 	MigrationsConfig *MigrationsConfig
 	RedisConfig      *RedisConfig
 }
@@ -45,15 +46,22 @@ type SessionConfig struct {
 	LifeSpan  time.Duration
 }
 
+type CSRFConfig struct {
+	Secret string
+}
+
 type MigrationsConfig struct {
 	Path string
 }
 
 func NewConfig() (*Config, error) {
-	// Читаем конфиг из файла
-	raw, err := loadYamlConfig("config.yml")
+	raw, err := loadYamlConfig(".env/config.yml")
 	if err != nil {
-		return nil, err
+		// Если нет .env/config.yml, пробуем обычный config.yml
+		raw, err = loadYamlConfig("config.yml")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	dbConfig := &DBConfig{
@@ -83,6 +91,10 @@ func NewConfig() (*Config, error) {
 		LifeSpan:  raw.SessionTokenLife,
 	}
 
+	csrfConfig := &CSRFConfig{
+		Secret: raw.CSRFSecret,
+	}
+
 	migrationsConfig := &MigrationsConfig{
 		Path: raw.MigrationsPath,
 	}
@@ -91,6 +103,7 @@ func NewConfig() (*Config, error) {
 		DBConfig:         dbConfig,
 		ServerConfig:     serverConfig,
 		SessionConfig:    sessionConfig,
+		CSRFConfig:       csrfConfig,
 		MigrationsConfig: migrationsConfig,
 		RedisConfig:      redisConfig,
 	}, nil
@@ -110,6 +123,7 @@ type yamlConfig struct {
 	AuthDB           int           `yaml:"AUTH_REDIS_DB"`
 	AuthPort         string        `yaml:"AUTH_REDIS_PORT"`
 	AuthHost         string        `yaml:"AUTH_REDIS_HOST"`
+	CSRFSecret       string        `yaml:"CSRF_SECRET"`
 }
 
 func loadYamlConfig(path string) (*yamlConfig, error) {
@@ -132,6 +146,7 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		AuthDB           string `yaml:"AUTH_REDIS_DB"`
 		AuthPort         string `yaml:"AUTH_REDIS_PORT"`
 		AuthHost         string `yaml:"AUTH_REDIS_HOST"`
+		CSRFSecret       string `yaml:"CSRF_SECRET"`
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -184,5 +199,6 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		AuthDB:           authDb,
 		AuthPort:         cfg.AuthPort,
 		AuthHost:         cfg.AuthHost,
+		CSRFSecret:       cfg.CSRFSecret,
 	}, nil
 }
