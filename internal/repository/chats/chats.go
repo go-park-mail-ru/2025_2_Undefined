@@ -21,12 +21,19 @@ const (
 		WHERE cm.user_id = $1`
 
 	getLastMessagesOfChatsQuery = `
-		SELECT msg.id, msg.chat_id, msg.user_id, usr.name, atch.file_path, msg.text, msg.created_at, msg.message_type::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			msg.id, msg.chat_id, msg.user_id, usr.name, 
+			la.attachment_id,
+			msg.text, msg.created_at, msg.message_type::text
 		FROM message msg
 		JOIN chat_member cm ON cm.chat_id = msg.chat_id
 		JOIN "user" usr ON usr.id = msg.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = msg.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = msg.user_id
 		WHERE cm.user_id = $1
 		ORDER BY msg.chat_id, msg.created_at DESC`
 
@@ -37,29 +44,50 @@ const (
 		WHERE cm.user_id = $1 AND c.id = $2`
 
 	getUsersOfChat = `
-		SELECT cm.user_id, cm.chat_id, usr.name, atch.file_path, cm.chat_member_role::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			cm.user_id, cm.chat_id, usr.name, 
+			la.attachment_id,
+			cm.chat_member_role::text
 		FROM chat_member cm
 		JOIN "user" usr ON usr.id = cm.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = cm.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.chat_id = $1`
 
 	getMessagesOfChatQuery = `
-		SELECT msg.id, msg.chat_id, msg.user_id, usr.name, atch.file_path, msg.text, msg.created_at, msg.message_type::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			msg.id, msg.chat_id, msg.user_id, usr.name, 
+			la.attachment_id,
+			msg.text, msg.created_at, msg.message_type::text
 		FROM message msg
 		JOIN "user" usr ON usr.id = msg.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = msg.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = msg.user_id
 		WHERE chat_id = $1
-		ORDER BY created_at DESC
+		ORDER BY msg.created_at DESC
 		LIMIT $3 OFFSET $2`
 
 	getUserInfo = `
-		SELECT cm.user_id, cm.chat_id, usr.name, atch.file_path, cm.chat_member_role::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			cm.user_id, cm.chat_id, usr.name, 
+			la.attachment_id,
+			cm.chat_member_role::text
 		FROM chat_member cm
 		JOIN "user" usr ON usr.id = cm.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = cm.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.user_id = $1 AND cm.chat_id = $2`
 )
 
@@ -118,7 +146,7 @@ func (r *ChatsRepository) GetLastMessagesOfChats(ctx context.Context, userId uui
 	for rows.Next() {
 		var message modelsMessage.Message
 		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
-			&message.UserAvatar, &message.Text, &message.CreatedAt,
+			&message.UserAvatarID, &message.Text, &message.CreatedAt,
 			&message.Type); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan message row")
 			return nil, err
@@ -167,7 +195,7 @@ func (r *ChatsRepository) GetUsersOfChat(ctx context.Context, chatId uuid.UUID) 
 	for rows.Next() {
 		var userInfo modelsChats.UserInfo
 		if err := rows.Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.UserName,
-			&userInfo.UserAvatar, &userInfo.Role); err != nil {
+			&userInfo.UserAvatarID, &userInfo.Role); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan user info row")
 			return nil, err
 		}
@@ -196,7 +224,7 @@ func (r *ChatsRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.UUI
 	for rows.Next() {
 		var message modelsMessage.Message
 		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
-			&message.UserAvatar, &message.Text, &message.CreatedAt,
+			&message.UserAvatarID, &message.Text, &message.CreatedAt,
 			&message.Type); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan message row")
 			return nil, err
@@ -291,7 +319,7 @@ func (r *ChatsRepository) GetUserInfo(ctx context.Context, userId, chatId uuid.U
 
 	err := r.db.QueryRow(getUserInfo, userId, chatId).
 		Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.UserName,
-			&userInfo.UserAvatar, &userInfo.Role)
+			&userInfo.UserAvatarID, &userInfo.Role)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get user info query")
 		return nil, err

@@ -2,7 +2,6 @@ package transport
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,61 +12,20 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	SessionDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	UserDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/mocks"
+	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-type MockUserUsecase struct {
-	mock.Mock
-}
-
-func (m *MockUserUsecase) GetUserById(ctx context.Context, id uuid.UUID) (*UserDTO.User, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*UserDTO.User), args.Error(1)
-}
-
-func (m *MockUserUsecase) GetUserByPhone(ctx context.Context, phone string) (*UserDTO.User, error) {
-	args := m.Called(ctx, phone)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*UserDTO.User), args.Error(1)
-}
-
-func (m *MockUserUsecase) GetUserByUsername(ctx context.Context, username string) (*UserDTO.User, error) {
-	args := m.Called(ctx, username)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*UserDTO.User), args.Error(1)
-}
-
-type MockSessionUtils struct {
-	mock.Mock
-}
-
-func (m *MockSessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
-	args := m.Called(r)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockSessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*SessionDTO.Session, error) {
-	args := m.Called(userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*SessionDTO.Session), args.Error(1)
-}
-
 func TestUserHandler_GetCurrentUser_Success(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	userID := uuid.New()
 	user := &UserDTO.User{
@@ -81,8 +39,8 @@ func TestUserHandler_GetCurrentUser_Success(t *testing.T) {
 		UpdatedAt:   time.Now(),
 	}
 
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-	mockUsecase.On("GetUserById", mock.Anything, userID).Return(user, nil)
+	mockSessionUsecase.EXPECT().GetUserIDFromSession(gomock.Any()).Return(userID, nil)
+	mockUsecase.EXPECT().GetUserById(gomock.Any(), userID).Return(user, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/me", nil)
 	recorder := httptest.NewRecorder()
@@ -96,18 +54,18 @@ func TestUserHandler_GetCurrentUser_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, userID, response.ID)
 	assert.Equal(t, user.Name, response.Name)
-
-	mockSessionUtils.AssertExpectations(t)
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetCurrentUser_Unauthorized(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
 
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(uuid.Nil, errors.New("unauthorized"))
+	handler := New(mockUsecase, mockSessionUsecase)
+
+	mockSessionUsecase.EXPECT().GetUserIDFromSession(gomock.Any()).Return(uuid.Nil, errors.New("unauthorized"))
 
 	request := httptest.NewRequest(http.MethodGet, "/me", nil)
 	recorder := httptest.NewRecorder()
@@ -115,19 +73,21 @@ func TestUserHandler_GetCurrentUser_Unauthorized(t *testing.T) {
 	handler.GetCurrentUser(recorder, request)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
 }
 
 func TestUserHandler_GetCurrentUser_UserNotFound(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	userID := uuid.New()
 
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-	mockUsecase.On("GetUserById", mock.Anything, userID).Return(nil, errors.New("user not found"))
+	mockSessionUsecase.EXPECT().GetUserIDFromSession(gomock.Any()).Return(userID, nil)
+	mockUsecase.EXPECT().GetUserById(gomock.Any(), userID).Return(nil, errors.New("user not found"))
 
 	request := httptest.NewRequest(http.MethodGet, "/me", nil)
 	recorder := httptest.NewRecorder()
@@ -135,15 +95,16 @@ func TestUserHandler_GetCurrentUser_UserNotFound(t *testing.T) {
 	handler.GetCurrentUser(recorder, request)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetSessionsByUser_Success(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	userID := uuid.New()
 	sessionID := uuid.New()
@@ -157,8 +118,8 @@ func TestUserHandler_GetSessionsByUser_Success(t *testing.T) {
 		},
 	}
 
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-	mockSessionUtils.On("GetSessionsByUserID", userID).Return(sessions, nil)
+	mockSessionUsecase.EXPECT().GetUserIDFromSession(gomock.Any()).Return(userID, nil)
+	mockSessionUsecase.EXPECT().GetSessionsByUserID(userID).Return(sessions, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/sessions", nil)
 	recorder := httptest.NewRecorder()
@@ -173,17 +134,18 @@ func TestUserHandler_GetSessionsByUser_Success(t *testing.T) {
 	assert.Len(t, response, 1)
 	assert.Equal(t, sessionID, response[0].ID)
 	assert.Equal(t, "Chrome on Windows", response[0].Device)
-
-	mockSessionUtils.AssertExpectations(t)
 }
 
 func TestUserHandler_GetSessionsByUser_Unauthorized(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
 
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(uuid.Nil, errors.New("unauthorized"))
+	handler := New(mockUsecase, mockSessionUsecase)
+
+	mockSessionUsecase.EXPECT().GetUserIDFromSession(gomock.Any()).Return(uuid.Nil, errors.New("unauthorized"))
 
 	request := httptest.NewRequest(http.MethodGet, "/sessions", nil)
 	recorder := httptest.NewRecorder()
@@ -191,19 +153,21 @@ func TestUserHandler_GetSessionsByUser_Unauthorized(t *testing.T) {
 	handler.GetSessionsByUser(recorder, request)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
 }
 
 func TestUserHandler_GetSessionsByUser_Error(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	userID := uuid.New()
 
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-	mockSessionUtils.On("GetSessionsByUserID", userID).Return(nil, errors.New("session error"))
+	mockSessionUsecase.EXPECT().GetUserIDFromSession(gomock.Any()).Return(userID, nil)
+	mockSessionUsecase.EXPECT().GetSessionsByUserID(userID).Return(nil, errors.New("session error"))
 
 	request := httptest.NewRequest(http.MethodGet, "/sessions", nil)
 	recorder := httptest.NewRecorder()
@@ -211,14 +175,16 @@ func TestUserHandler_GetSessionsByUser_Error(t *testing.T) {
 	handler.GetSessionsByUser(recorder, request)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
 }
 
 func TestUserHandler_GetUserByPhone_Success(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	phone := "+79998887766"
 	user := &UserDTO.User{
@@ -235,7 +201,7 @@ func TestUserHandler_GetUserByPhone_Success(t *testing.T) {
 		PhoneNumber: phone,
 	}
 
-	mockUsecase.On("GetUserByPhone", mock.Anything, phone).Return(user, nil)
+	mockUsecase.EXPECT().GetUserByPhone(gomock.Any(), phone).Return(user, nil)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/user/by-phone", bytes.NewBuffer(body))
@@ -251,15 +217,16 @@ func TestUserHandler_GetUserByPhone_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, phone, response.PhoneNumber)
 	assert.Equal(t, user.Name, response.Name)
-
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetUserByPhone_InvalidJSON(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	request := httptest.NewRequest(http.MethodPost, "/user/by-phone", bytes.NewBuffer([]byte("invalid json")))
 	request.Header.Set("Content-Type", "application/json")
@@ -271,10 +238,13 @@ func TestUserHandler_GetUserByPhone_InvalidJSON(t *testing.T) {
 }
 
 func TestUserHandler_GetUserByPhone_EmptyPhone(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	req := UserDTO.GetUserByPhone{
 		PhoneNumber: "",
@@ -291,17 +261,20 @@ func TestUserHandler_GetUserByPhone_EmptyPhone(t *testing.T) {
 }
 
 func TestUserHandler_GetUserByPhone_UserNotFound(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	phone := "+79998887766"
 	req := UserDTO.GetUserByPhone{
 		PhoneNumber: phone,
 	}
 
-	mockUsecase.On("GetUserByPhone", mock.Anything, phone).Return(nil, errs.ErrUserNotFound)
+	mockUsecase.EXPECT().GetUserByPhone(gomock.Any(), phone).Return(nil, errs.ErrUserNotFound)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/user/by-phone", bytes.NewBuffer(body))
@@ -311,21 +284,23 @@ func TestUserHandler_GetUserByPhone_UserNotFound(t *testing.T) {
 	handler.GetUserByPhone(recorder, request)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetUserByPhone_InternalError(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	phone := "+79998887766"
 	req := UserDTO.GetUserByPhone{
 		PhoneNumber: phone,
 	}
 
-	mockUsecase.On("GetUserByPhone", mock.Anything, phone).Return(nil, errors.New("internal error"))
+	mockUsecase.EXPECT().GetUserByPhone(gomock.Any(), phone).Return(nil, errors.New("internal error"))
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/user/by-phone", bytes.NewBuffer(body))
@@ -335,14 +310,16 @@ func TestUserHandler_GetUserByPhone_InternalError(t *testing.T) {
 	handler.GetUserByPhone(recorder, request)
 
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetUserByUsername_Success(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	username := "test_user"
 	user := &UserDTO.User{
@@ -359,7 +336,7 @@ func TestUserHandler_GetUserByUsername_Success(t *testing.T) {
 		Username: username,
 	}
 
-	mockUsecase.On("GetUserByUsername", mock.Anything, username).Return(user, nil)
+	mockUsecase.EXPECT().GetUserByUsername(gomock.Any(), username).Return(user, nil)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/user/by-username", bytes.NewBuffer(body))
@@ -375,15 +352,16 @@ func TestUserHandler_GetUserByUsername_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, username, response.Username)
 	assert.Equal(t, user.Name, response.Name)
-
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetUserByUsername_InvalidJSON(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	request := httptest.NewRequest(http.MethodPost, "/user/by-username", bytes.NewBuffer([]byte("invalid json")))
 	request.Header.Set("Content-Type", "application/json")
@@ -395,10 +373,13 @@ func TestUserHandler_GetUserByUsername_InvalidJSON(t *testing.T) {
 }
 
 func TestUserHandler_GetUserByUsername_EmptyUsername(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	req := UserDTO.GetUserByUsername{
 		Username: "",
@@ -415,17 +396,20 @@ func TestUserHandler_GetUserByUsername_EmptyUsername(t *testing.T) {
 }
 
 func TestUserHandler_GetUserByUsername_UserNotFound(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	username := "nonexistent_user"
 	req := UserDTO.GetUserByUsername{
 		Username: username,
 	}
 
-	mockUsecase.On("GetUserByUsername", mock.Anything, username).Return(nil, errs.ErrUserNotFound)
+	mockUsecase.EXPECT().GetUserByUsername(gomock.Any(), username).Return(nil, errs.ErrUserNotFound)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/user/by-username", bytes.NewBuffer(body))
@@ -435,21 +419,23 @@ func TestUserHandler_GetUserByUsername_UserNotFound(t *testing.T) {
 	handler.GetUserByUsername(recorder, request)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
-	mockUsecase.AssertExpectations(t)
 }
 
 func TestUserHandler_GetUserByUsername_InternalError(t *testing.T) {
-	mockUsecase := new(MockUserUsecase)
-	mockSessionUtils := new(MockSessionUtils)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	handler := New(mockUsecase, mockSessionUtils)
+	mockUsecase := mocks.NewMockUserUsecase(ctrl)
+	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
+
+	handler := New(mockUsecase, mockSessionUsecase)
 
 	username := "test_user"
 	req := UserDTO.GetUserByUsername{
 		Username: username,
 	}
 
-	mockUsecase.On("GetUserByUsername", mock.Anything, username).Return(nil, errors.New("internal error"))
+	mockUsecase.EXPECT().GetUserByUsername(gomock.Any(), username).Return(nil, errors.New("internal error"))
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/user/by-username", bytes.NewBuffer(body))
@@ -459,5 +445,4 @@ func TestUserHandler_GetUserByUsername_InternalError(t *testing.T) {
 	handler.GetUserByUsername(recorder, request)
 
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	mockUsecase.AssertExpectations(t)
 }

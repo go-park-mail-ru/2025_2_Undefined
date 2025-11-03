@@ -6,13 +6,19 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/mocks"
+	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMessageUsecase_WorkerDistribute(t *testing.T) {
-	mockMessageRepo := &MockMessageRepo{}
-	mockUserRepo := &MockUserRepo{}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMessageRepo := mocks.NewMockMessageRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockListenerMap := mocks.NewMockListenerMapInterface(ctrl)
 
 	cnt := atomic.Int32{}
 
@@ -27,11 +33,11 @@ func TestMessageUsecase_WorkerDistribute(t *testing.T) {
 		}()
 	}
 
-	mockListenerMap := &MockListenerMap{
-		GetChatListenersFunc: func(chatId uuid.UUID) map[uuid.UUID]chan message.MessageDTO {
-			return userChannels
-		},
-	}
+	// Настраиваем ожидания мока
+	mockListenerMap.EXPECT().
+		GetChatListeners(gomock.Any()).
+		Return(userChannels).
+		AnyTimes()
 
 	uc := NewMessageUsecase(mockMessageRepo, mockUserRepo, mockListenerMap)
 	uc.distributeChannel <- message.MessageDTO{}
@@ -42,14 +48,18 @@ func TestMessageUsecase_WorkerDistribute(t *testing.T) {
 }
 
 func TestMessageUsecase_Distribute_NoListeners(t *testing.T) {
-	mockMessageRepo := &MockMessageRepo{}
-	mockUserRepo := &MockUserRepo{}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	mockListenerMap := &MockListenerMap{
-		GetChatListenersFunc: func(chatId uuid.UUID) map[uuid.UUID]chan message.MessageDTO {
-			return nil
-		},
-	}
+	mockMessageRepo := mocks.NewMockMessageRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockListenerMap := mocks.NewMockListenerMapInterface(ctrl)
+
+	// Настраиваем ожидания мока - возвращаем nil (нет слушателей)
+	mockListenerMap.EXPECT().
+		GetChatListeners(gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	uc := NewMessageUsecase(mockMessageRepo, mockUserRepo, mockListenerMap)
 

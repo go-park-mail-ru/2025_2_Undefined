@@ -4,33 +4,41 @@ import (
 	"context"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/chats"
+	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
 	"github.com/google/uuid"
 )
 
-type ChatsService struct {
-	chatsRepo interfaceChatsUsecase.ChatsRepository
-	usersRepo interfaceUserUsecase.UserRepository
+type ChatsUsecase struct {
+	chatsRepo   interfaceChatsUsecase.ChatsRepository
+	usersRepo   interfaceUserUsecase.UserRepository
+	fileStorage interfaceFileStorage.FileStorage
 }
 
-func NewChatsService(chatsRepo interfaceChatsUsecase.ChatsRepository, usersRepo interfaceUserUsecase.UserRepository) *ChatsService {
-	return &ChatsService{
-		chatsRepo: chatsRepo,
-		usersRepo: usersRepo,
+func NewChatsUsecase(chatsRepo interfaceChatsUsecase.ChatsRepository, usersRepo interfaceUserUsecase.UserRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
+	return &ChatsUsecase{
+		chatsRepo:   chatsRepo,
+		usersRepo:   usersRepo,
+		fileStorage: fileStorage,
 	}
 }
 
-func (s *ChatsService) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoChats.ChatViewInformationDTO, error) {
-	chats, err := s.chatsRepo.GetChats(ctx, userId)
+func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoChats.ChatViewInformationDTO, error) {
+	const op = "ChatsUsecase.GetChats"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	chats, err := uc.chatsRepo.GetChats(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	lastMessages, err := s.chatsRepo.GetLastMessagesOfChats(ctx, userId)
+	lastMessages, err := uc.chatsRepo.GetLastMessagesOfChats(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -50,12 +58,18 @@ func (s *ChatsService) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCha
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
+			avatar_url, err := uc.fileStorage.GetOne(ctx, lastMsg.UserAvatarID)
+			if err != nil {
+				logger.Warningf("could not get avatar URL for user %s: %v", lastMsg.UserID, err)
+				avatar_url = ""
+			}
+
 			chatDTO.LastMessage = dtoMessage.MessageDTO{
-				SenderName:   lastMsg.UserName,
-				Text:         lastMsg.Text,
-				CreatedAt:    lastMsg.CreatedAt,
-				SenderAvatar: lastMsg.UserAvatar,
-				ChatId:       lastMsg.ChatID,
+				SenderName:      lastMsg.UserName,
+				Text:            lastMsg.Text,
+				CreatedAt:       lastMsg.CreatedAt,
+				SenderAvatarURL: avatar_url,
+				ChatId:          lastMsg.ChatID,
 			}
 		}
 
@@ -65,44 +79,60 @@ func (s *ChatsService) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCha
 	return result, nil
 }
 
-func (s *ChatsService) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
-	chat, err := s.chatsRepo.GetChat(ctx, userId, chatId)
+func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
+	const op = "ChatsUsecase.GetInformationAboutChat"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	chat, err := uc.chatsRepo.GetChat(ctx, userId, chatId)
 	if err != nil {
 		return nil, err
 	}
 
-	messages, err := s.chatsRepo.GetMessagesOfChat(ctx, chatId, 0, 20)
+	messages, err := uc.chatsRepo.GetMessagesOfChat(ctx, chatId, 0, 20)
 	if err != nil {
 		return nil, err
 	}
 
-	users, err := s.chatsRepo.GetUsersOfChat(ctx, chatId)
+	users, err := uc.chatsRepo.GetUsersOfChat(ctx, chatId)
 	if err != nil {
 		return nil, err
 	}
 
-	userInfo, err := s.chatsRepo.GetUserInfo(ctx, userId, chatId)
+	userInfo, err := uc.chatsRepo.GetUserInfo(ctx, userId, chatId)
 	if err != nil {
 		return nil, err
 	}
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
+		avatar_url, err := uc.fileStorage.GetOne(ctx, message.UserAvatarID)
+		if err != nil {
+			logger.Warningf("could not get avatar URL for user %s: %v", message.UserID, err)
+			avatar_url = ""
+		}
+
 		messagesDTO[i] = dtoMessage.MessageDTO{
-			SenderName:   message.UserName,
-			Text:         message.Text,
-			CreatedAt:    message.CreatedAt,
-			SenderAvatar: message.UserAvatar,
-			ChatId:       message.ChatID,
+			SenderName:      message.UserName,
+			Text:            message.Text,
+			CreatedAt:       message.CreatedAt,
+			SenderAvatarURL: avatar_url,
+			ChatId:          message.ChatID,
 		}
 	}
 
 	usersDTO := make([]dtoChats.UserInfoChatDTO, len(users))
 	for i, user := range users {
+		avatar_url, err := uc.fileStorage.GetOne(ctx, user.UserAvatarID)
+		if err != nil {
+			logger.Warningf("could not get avatar URL for user %s: %v", user.UserID, err)
+			avatar_url = ""
+		}
+
 		usersDTO[i] = dtoChats.UserInfoChatDTO{
 			UserId:     user.UserID,
 			UserName:   user.UserName,
-			UserAvatar: user.UserAvatar,
+			UserAvatar: avatar_url,
 			Role:       user.Role,
 		}
 	}
@@ -136,7 +166,7 @@ func (s *ChatsService) GetInformationAboutChat(ctx context.Context, userId, chat
 	return result, nil
 }
 
-func (s *ChatsService) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
+func (s *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
 	chat := modelsChats.Chat{
 		ID:          uuid.New(),
 		Name:        chatDTO.Name,
@@ -170,7 +200,7 @@ func (s *ChatsService) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCrea
 	return chat.ID, nil
 }
 
-func (s *ChatsService) AddUsersToChat(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
 	usersInfo := make([]modelsChats.UserInfo, len(users))
 	for i, user := range users {
 		usersInfo[i] = modelsChats.UserInfo{

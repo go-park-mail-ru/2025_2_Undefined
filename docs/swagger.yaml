@@ -148,7 +148,7 @@ definitions:
     properties:
       account_type:
         type: string
-      avatar:
+      avatar_url:
         type: string
       bio:
         type: string
@@ -525,6 +525,44 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Получить список сессий пользователя
+      tags:
+      - user
+  /user/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Позволяет текущему авторизованному пользователю загрузить или обновить
+        свой аватар
+      parameters:
+      - description: Файл аватара
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL загруженного аватара
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Ошибка загрузки файла
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить аватар пользователя
       tags:
       - user
   /user/by-phone:

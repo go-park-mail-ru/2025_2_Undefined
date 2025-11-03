@@ -516,6 +516,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет текущему авторизованному пользователю загрузить или обновить свой аватар",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Загрузить аватар пользователя",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Файл аватара",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URL загруженного аватара",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Ошибка загрузки файла",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/user/by-phone": {
             "post": {
                 "description": "Возвращает полные данные о пользователе по указанному номеру телефона",
@@ -882,7 +940,7 @@ const docTemplate = `{
                 "account_type": {
                     "type": "string"
                 },
-                "avatar": {
+                "avatar_url": {
                     "type": "string"
                 },
                 "bio": {

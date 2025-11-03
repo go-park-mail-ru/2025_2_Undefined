@@ -33,7 +33,7 @@ type ChatCreateInformationDTO struct {
 type UserInfoChatDTO struct {
 	UserId     uuid.UUID `json:"user_id" swaggertype:"string" format:"uuid"`
 	UserName   string    `json:"user_name"`
-	UserAvatar *string   `json:"user_avatar"`
+	UserAvatar string    `json:"user_avatar"`
 	Role       string    `json:"role"` // Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)
 }
 

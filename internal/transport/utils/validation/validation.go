@@ -170,3 +170,23 @@ func ValidateName(name string) bool {
 	}
 	return true
 }
+
+// ValidImageType проверяет, является ли Content-Type допустимым типом изображения
+func ValidImageType(contentType string) bool {
+	validTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/jpg":  true,
+		"image/png":  true,
+	}
+	return validTypes[contentType]
+}
+
+// GetFileExtensionFromContentType возвращает расширение файла на основе Content-Type
+func GetFileExtensionFromContentType(contentType string) string {
+	extensions := map[string]string{
+		"image/jpeg": ".jpg",
+		"image/jpg":  ".jpg",
+		"image/png":  ".png",
+	}
+	return extensions[contentType]
+}

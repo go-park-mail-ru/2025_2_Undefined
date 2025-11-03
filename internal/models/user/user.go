@@ -19,7 +19,7 @@ type User struct {
 	Name         string
 	Username     string
 	Bio          string
-	Avatar       *string
+	AvatarID     *uuid.UUID
 	AccountType  string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time

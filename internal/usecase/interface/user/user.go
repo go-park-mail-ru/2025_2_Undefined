@@ -10,4 +10,7 @@ import (
 type UserRepository interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 	GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error)
+	GetUserByPhone(ctx context.Context, phone string) (*UserModels.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*UserModels.User, error)
+	UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, file_size int64) error
 }

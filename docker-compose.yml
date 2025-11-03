@@ -19,6 +19,13 @@ services:
       POSTGRES_HOST: db
       MIGRATIONS_PATH: file://db/migrations
       JWT_TOKEN_LIFESPAN: 24h
+      MINIO_HOST: minio
+      MINIO_PUBLIC_HOST: localhost
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_BUCKET_NAME: avatars
+      MINIO_USE_SSL: false
     command: sh -c "./migrate && ./main"
 
   db:
@@ -56,6 +63,20 @@ services:
       retries: 5
     networks:
       - gramm-network
+  
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - gramm-network
 
 networks:
   gramm-network:
@@ -64,3 +85,4 @@ networks:
 volumes:
   postgres_data:
   auth_redis_data:
+  minio_data:
