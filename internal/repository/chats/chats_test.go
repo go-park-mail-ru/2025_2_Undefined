@@ -92,16 +92,23 @@ func TestChatsRepository_GetLastMessagesOfChats_Success(t *testing.T) {
 	senderID := uuid.New()
 	createdAt := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "chat_id", "user_id", "name", "file_path", "text", "created_at", "message_type"}).
-		AddRow(messageID.String(), chatID.String(), senderID.String(), "John Doe", "/path/to/avatar.jpg", "Hello world", createdAt, "text")
+	rows := sqlmock.NewRows([]string{"id", "chat_id", "user_id", "name", "attachment_id", "text", "created_at", "message_type"}).
+		AddRow(messageID.String(), chatID.String(), senderID.String(), "John Doe", nil, "Hello world", createdAt, "text")
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT msg.id, msg.chat_id, msg.user_id, usr.name, atch.file_path, msg.text, msg.created_at, msg.message_type::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			msg.id, msg.chat_id, msg.user_id, usr.name, 
+			la.attachment_id,
+			msg.text, msg.created_at, msg.message_type::text
 		FROM message msg
 		JOIN chat_member cm ON cm.chat_id = msg.chat_id
 		JOIN "user" usr ON usr.id = msg.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = msg.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = msg.user_id
 		WHERE cm.user_id = $1
 		ORDER BY msg.chat_id, msg.created_at DESC`)).
 		WithArgs(userID).
@@ -197,16 +204,23 @@ func TestChatsRepository_GetUsersOfChat_Success(t *testing.T) {
 	userID1 := uuid.New()
 	userID2 := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"user_id", "chat_id", "name", "file_path", "chat_member_role"}).
-		AddRow(userID1.String(), chatID.String(), "User 1", "/avatar1.jpg", "admin").
+	rows := sqlmock.NewRows([]string{"user_id", "chat_id", "name", "attachment_id", "chat_member_role"}).
+		AddRow(userID1.String(), chatID.String(), "User 1", nil, "admin").
 		AddRow(userID2.String(), chatID.String(), "User 2", nil, "member")
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT cm.user_id, cm.chat_id, usr.name, atch.file_path, cm.chat_member_role::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			cm.user_id, cm.chat_id, usr.name, 
+			la.attachment_id,
+			cm.chat_member_role::text
 		FROM chat_member cm
 		JOIN "user" usr ON usr.id = cm.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = cm.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.chat_id = $1`)).
 		WithArgs(chatID).
 		WillReturnRows(rows)
@@ -238,17 +252,24 @@ func TestChatsRepository_GetMessagesOfChat_Success(t *testing.T) {
 	offset := 0
 	limit := 10
 
-	rows := sqlmock.NewRows([]string{"id", "chat_id", "user_id", "name", "file_path", "text", "created_at", "message_type"}).
+	rows := sqlmock.NewRows([]string{"id", "chat_id", "user_id", "name", "attachment_id", "text", "created_at", "message_type"}).
 		AddRow(messageID.String(), chatID.String(), userID.String(), "John", nil, "Test message", createdAt, "text")
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT msg.id, msg.chat_id, msg.user_id, usr.name, atch.file_path, msg.text, msg.created_at, msg.message_type::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			msg.id, msg.chat_id, msg.user_id, usr.name, 
+			la.attachment_id,
+			msg.text, msg.created_at, msg.message_type::text
 		FROM message msg
 		JOIN "user" usr ON usr.id = msg.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = msg.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = msg.user_id
 		WHERE chat_id = $1
-		ORDER BY created_at DESC
+		ORDER BY msg.created_at DESC
 		LIMIT $3 OFFSET $2`)).
 		WithArgs(chatID, offset, limit).
 		WillReturnRows(rows)
@@ -359,15 +380,22 @@ func TestChatsRepository_GetUserInfo_Success(t *testing.T) {
 	userID := uuid.New()
 	chatID := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"user_id", "chat_id", "name", "file_path", "chat_member_role"}).
-		AddRow(userID.String(), chatID.String(), "John Doe", "/avatar.jpg", "admin")
+	rows := sqlmock.NewRows([]string{"user_id", "chat_id", "name", "attachment_id", "chat_member_role"}).
+		AddRow(userID.String(), chatID.String(), "John Doe", nil, "admin")
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT cm.user_id, cm.chat_id, usr.name, atch.file_path, cm.chat_member_role::text
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (user_id) user_id, attachment_id
+			FROM avatar_user 
+			ORDER BY user_id, created_at DESC
+		)
+		SELECT 
+			cm.user_id, cm.chat_id, usr.name, 
+			la.attachment_id,
+			cm.chat_member_role::text
 		FROM chat_member cm
 		JOIN "user" usr ON usr.id = cm.user_id
-		LEFT JOIN avatar_user ava ON ava.user_id = cm.user_id
-		LEFT JOIN attachment atch ON atch.id = ava.attachment_id
+		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.user_id = $1 AND cm.chat_id = $2`)).
 		WithArgs(userID, chatID).
 		WillReturnRows(rows)

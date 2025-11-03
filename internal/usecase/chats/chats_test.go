@@ -20,6 +20,7 @@ func TestGetChats_Success(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	userId := uuid.New()
 	chatId := uuid.New()
@@ -37,7 +38,11 @@ func TestGetChats_Success(t *testing.T) {
 			CreatedAt: time.Now(),
 		}}, nil)
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	mockStorage.EXPECT().
+		GetOne(gomock.Any(), gomock.Any()).
+		Return("", nil)
+
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	chats, err := service.GetChats(context.Background(), userId)
 
 	assert.NoError(t, err)
@@ -52,6 +57,7 @@ func TestGetChats_Error(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	userId := uuid.New()
 
@@ -59,7 +65,7 @@ func TestGetChats_Error(t *testing.T) {
 		GetChats(gomock.Any(), userId).
 		Return(nil, errors.New("repo error"))
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	_, err := service.GetChats(context.Background(), userId)
 
 	assert.Error(t, err)
@@ -70,6 +76,7 @@ func TestGetInformationAboutChat_Success(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	userId := uuid.New()
 	chatId := uuid.New()
@@ -97,7 +104,12 @@ func TestGetInformationAboutChat_Success(t *testing.T) {
 		GetUserInfo(gomock.Any(), userId, chatId).
 		Return(&modelsChats.UserInfo{UserID: userId, Role: modelsChats.RoleAdmin}, nil)
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	mockStorage.EXPECT().
+		GetOne(gomock.Any(), gomock.Any()).
+		Return("", nil).
+		AnyTimes()
+
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	info, err := service.GetInformationAboutChat(context.Background(), userId, chatId)
 
 	assert.NoError(t, err)
@@ -115,6 +127,7 @@ func TestGetInformationAboutChat_Error(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	userId := uuid.New()
 	chatId := uuid.New()
@@ -123,7 +136,7 @@ func TestGetInformationAboutChat_Error(t *testing.T) {
 		GetChat(gomock.Any(), userId, chatId).
 		Return(nil, errors.New("not found"))
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	info, err := service.GetInformationAboutChat(context.Background(), userId, chatId)
 
 	assert.Error(t, err)
@@ -135,6 +148,7 @@ func TestCreateChat_Success(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	userIds := []uuid.UUID{uuid.New()}
 
@@ -146,7 +160,7 @@ func TestCreateChat_Success(t *testing.T) {
 		CreateChat(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil)
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "NewChat",
 		Type: modelsChats.ChatTypeDialog,
@@ -165,6 +179,7 @@ func TestCreateChat_Error(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	userIds := []uuid.UUID{uuid.New()}
 
@@ -176,7 +191,7 @@ func TestCreateChat_Error(t *testing.T) {
 		CreateChat(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(errors.New("fail"))
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "FailChat",
 		Type: modelsChats.ChatTypeDialog,
@@ -195,6 +210,7 @@ func TestAddUsersToChat_Success(t *testing.T) {
 
 	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	chatID := uuid.New()
 	userID1 := uuid.New()
@@ -214,7 +230,7 @@ func TestAddUsersToChat_Success(t *testing.T) {
 		InsertUsersToChat(gomock.Any(), chatID, expectedUsersInfo).
 		Return(nil)
 
-	service := NewChatsService(mockChatsRepo, mockUserRepo)
+	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
 	err := service.AddUsersToChat(context.Background(), chatID, users)
 
 	assert.NoError(t, err)

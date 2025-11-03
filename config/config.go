@@ -17,6 +17,7 @@ type Config struct {
 	CSRFConfig       *CSRFConfig
 	MigrationsConfig *MigrationsConfig
 	RedisConfig      *RedisConfig
+	MinioConfig      *MinioConfig
 }
 
 type DBConfig struct {
@@ -35,6 +36,16 @@ type RedisConfig struct {
 	Port     string
 	Password string
 	DB       int
+}
+
+type MinioConfig struct {
+	PORT         string
+	Host         string
+	PublicHost   string // Хост для публичных URLs (например localhost)
+	BucketName   string
+	RootUser     string
+	RootPassword string
+	UseSSL       bool
 }
 
 type ServerConfig struct {
@@ -82,6 +93,16 @@ func NewConfig() (*Config, error) {
 		DB:       raw.AuthDB,
 	}
 
+	minioConfig := &MinioConfig{
+		PORT:         raw.MinioPort,
+		Host:         raw.MinioHost,
+		PublicHost:   raw.MinioPublicHost,
+		BucketName:   raw.MinioBucketName,
+		RootUser:     raw.MinioAccessKey,
+		RootPassword: raw.MinioSecretKey,
+		UseSSL:       raw.MinioUseSSL,
+	}
+
 	serverConfig := &ServerConfig{
 		Port: raw.ServerPort,
 	}
@@ -106,6 +127,7 @@ func NewConfig() (*Config, error) {
 		CSRFConfig:       csrfConfig,
 		MigrationsConfig: migrationsConfig,
 		RedisConfig:      redisConfig,
+		MinioConfig:      minioConfig,
 	}, nil
 }
 
@@ -124,6 +146,13 @@ type yamlConfig struct {
 	AuthPort         string        `yaml:"AUTH_REDIS_PORT"`
 	AuthHost         string        `yaml:"AUTH_REDIS_HOST"`
 	CSRFSecret       string        `yaml:"CSRF_SECRET"`
+	MinioPort        string        `yaml:"MINIO_PORT"`
+	MinioHost        string        `yaml:"MINIO_HOST"`
+	MinioPublicHost  string        `yaml:"MINIO_PUBLIC_HOST"`
+	MinioAccessKey   string        `yaml:"MINIO_ACCESS_KEY"`
+	MinioSecretKey   string        `yaml:"MINIO_SECRET_KEY"`
+	MinioBucketName  string        `yaml:"MINIO_BUCKET_NAME"`
+	MinioUseSSL      bool          `yaml:"MINIO_USE_SSL"`
 }
 
 func loadYamlConfig(path string) (*yamlConfig, error) {
@@ -147,6 +176,13 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		AuthPort         string `yaml:"AUTH_REDIS_PORT"`
 		AuthHost         string `yaml:"AUTH_REDIS_HOST"`
 		CSRFSecret       string `yaml:"CSRF_SECRET"`
+		MinioPort        string `yaml:"MINIO_PORT"`
+		MinioHost        string `yaml:"MINIO_HOST"`
+		MinioAccessKey   string `yaml:"MINIO_ACCESS_KEY"`
+		MinioSecretKey   string `yaml:"MINIO_SECRET_KEY"`
+		MinioBucketName  string `yaml:"MINIO_BUCKET_NAME"`
+		MinioUseSSL      bool   `yaml:"MINIO_USE_SSL"`
+		MinioPublicHost  string `yaml:"MINIO_PUBLIC_HOST"`
 	}
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -185,6 +221,22 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		return nil, errors.New("AUTH_Redis_Host is required")
 	}
 
+	if cfg.MinioPort == "" {
+		return nil, errors.New("MINIO_PORT is required")
+	}
+
+	if cfg.MinioHost == "" {
+		return nil, errors.New("MINIO_HOST is required")
+	}
+
+	if cfg.MinioPublicHost == "" {
+		return nil, errors.New("MINIO_PUBLIC_HOST is required")
+	}
+
+	if cfg.MinioBucketName == "" {
+		return nil, errors.New("MINIO_BUCKET_NAME is required")
+	}
+
 	return &yamlConfig{
 		ServerPort:       cfg.ServerPort,
 		Signature:        cfg.Signature,
@@ -200,5 +252,12 @@ func loadYamlConfig(path string) (*yamlConfig, error) {
 		AuthPort:         cfg.AuthPort,
 		AuthHost:         cfg.AuthHost,
 		CSRFSecret:       cfg.CSRFSecret,
+		MinioPort:        cfg.MinioPort,
+		MinioHost:        cfg.MinioHost,
+		MinioAccessKey:   cfg.MinioAccessKey,
+		MinioSecretKey:   cfg.MinioSecretKey,
+		MinioBucketName:  cfg.MinioBucketName,
+		MinioUseSSL:      cfg.MinioUseSSL,
+		MinioPublicHost:  cfg.MinioPublicHost,
 	}, nil
 }

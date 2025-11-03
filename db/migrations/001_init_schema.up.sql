@@ -58,14 +58,12 @@ CREATE TABLE attachment (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     file_name TEXT NOT NULL,
     file_size BIGINT NOT NULL,
-    file_path TEXT NOT NULL,
     content_disposition TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     CONSTRAINT check_file_name_length CHECK (LENGTH(file_name) >= 1 AND LENGTH(file_name) <= 255),
     CONSTRAINT check_file_size_positive CHECK (file_size > 0),
-    CONSTRAINT check_file_path_length CHECK (LENGTH(file_path) >= 1 AND LENGTH(file_path) <= 500),
     CONSTRAINT check_content_disposition_length CHECK (LENGTH(content_disposition) >= 1 AND LENGTH(content_disposition) <= 100)
 );
 

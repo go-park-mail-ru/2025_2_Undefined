@@ -5,31 +5,26 @@ import (
 	"fmt"
 	"log"
 
-	ContactModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/contact"
-	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	ContactDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/contact"
 	UserDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
+	InterfaceContactRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/contact"
+	InterfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
+	InterfaceUserRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
 	"github.com/google/uuid"
 )
 
-type ContactRepository interface {
-	CreateContact(ctx context.Context, user_id uuid.UUID, contact_user_id uuid.UUID) error
-	GetContactsByUserID(ctx context.Context, user_id uuid.UUID) ([]*ContactModels.Contact, error)
-}
-
-type UserRepository interface {
-	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
-}
-
 type ContactUsecase struct {
-	contactrepo ContactRepository
-	userrepo    UserRepository
+	contactrepo InterfaceContactRepository.ContactRepository
+	userrepo    InterfaceUserRepository.UserRepository
+	fileStorage InterfaceFileStorage.FileStorage
 }
 
-func New(contactrepo ContactRepository, userrepo UserRepository) *ContactUsecase {
+func New(contactrepo InterfaceContactRepository.ContactRepository, userrepo InterfaceUserRepository.UserRepository, fileStorage InterfaceFileStorage.FileStorage) *ContactUsecase {
 	return &ContactUsecase{
 		contactrepo: contactrepo,
 		userrepo:    userrepo,
+		fileStorage: fileStorage,
 	}
 }
 
@@ -55,10 +50,11 @@ func (uc *ContactUsecase) CreateContact(ctx context.Context, req *ContactDTO.Pos
 
 func (uc *ContactUsecase) GetContacts(ctx context.Context, userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error) {
 	const op = "ContactUsecase.GetContacts"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	contactsModels, err := uc.contactrepo.GetContactsByUserID(ctx, userID)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(err).Error("failed to get contacts by user ID")
 		return nil, err
 	}
 
@@ -70,17 +66,23 @@ func (uc *ContactUsecase) GetContacts(ctx context.Context, userID uuid.UUID) ([]
 	for i, contact := range contactsModels {
 		contactUserInfoModels, err := uc.userrepo.GetUserByID(ctx, contact.ContactUserID)
 		if err != nil {
-			wrappedErr := fmt.Errorf("%s: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
+			logger.WithError(err).Error("failed to get contact user info by ID")
 			return nil, err
 		}
+
+		avatar_url, err := uc.fileStorage.GetOne(ctx, contactUserInfoModels.AvatarID)
+		if err != nil {
+			logger.Warningf("could not get avatar URL for user %s: %v", contactUserInfoModels.ID, err)
+			avatar_url = ""
+		}
+
 		contactUserInfoDTO := &UserDTO.User{
 			ID:          contactUserInfoModels.ID,
 			PhoneNumber: contactUserInfoModels.PhoneNumber,
 			Name:        contactUserInfoModels.Name,
 			Username:    contactUserInfoModels.Username,
 			Bio:         contactUserInfoModels.Bio,
-			Avatar:      contactUserInfoModels.Avatar,
+			AvatarURL:   avatar_url,
 			AccountType: contactUserInfoModels.AccountType,
 			CreatedAt:   contactUserInfoModels.CreatedAt,
 			UpdatedAt:   contactUserInfoModels.UpdatedAt,

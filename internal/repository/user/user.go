@@ -15,19 +15,45 @@ import (
 
 const (
 	getUserByPhoneQuery = `
-		SELECT id, username, name, phone_number, password_hash, user_type, created_at, updated_at
-		FROM "user"
-		WHERE phone_number = $1`
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+               latest_avatar.attachment_id, u.created_at, u.updated_at
+        FROM "user" u
+        LEFT JOIN (
+            SELECT DISTINCT ON (user_id) user_id, attachment_id
+            FROM avatar_user
+            ORDER BY user_id, updated_at DESC
+        ) latest_avatar ON latest_avatar.user_id = u.id
+        WHERE u.phone_number = $1`
 
 	getUserByUsernameQuery = `
-		SELECT id, username, name, phone_number, password_hash, user_type, created_at, updated_at
-		FROM "user"
-		WHERE username = $1`
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+               latest_avatar.attachment_id, u.created_at, u.updated_at
+        FROM "user" u
+        LEFT JOIN (
+            SELECT DISTINCT ON (user_id) user_id, attachment_id
+            FROM avatar_user
+            ORDER BY user_id, updated_at DESC
+        ) latest_avatar ON latest_avatar.user_id = u.id
+        WHERE u.username = $1`
 
 	getUserByIDQuery = `
-		SELECT id, username, name, phone_number, user_type, created_at, updated_at
-		FROM "user"
-		WHERE id = $1`
+        SELECT u.id, u.username, u.name, u.phone_number, u.user_type, 
+               latest_avatar.attachment_id, u.created_at, u.updated_at
+        FROM "user" u
+        LEFT JOIN (
+            SELECT DISTINCT ON (user_id) user_id, attachment_id
+            FROM avatar_user
+            ORDER BY user_id, updated_at DESC
+        ) latest_avatar ON latest_avatar.user_id = u.id
+        WHERE u.id = $1`
+
+	insertUserAvatarInAttachmentTableQuery = `
+		INSERT INTO attachment (id, file_name, file_size, content_disposition)
+		VALUES ($1, $2, $3, $4)`
+
+	insertUserAvatarInUserAvatarTableQuery = `
+		INSERT INTO avatar_user (user_id, attachment_id)
+		VALUES ($1, $2)`
 )
 
 type UserRepository struct {
@@ -48,7 +74,7 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*mod
 
 	var user models.User
 	err := r.db.QueryRow(getUserByPhoneQuery, phone).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -72,7 +98,7 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 
 	var user models.User
 	err := r.db.QueryRow(getUserByUsernameQuery, username).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -96,7 +122,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 
 	var user models.User
 	err := r.db.QueryRow(getUserByIDQuery, id).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.AccountType, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -154,4 +180,37 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 
 	logger.WithField("names_count", len(result)).Info("Database operation completed successfully: users names retrieved")
 	return result, nil
+}
+
+func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, file_size int64) error {
+	const op = "UserRepository.UpdateUserAvatar"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+	logger.Debug("Starting database operation: update user avatar")
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: begin transaction")
+		return err
+	}
+
+	_, err = tx.Exec(insertUserAvatarInAttachmentTableQuery, avatarID, "avatar_"+avatarID.String(), file_size, "inline")
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: insert user avatar in attachment table")
+		return err
+	}
+
+	_, err = tx.Exec(insertUserAvatarInUserAvatarTableQuery, userID, avatarID)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: insert user avatar in user_avatar table")
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.WithError(err).Error("Database operation failed: commit transaction")
+		return err
+	}
+
+	logger.Info("Database operation completed successfully: user avatar updated")
+	return nil
 }

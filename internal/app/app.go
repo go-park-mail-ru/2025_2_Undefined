@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
 	redisSessionRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis/session"
 	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
@@ -62,12 +63,17 @@ func NewApp(conf *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to redis: %v", err)
 	}
 
+	minioClient, err := minio.NewMinioProvider(*conf.MinioConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to minio: %v", err)
+	}
+
 	sessionRepo := redisSessionRepo.New(redisClient.Client, conf.SessionConfig.LifeSpan)
 	sessionUC := sessionuc.New(sessionRepo)
 	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf.SessionConfig)
 
 	userRepo := userrepo.New(db)
-	userUC := useruc.New(userRepo)
+	userUC := useruc.New(userRepo, minioClient)
 	userHandler := usert.New(userUC, sessionUtils)
 
 	authRepo := authrepo.New(db)
@@ -75,7 +81,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	authHandler := autht.New(authUC, conf.SessionConfig, conf.CSRFConfig, sessionUtils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
-	chatsUC := chatsUsecase.NewChatsService(chatsRepo, userRepo)
+	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, minioClient)
 	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionUtils)
 
 	messageRepo := messageRepository.NewMessageRepository(db)
@@ -84,13 +90,13 @@ func NewApp(conf *config.Config) (*App, error) {
 	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionUtils)
 
 	contactRepo := contactRepository.New(db)
-	contactUC := contactUsecase.New(contactRepo, userRepo)
+	contactUC := contactUsecase.New(contactRepo, userRepo, minioClient)
 	contactHandler := contactTransport.New(contactUC, sessionUtils)
 
 	// Настройка логгера
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
-	logger.SetLevel(logrus.WarnLevel)
+	logger.SetLevel(logrus.DebugLevel)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
@@ -128,6 +134,7 @@ func NewApp(conf *config.Config) (*App, error) {
 		userRouter.HandleFunc("/sessions", userHandler.GetSessionsByUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/user/by-phone", userHandler.GetUserByPhone).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/by-username", userHandler.GetUserByUsername).Methods(http.MethodPost)
+		userRouter.HandleFunc("/user/avatar", userHandler.UploadUserAvatar)
 	}
 
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()

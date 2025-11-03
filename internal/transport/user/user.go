@@ -1,38 +1,28 @@
 package transport
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	UserDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
+	interfaceSession "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
+	interfaceUser "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/user"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
-	"github.com/google/uuid"
+
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 )
 
-type SessionUtilsI interface {
-	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
-	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
-}
-
-type UserUsecase interface {
-	GetUserById(ctx context.Context, id uuid.UUID) (*UserDto.User, error)
-	GetUserByPhone(ctx context.Context, phone string) (*UserDto.User, error)
-	GetUserByUsername(ctx context.Context, username string) (*UserDto.User, error)
-}
-
 type UserHandler struct {
-	uc           UserUsecase
-	sessionUtils SessionUtilsI
+	uc             interfaceUser.UserUsecase
+	sessionUsecase interfaceSession.SessionUsecase
 }
 
-func New(uc UserUsecase, sessionUtils SessionUtilsI) *UserHandler {
+func New(uc interfaceUser.UserUsecase, sessionUsecase interfaceSession.SessionUsecase) *UserHandler {
 	return &UserHandler{
-		uc:           uc,
-		sessionUtils: sessionUtils,
+		uc:             uc,
+		sessionUsecase: sessionUsecase,
 	}
 }
 
@@ -49,7 +39,7 @@ func New(uc UserUsecase, sessionUtils SessionUtilsI) *UserHandler {
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetCurrentUser"
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -77,13 +67,13 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetSessionsByUser"
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	sessions, err := h.sessionUtils.GetSessionsByUserID(userID)
+	sessions, err := h.sessionUsecase.GetSessionsByUserID(userID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -167,4 +157,63 @@ func (h *UserHandler) GetUserByUsername(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, user)
+}
+
+// UploadUserAvatar загружает аватар пользователя
+// @Summary      Загрузить аватар пользователя
+// @Description  Позволяет текущему авторизованному пользователю загрузить или обновить свой аватар
+// @Tags         user
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        avatar  formData  file  true  "Файл аватара"
+// @Success      200     {object}  map[string]string  "URL загруженного аватара"
+// @Failure      400     {object}  dto.ErrorDTO      "Ошибка загрузки файла"
+// @Failure      401     {object}  dto.ErrorDTO      "Неавторизованный доступ"
+// @Failure      500     {object}  dto.ErrorDTO      "Внутренняя ошибка сервера"
+// @Router       /user/avatar [post]
+func (h *UserHandler) UploadUserAvatar(w http.ResponseWriter, r *http.Request) {
+	const op = "UserHandler.UploadUserAvatar"
+
+	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Failed to read avatar file")
+		return
+	}
+
+	defer file.Close()
+
+	// Валидация типа файла на основе Content-Type
+	contentType := header.Header.Get("Content-Type")
+	if !validation.ValidImageType(contentType) {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid file type. Only images (jpeg, png) are allowed")
+		return
+	}
+
+	fileData := make([]byte, r.ContentLength)
+
+	_, err = file.Read(fileData)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "Failed to read avatar file data")
+		return
+	}
+
+	filename := header.Filename
+	if filename == "" {
+		filename = "avatar" + validation.GetFileExtensionFromContentType(contentType)
+	}
+
+	avatarURL, err := h.uc.UploadUserAvatar(r.Context(), userID, fileData, filename, contentType)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Failed to upload avatar")
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, map[string]string{"avatar_url": avatarURL})
 }

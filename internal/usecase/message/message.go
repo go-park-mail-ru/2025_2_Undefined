@@ -5,11 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	interfaceListenerMap "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/listener"
 	interfaceMessageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/message"
+	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
 	"github.com/google/uuid"
 )
@@ -23,23 +26,17 @@ const (
 )
 
 type MessageUsecase struct {
-	listenerMap       ListenerMapInterface
+	fileStorage       interfaceFileStorage.FileStorage
 	messageRepository interfaceMessageUsecase.MessageRepository
 	userRepository    interfaceUserUsecase.UserRepository
+
+	listenerMap       interfaceListenerMap.ListenerMapInterface
 	distributeChannel chan dtoMessage.MessageDTO
 	ctx               context.Context
 	cancel            context.CancelFunc
 }
 
-type ListenerMapInterface interface {
-	SubscribeUserToChat(userId uuid.UUID, chatId uuid.UUID) <-chan dtoMessage.MessageDTO
-	GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan dtoMessage.MessageDTO
-	CloseAll()
-	CleanInactiveChats() int
-	CleanInactiveReaders() int
-}
-
-func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageRepository, userRepository interfaceUserUsecase.UserRepository, listenerMap ListenerMapInterface) *MessageUsecase {
+func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageRepository, userRepository interfaceUserUsecase.UserRepository, listenerMap interfaceListenerMap.ListenerMapInterface) *MessageUsecase {
 	ctx, cancel := context.WithCancel(context.Background())
 	uc := &MessageUsecase{
 		listenerMap:       listenerMap,
@@ -63,17 +60,27 @@ func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageReposito
 }
 
 func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error {
+	const op = "MessageUsecase.AddMessage"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	user, err := uc.userRepository.GetUserByID(ctx, userId)
 	if err != nil {
 		return err
 	}
 
+	avatar_url, err := uc.fileStorage.GetOne(ctx, user.AvatarID)
+	if err != nil {
+		logger.Warningf("could not get avatar URL for user %s: %v", user.ID, err)
+		avatar_url = ""
+	}
+
 	msgDTO := dtoMessage.MessageDTO{
-		SenderName:   user.Name,
-		SenderAvatar: user.Avatar,
-		Text:         msg.Text,
-		CreatedAt:    msg.CreatedAt,
-		ChatId:       msg.ChatId,
+		SenderName:      user.Name,
+		SenderAvatarURL: avatar_url,
+		Text:            msg.Text,
+		CreatedAt:       msg.CreatedAt,
+		ChatId:          msg.ChatId,
 	}
 
 	select {
