@@ -10,6 +10,9 @@ RUN go mod download
 # Копируем остальные файлы
 COPY . .
 
+# Создаем пустой .env файл на случай, если его нет
+RUN touch .env
+
 # Собираем оба приложения
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/app/main.go && \
     CGO_ENABLED=0 GOOS=linux go build -o migrate ./cmd/migration/main.go
@@ -27,7 +30,7 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/migrate .
 COPY --from=builder /app/db/migrations ./db/migrations
 COPY --from=builder /app/config.yml .
-COPY --from=builder /app/.env ./.env
+COPY --from=builder /app/.env .
 
 EXPOSE 8080
 
