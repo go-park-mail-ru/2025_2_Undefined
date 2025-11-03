@@ -460,3 +460,121 @@ func TestChatsRepository_InsertUsersToChat_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestChatsRepository_CheckUserHasRole_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to open sqlmock database: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewChatsRepository(db)
+	userID := uuid.New()
+	chatID := uuid.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta(`
+		SELECT EXISTS(
+			SELECT 1 FROM chat_member 
+			WHERE user_id = $1 AND chat_id = $2 AND chat_member_role = $3::chat_member_role_enum
+		)`)).
+		WithArgs(userID, chatID, "admin").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	ctx := context.Background()
+	hasRole, err := repo.CheckUserHasRole(ctx, userID, chatID, "admin")
+
+	assert.NoError(t, err)
+	assert.True(t, hasRole)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestChatsRepository_DeleteChat_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to open sqlmock database: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewChatsRepository(db)
+	userID := uuid.New()
+	chatID := uuid.New()
+
+	// Проверка роли админа
+	mock.ExpectQuery(regexp.QuoteMeta(`
+		SELECT EXISTS(
+			SELECT 1 FROM chat_member 
+			WHERE user_id = $1 AND chat_id = $2 AND chat_member_role = $3::chat_member_role_enum
+		)`)).
+		WithArgs(userID, chatID, "admin").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	// Удаление чата
+	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM chat WHERE id = $1`)).
+		WithArgs(chatID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	ctx := context.Background()
+	err = repo.DeleteChat(ctx, userID, chatID)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestChatsRepository_DeleteChat_NotAdmin(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to open sqlmock database: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewChatsRepository(db)
+	userID := uuid.New()
+	chatID := uuid.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta(`
+		SELECT EXISTS(
+			SELECT 1 FROM chat_member 
+			WHERE user_id = $1 AND chat_id = $2 AND chat_member_role = $3::chat_member_role_enum
+		)`)).
+		WithArgs(userID, chatID, "admin").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	ctx := context.Background()
+	err = repo.DeleteChat(ctx, userID, chatID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user is not admin")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestChatsRepository_UpdateChat_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to open sqlmock database: %v", err)
+	}
+	defer db.Close()
+
+	repo := NewChatsRepository(db)
+	userID := uuid.New()
+	chatID := uuid.New()
+
+	// Проверка роли админа
+	mock.ExpectQuery(regexp.QuoteMeta(`
+		SELECT EXISTS(
+			SELECT 1 FROM chat_member 
+			WHERE user_id = $1 AND chat_id = $2 AND chat_member_role = $3::chat_member_role_enum
+		)`)).
+		WithArgs(userID, chatID, "admin").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	// Обновление чата
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE chat SET name = $1, description = $2 WHERE id = $3`)).
+		WithArgs("New Name", "New Description", chatID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	ctx := context.Background()
+	err = repo.UpdateChat(ctx, userID, chatID, "New Name", "New Description")
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

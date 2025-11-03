@@ -183,3 +183,17 @@ func (mr *MockChatsRepositoryMockRecorder) InsertUsersToChat(ctx, chatID, usersI
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertUsersToChat", reflect.TypeOf((*MockChatsRepository)(nil).InsertUsersToChat), ctx, chatID, usersInfo)
 }
+
+// UpdateChat mocks base method.
+func (m *MockChatsRepository) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateChat", ctx, userId, chatId, name, description)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateChat indicates an expected call of UpdateChat.
+func (mr *MockChatsRepositoryMockRecorder) UpdateChat(ctx, userId, chatId, name, description interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChat", reflect.TypeOf((*MockChatsRepository)(nil).UpdateChat), ctx, userId, chatId, name, description)
+}

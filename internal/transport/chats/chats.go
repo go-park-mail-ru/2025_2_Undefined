@@ -306,3 +306,72 @@ func (h *ChatsHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
 }
+
+// UpdateChat изменяет название и описание чата (тип менять нельзя)
+// @Summary      Обновить чат
+// @Description  Позволяет администратору изменить название и описание чата
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        chatId  path      string          true  "ID чата"  format(uuid)
+// @Param        chat    body      dto.ChatUpdateDTO true "Поля для обновления чата"
+// @Success      200
+// @Failure      400     {object}  dto.ErrorDTO  "Некорректный запрос"
+// @Failure      401     {object}  dto.ErrorDTO  "Неавторизованный доступ"
+// @Failure      403     {object}  dto.ErrorDTO  "Нет прав для изменения чата"
+// @Failure      404     {object}  dto.ErrorDTO  "Чат не найден"
+// @Router       /chats/{chatId} [patch]
+func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsHandler.UpdateChat"
+
+	// Получаем id чата из пути
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 2 {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		return
+	}
+
+	idStr := parts[len(parts)-1]
+	chatUUID, err := uuid.Parse(idStr)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		return
+	}
+
+	// Получаем id пользователя из сессии
+	userUUID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	updateDTO := &dtoChats.ChatUpdateDTO{}
+	if err := json.NewDecoder(r.Body).Decode(updateDTO); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if strings.TrimSpace(updateDTO.Name) == "" {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "name is required and cannot be empty")
+		return
+	}
+
+	err = h.chatUsecase.UpdateChat(r.Context(), userUUID, chatUUID, updateDTO.Name, updateDTO.Description)
+	if err != nil {
+		if strings.Contains(err.Error(), "user is not admin") {
+			utils.SendError(r.Context(), op, w, http.StatusForbidden, "user must have role admin to update chat")
+			return
+		}
+
+		if errors.Is(err, sql.ErrNoRows) {
+			utils.SendError(r.Context(), op, w, http.StatusNotFound, "chat not found")
+			return
+		}
+
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
+}

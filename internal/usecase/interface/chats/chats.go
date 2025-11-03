@@ -19,4 +19,5 @@ type ChatsRepository interface {
 	InsertUsersToChat(ctx context.Context, chatID uuid.UUID, usersInfo []modelsChats.UserInfo) error
 	CheckUserHasRole(ctx context.Context, userId, chatId uuid.UUID, role string) (bool, error)
 	DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error
+	UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error
 }

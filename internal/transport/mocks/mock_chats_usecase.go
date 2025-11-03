@@ -108,3 +108,17 @@ func (mr *MockChatsUsecaseMockRecorder) GetInformationAboutChat(ctx, userId, cha
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInformationAboutChat", reflect.TypeOf((*MockChatsUsecase)(nil).GetInformationAboutChat), ctx, userId, chatId)
 }
+
+// UpdateChat mocks base method.
+func (m *MockChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateChat", ctx, userId, chatId, name, description)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateChat indicates an expected call of UpdateChat.
+func (mr *MockChatsUsecaseMockRecorder) UpdateChat(ctx, userId, chatId, name, description interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChat", reflect.TypeOf((*MockChatsUsecase)(nil).UpdateChat), ctx, userId, chatId, name, description)
+}
