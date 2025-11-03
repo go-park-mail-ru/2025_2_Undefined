@@ -94,3 +94,8 @@ swagger:
 generate-mocks:
 	@echo "Генерация моков через go generate..."
 	go generate ./...
+
+create-env:
+	mkdir .env
+	touch .env/config.yml
+	cp config.yml .env/config.yml
