@@ -12,4 +12,6 @@ type ChatsUsecase interface {
 	CreateChat(ctx context.Context, chatDTO dto.ChatCreateInformationDTO) (uuid.UUID, error)
 	GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dto.ChatDetailedInformationDTO, error)
 	AddUsersToChat(ctx context.Context, chatID uuid.UUID, users []dto.AddChatMemberDTO) error
+	DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error
+	UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error
 }

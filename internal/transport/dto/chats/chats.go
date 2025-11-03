@@ -13,15 +13,16 @@ type ChatViewInformationDTO struct {
 }
 
 type ChatDetailedInformationDTO struct {
-	ID        uuid.UUID               `json:"id" swaggertype:"string" format:"uuid"`
-	Name      string                  `json:"name"`
-	IsAdmin   bool                    `json:"is_admin"`
-	CanChat   bool                    `json:"can_chat"`
-	IsMember  bool                    `json:"is_member"`
-	IsPrivate bool                    `json:"is_private"`
-	Type      string                  `json:"type"`
-	Messages  []dtoMessage.MessageDTO `json:"messages" swaggertype:"array,object"`
-	Members   []UserInfoChatDTO       `json:"members"`
+	ID          uuid.UUID               `json:"id" swaggertype:"string" format:"uuid"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	IsAdmin     bool                    `json:"is_admin"`
+	CanChat     bool                    `json:"can_chat"`
+	IsMember    bool                    `json:"is_member"`
+	IsPrivate   bool                    `json:"is_private"`
+	Type        string                  `json:"type"`
+	Messages    []dtoMessage.MessageDTO `json:"messages" swaggertype:"array,object"`
+	Members     []UserInfoChatDTO       `json:"members"`
 }
 
 type ChatCreateInformationDTO struct {
@@ -48,4 +49,9 @@ type AddUsersToChatDTO struct {
 
 type IdDTO struct {
 	ID uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
+}
+
+type ChatUpdateDTO struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }

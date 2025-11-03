@@ -152,15 +152,16 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 	}
 
 	result := &dtoChats.ChatDetailedInformationDTO{
-		ID:        chat.ID,
-		Name:      chat.Name,
-		IsAdmin:   isAdmin,
-		CanChat:   canChat,
-		IsMember:  isMember,
-		IsPrivate: isPrivate,
-		Type:      chat.Type,
-		Members:   usersDTO,
-		Messages:  messagesDTO,
+		ID:          chat.ID,
+		Name:        chat.Name,
+		IsAdmin:     isAdmin,
+		CanChat:     canChat,
+		IsMember:    isMember,
+		IsPrivate:   isPrivate,
+		Type:        chat.Type,
+		Members:     usersDTO,
+		Messages:    messagesDTO,
+		Description: chat.Description,
 	}
 
 	return result, nil
@@ -216,4 +217,12 @@ func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID uuid.UUID, use
 	}
 
 	return nil
+}
+
+func (s *ChatsUsecase) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
+	return s.chatsRepo.DeleteChat(ctx, userId, chatId)
+}
+
+func (s *ChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
+	return s.chatsRepo.UpdateChat(ctx, userId, chatId, name, description)
 }

@@ -89,6 +89,16 @@ const (
 		JOIN "user" usr ON usr.id = cm.user_id
 		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.user_id = $1 AND cm.chat_id = $2`
+
+	checkUserRoleQuery = `
+		SELECT EXISTS(
+			SELECT 1 FROM chat_member 
+			WHERE user_id = $1 AND chat_id = $2 AND chat_member_role = $3::chat_member_role_enum
+		)`
+
+	deleteChatQuery = `DELETE FROM chat WHERE id = $1`
+
+	updateChatQuery = `UPDATE chat SET name = $1, description = $2 WHERE id = $3`
 )
 
 type ChatsRepository struct {
@@ -381,5 +391,105 @@ func (r *ChatsRepository) insertUsersToChat(ctx context.Context, tx *sql.Tx, cha
 		return err
 	}
 
+	return nil
+}
+
+func (r *ChatsRepository) CheckUserHasRole(ctx context.Context, userId, chatId uuid.UUID, role string) (bool, error) {
+	const op = "ChatsRepository.CheckUserHasRole"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String()).WithField("chat_id", chatId.String()).WithField("role", role)
+	logger.Debug("Starting database operation: check user role in chat")
+
+	var hasRole bool
+	err := r.db.QueryRow(checkUserRoleQuery, userId, chatId, role).Scan(&hasRole)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check user role query")
+		return false, err
+	}
+
+	logger.WithField("has_role", hasRole).Info("Database operation completed successfully: user role checked")
+	return hasRole, nil
+}
+
+func (r *ChatsRepository) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
+	const op = "ChatsRepository.DeleteChat"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String()).WithField("chat_id", chatId.String())
+	logger.Debug("Starting database operation: delete chat")
+
+	// Проверяем, является ли пользователь администратором чата
+	isAdmin, err := r.CheckUserHasRole(ctx, userId, chatId, "admin")
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check user admin status")
+		return err
+	}
+
+	if !isAdmin {
+		err := fmt.Errorf("user is not admin of the chat")
+		logger.WithError(err).Error("Database operation failed: user permission denied")
+		return err
+	}
+
+	// Удаляем чат (связанные записи удалятся каскадно)
+	result, err := r.db.Exec(deleteChatQuery, chatId)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: delete chat")
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check rows affected")
+		return err
+	}
+
+	if rowsAffected == 0 {
+		err := fmt.Errorf("chat not found")
+		logger.WithError(err).Error("Database operation failed: chat not found")
+		return err
+	}
+
+	logger.Info("Database operation completed successfully: chat deleted")
+	return nil
+}
+
+func (r *ChatsRepository) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
+	const op = "ChatsRepository.UpdateChat"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String()).WithField("chat_id", chatId.String())
+	logger.Debug("Starting database operation: update chat")
+
+	// Проверяем, является ли пользователь администратором чата
+	isAdmin, err := r.CheckUserHasRole(ctx, userId, chatId, "admin")
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check user admin status")
+		return err
+	}
+
+	if !isAdmin {
+		err := fmt.Errorf("user is not admin of the chat")
+		logger.WithError(err).Error("Database operation failed: user permission denied")
+		return err
+	}
+
+	result, err := r.db.Exec(updateChatQuery, name, description, chatId)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: update chat")
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check rows affected")
+		return err
+	}
+
+	if rowsAffected == 0 {
+		err := fmt.Errorf("chat not found")
+		logger.WithError(err).Error("Database operation failed: chat not found")
+		return err
+	}
+
+	logger.Info("Database operation completed successfully: chat updated")
 	return nil
 }
