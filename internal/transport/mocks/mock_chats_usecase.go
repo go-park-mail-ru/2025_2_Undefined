@@ -65,6 +65,20 @@ func (mr *MockChatsUsecaseMockRecorder) CreateChat(ctx, chatDTO interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateChat", reflect.TypeOf((*MockChatsUsecase)(nil).CreateChat), ctx, chatDTO)
 }
 
+// DeleteChat mocks base method.
+func (m *MockChatsUsecase) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteChat", ctx, userId, chatId)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteChat indicates an expected call of DeleteChat.
+func (mr *MockChatsUsecaseMockRecorder) DeleteChat(ctx, userId, chatId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteChat", reflect.TypeOf((*MockChatsUsecase)(nil).DeleteChat), ctx, userId, chatId)
+}
+
 // GetChats mocks base method.
 func (m *MockChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error) {
 	m.ctrl.T.Helper()

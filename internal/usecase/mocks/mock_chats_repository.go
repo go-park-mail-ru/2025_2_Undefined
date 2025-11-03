@@ -37,6 +37,21 @@ func (m *MockChatsRepository) EXPECT() *MockChatsRepositoryMockRecorder {
 	return m.recorder
 }
 
+// CheckUserHasRole mocks base method.
+func (m *MockChatsRepository) CheckUserHasRole(ctx context.Context, userId, chatId uuid.UUID, role string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckUserHasRole", ctx, userId, chatId, role)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CheckUserHasRole indicates an expected call of CheckUserHasRole.
+func (mr *MockChatsRepositoryMockRecorder) CheckUserHasRole(ctx, userId, chatId, role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckUserHasRole", reflect.TypeOf((*MockChatsRepository)(nil).CheckUserHasRole), ctx, userId, chatId, role)
+}
+
 // CreateChat mocks base method.
 func (m *MockChatsRepository) CreateChat(ctx context.Context, chat models.Chat, usersInfo []models.UserInfo, usersNames []string) error {
 	m.ctrl.T.Helper()
@@ -49,6 +64,20 @@ func (m *MockChatsRepository) CreateChat(ctx context.Context, chat models.Chat, 
 func (mr *MockChatsRepositoryMockRecorder) CreateChat(ctx, chat, usersInfo, usersNames interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateChat", reflect.TypeOf((*MockChatsRepository)(nil).CreateChat), ctx, chat, usersInfo, usersNames)
+}
+
+// DeleteChat mocks base method.
+func (m *MockChatsRepository) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteChat", ctx, userId, chatId)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteChat indicates an expected call of DeleteChat.
+func (mr *MockChatsRepositoryMockRecorder) DeleteChat(ctx, userId, chatId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteChat", reflect.TypeOf((*MockChatsRepository)(nil).DeleteChat), ctx, userId, chatId)
 }
 
 // GetChat mocks base method.

@@ -217,3 +217,7 @@ func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID uuid.UUID, use
 
 	return nil
 }
+
+func (s *ChatsUsecase) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
+	return s.chatsRepo.DeleteChat(ctx, userId, chatId)
+}

@@ -270,6 +270,44 @@ paths:
       tags:
       - chats
   /chats/{chatId}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет существующий чат. Только администратор чата может удалить
+        чат.
+      parameters:
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для удаления чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Удалить чат
+      tags:
+      - chats
     get:
       consumes:
       - application/json
@@ -295,6 +333,10 @@ paths:
             $ref: '#/definitions/dto.ErrorDTO'
         "401":
           description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не существует такого чата
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
       security:
