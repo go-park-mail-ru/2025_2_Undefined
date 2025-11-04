@@ -213,6 +213,7 @@ func TestAddUsersToChat_Success(t *testing.T) {
 	mockStorage := mocks.NewMockFileStorage(ctrl)
 
 	chatID := uuid.New()
+	adminUserID := uuid.New()
 	userID1 := uuid.New()
 	userID2 := uuid.New()
 
@@ -227,11 +228,15 @@ func TestAddUsersToChat_Success(t *testing.T) {
 	}
 
 	mockChatsRepo.EXPECT().
+		CheckUserHasRole(gomock.Any(), adminUserID, chatID, modelsChats.RoleAdmin).
+		Return(true, nil)
+
+	mockChatsRepo.EXPECT().
 		InsertUsersToChat(gomock.Any(), chatID, expectedUsersInfo).
 		Return(nil)
 
 	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)
-	err := service.AddUsersToChat(context.Background(), chatID, users)
+	err := service.AddUsersToChat(context.Background(), chatID, adminUserID, users)
 
 	assert.NoError(t, err)
 }

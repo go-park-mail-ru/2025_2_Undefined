@@ -290,13 +290,20 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	values := []interface{}{}
 	placeholders := []string{}
 
-	for i, userName := range usersNames {
-
+	if chat.Type == modelsChats.ChatTypeDialog {
 		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
 			len(values)+1, len(values)+2, len(values)+3, len(values)+4))
-		text := fmt.Sprintf("Пользователь %s вступил в чат", userName)
-		values = append(values, chat.ID, usersInfo[i].UserID, text, "system")
+		text := "Чат создан"
+		values = append(values, chat.ID, usersInfo[0].UserID, text, "system")
+	} else {
+		for i, userName := range usersNames {
 
+			placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
+				len(values)+1, len(values)+2, len(values)+3, len(values)+4))
+			text := fmt.Sprintf("Пользователь %s вступил в чат", userName)
+			values = append(values, chat.ID, usersInfo[i].UserID, text, "system")
+
+		}
 	}
 
 	if len(placeholders) > 0 {

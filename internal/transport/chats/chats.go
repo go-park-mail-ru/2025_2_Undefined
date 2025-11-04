@@ -203,6 +203,13 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем id пользователя из сессии
+	userUUID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
 	addUsersDTO := &dtoChats.AddUsersToChatDTO{}
 	if err := json.NewDecoder(r.Body).Decode(addUsersDTO); err != nil {
 		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
@@ -242,7 +249,7 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 		userIds[user.UserId] = true
 	}
 
-	err = h.chatUsecase.AddUsersToChat(r.Context(), chatUUID, addUsersDTO.Users)
+	err = h.chatUsecase.AddUsersToChat(r.Context(), chatUUID, userUUID, addUsersDTO.Users)
 	if err != nil {
 		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
 		return

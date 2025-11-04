@@ -45,6 +45,7 @@ func SendError(ctx context.Context, op string, w http.ResponseWriter, status int
 // - ErrServiceIsOverloaded -> 503 Service Unavailable
 // - ErrNotFound, ErrUserNotFound -> 404 Not Found
 // - ErrInvalidToken, ErrInvalidCredentials, ErrJWTIsRequired -> 401 Unauthorized
+// - ErrNoRights -> 403 Forbidden
 // - ErrIsDuplicateKey -> 409 Conflict
 // - ErrRequiredFieldsMissing -> 422 Unprocessable Entity
 // - Все остальные ошибки -> 400 Bad Request (по умолчанию)
@@ -71,6 +72,12 @@ func SendErrorWithAutoStatus(ctx context.Context, op string, w http.ResponseWrit
 		errors.Is(err, errs.ErrInvalidCredentials) ||
 		errors.Is(err, errs.ErrJWTIsRequired) {
 		SendError(ctx, op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	// 403 Forbidden - недостаточно прав
+	if errors.Is(err, errs.ErrNoRights) {
+		SendError(ctx, op, w, http.StatusForbidden, err.Error())
 		return
 	}
 

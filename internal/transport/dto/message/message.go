@@ -12,6 +12,7 @@ type MessageDTO struct {
 	Text            string    `json:"text"`
 	CreatedAt       time.Time `json:"created_at"`
 	ChatId          uuid.UUID `json:"chat_id"`
+	Type            string    `json:"type"` // Тип сообщения - системное или пользовательское
 }
 
 type CreateMessageDTO struct {
