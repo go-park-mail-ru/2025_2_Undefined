@@ -37,17 +37,17 @@ func (m *MockChatsUsecase) EXPECT() *MockChatsUsecaseMockRecorder {
 }
 
 // AddUsersToChat mocks base method.
-func (m *MockChatsUsecase) AddUsersToChat(ctx context.Context, chatID uuid.UUID, users []dto.AddChatMemberDTO) error {
+func (m *MockChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.UUID, users []dto.AddChatMemberDTO) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddUsersToChat", ctx, chatID, users)
+	ret := m.ctrl.Call(m, "AddUsersToChat", ctx, chatID, userID, users)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddUsersToChat indicates an expected call of AddUsersToChat.
-func (mr *MockChatsUsecaseMockRecorder) AddUsersToChat(ctx, chatID, users interface{}) *gomock.Call {
+func (mr *MockChatsUsecaseMockRecorder) AddUsersToChat(ctx, chatID, userID, users interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddUsersToChat", reflect.TypeOf((*MockChatsUsecase)(nil).AddUsersToChat), ctx, chatID, users)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddUsersToChat", reflect.TypeOf((*MockChatsUsecase)(nil).AddUsersToChat), ctx, chatID, userID, users)
 }
 
 // CreateChat mocks base method.

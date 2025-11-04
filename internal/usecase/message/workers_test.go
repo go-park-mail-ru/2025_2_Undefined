@@ -18,6 +18,8 @@ func TestMessageUsecase_WorkerDistribute(t *testing.T) {
 
 	mockMessageRepo := mocks.NewMockMessageRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
 	mockListenerMap := mocks.NewMockListenerMapInterface(ctrl)
 
 	cnt := atomic.Int32{}
@@ -39,7 +41,7 @@ func TestMessageUsecase_WorkerDistribute(t *testing.T) {
 		Return(userChannels).
 		AnyTimes()
 
-	uc := NewMessageUsecase(mockMessageRepo, mockUserRepo, mockListenerMap)
+	uc := NewMessageUsecase(mockMessageRepo, mockUserRepo, mockChatsRepo, mockFileStorage, mockListenerMap)
 	uc.distributeChannel <- message.MessageDTO{}
 
 	time.Sleep(100 * time.Millisecond)
@@ -53,6 +55,8 @@ func TestMessageUsecase_Distribute_NoListeners(t *testing.T) {
 
 	mockMessageRepo := mocks.NewMockMessageRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockChatsRepo := mocks.NewMockChatsRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
 	mockListenerMap := mocks.NewMockListenerMapInterface(ctrl)
 
 	// Настраиваем ожидания мока - возвращаем nil (нет слушателей)
@@ -61,7 +65,7 @@ func TestMessageUsecase_Distribute_NoListeners(t *testing.T) {
 		Return(nil).
 		AnyTimes()
 
-	uc := NewMessageUsecase(mockMessageRepo, mockUserRepo, mockListenerMap)
+	uc := NewMessageUsecase(mockMessageRepo, mockUserRepo, mockChatsRepo, mockFileStorage, mockListenerMap)
 
 	select {
 	case uc.distributeChannel <- message.MessageDTO{ChatId: uuid.New()}:

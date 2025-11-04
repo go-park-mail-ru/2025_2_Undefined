@@ -250,6 +250,7 @@ func TestAddUsersToChat_Success(t *testing.T) {
 	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
 
 	chatId := uuid.New()
+	userId := uuid.New()
 	usersToAdd := []uuid.UUID{uuid.New(), uuid.New()}
 
 	usersToAddDTO := []dto.AddChatMemberDTO{
@@ -257,8 +258,12 @@ func TestAddUsersToChat_Success(t *testing.T) {
 		{UserId: usersToAdd[1], Role: "writer"},
 	}
 
+	mockSessionUsecase.EXPECT().
+		GetUserIDFromSession(gomock.Any()).
+		Return(userId, nil)
+
 	mockChatUsecase.EXPECT().
-		AddUsersToChat(gomock.Any(), chatId, usersToAddDTO).
+		AddUsersToChat(gomock.Any(), chatId, userId, usersToAddDTO).
 		Return(nil)
 
 	handler := NewChatsHandler(mockChatUsecase, mockSessionUsecase)
@@ -298,6 +303,11 @@ func TestAddUsersToChat_BadJSON(t *testing.T) {
 	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
 
 	chatId := uuid.New()
+	userId := uuid.New()
+
+	mockSessionUsecase.EXPECT().
+		GetUserIDFromSession(gomock.Any()).
+		Return(userId, nil)
 
 	handler := NewChatsHandler(mockChatUsecase, mockSessionUsecase)
 
@@ -316,14 +326,19 @@ func TestAddUsersToChat_ServiceError(t *testing.T) {
 	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
 
 	chatId := uuid.New()
+	userId := uuid.New()
 	usersToAdd := []uuid.UUID{uuid.New()}
 
 	usersToAddDTO := []dto.AddChatMemberDTO{
 		{UserId: usersToAdd[0], Role: "writer"},
 	}
 
+	mockSessionUsecase.EXPECT().
+		GetUserIDFromSession(gomock.Any()).
+		Return(userId, nil)
+
 	mockChatUsecase.EXPECT().
-		AddUsersToChat(gomock.Any(), chatId, usersToAddDTO).
+		AddUsersToChat(gomock.Any(), chatId, userId, usersToAddDTO).
 		Return(errors.New("service error"))
 
 	handler := NewChatsHandler(mockChatUsecase, mockSessionUsecase)
@@ -348,7 +363,12 @@ func TestAddUsersToChat_DuplicateUsers(t *testing.T) {
 	mockSessionUsecase := mocks.NewMockSessionUsecase(ctrl)
 
 	chatId := uuid.New()
+	userId := uuid.New()
 	duplicateUserId := uuid.New()
+
+	mockSessionUsecase.EXPECT().
+		GetUserIDFromSession(gomock.Any()).
+		Return(userId, nil)
 
 	// Один и тот же пользователь дважды
 	usersToAddDTO := []dto.AddChatMemberDTO{

@@ -12,6 +12,7 @@ var (
 	ErrJWTIsRequired         = errors.New("JWT token required")
 	ErrIsDuplicateKey        = errors.New("duplicate key")
 	ErrServiceIsOverloaded   = errors.New("service is overloaded, try again later")
+	ErrNoRights              = errors.New("no rights to perform this action")
 )
 
 // ValidationError представляет ошибку валидации поля

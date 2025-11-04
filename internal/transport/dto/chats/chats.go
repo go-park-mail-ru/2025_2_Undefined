@@ -10,6 +10,7 @@ type ChatViewInformationDTO struct {
 	Name        string                `json:"name"`
 	LastMessage dtoMessage.MessageDTO `json:"last_message" swaggertype:"object"`
 	Type        string                `json:"type"`
+	AvatarURL   string                `json:"avatar_url,omitempty"`
 }
 
 type ChatDetailedInformationDTO struct {
@@ -23,6 +24,7 @@ type ChatDetailedInformationDTO struct {
 	Type        string                  `json:"type"`
 	Messages    []dtoMessage.MessageDTO `json:"messages" swaggertype:"array,object"`
 	Members     []UserInfoChatDTO       `json:"members"`
+	AvatarURL   string                  `json:"avatar_url,omitempty"`
 }
 
 type ChatCreateInformationDTO struct {
@@ -34,7 +36,7 @@ type ChatCreateInformationDTO struct {
 type UserInfoChatDTO struct {
 	UserId     uuid.UUID `json:"user_id" swaggertype:"string" format:"uuid"`
 	UserName   string    `json:"user_name"`
-	UserAvatar string    `json:"user_avatar"`
+	UserAvatar string    `json:"user_avatar,omitempty"`
 	Role       string    `json:"role"` // Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)
 }
 

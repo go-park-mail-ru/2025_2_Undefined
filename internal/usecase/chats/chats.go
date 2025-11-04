@@ -5,6 +5,7 @@ import (
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
@@ -51,25 +52,51 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 
 	result := make([]dtoChats.ChatViewInformationDTO, 0, len(chats))
 	for _, chat := range chats {
+		chatName := chat.Name
+		chatAvatarUrl := ""
+
+		// Для диалогов определяем имя собеседника и аватарку
+		if chat.Type == modelsChats.ChatTypeDialog {
+			users, err := uc.chatsRepo.GetUsersOfChat(ctx, chat.ID)
+			if err != nil {
+				logger.Warningf("could not get users for dialog %s: %v", chat.ID, err)
+			} else {
+				// Ищем собеседника (не текущего пользователя)
+				for _, user := range users {
+					if user.UserID != userId {
+						chatName = user.UserName
+						chatAvatarUrl, err = uc.fileStorage.GetOne(ctx, user.UserAvatarID)
+						if err != nil {
+							logger.Warningf("could not get user avatar for dialog %s: %v", chat.ID, err)
+						}
+
+						break
+					}
+				}
+			}
+		}
+
 		chatDTO := dtoChats.ChatViewInformationDTO{
-			ID:   chat.ID,
-			Name: chat.Name,
-			Type: chat.Type,
+			ID:        chat.ID,
+			Name:      chatName,
+			Type:      chat.Type,
+			AvatarURL: chatAvatarUrl,
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
-			avatar_url, err := uc.fileStorage.GetOne(ctx, lastMsg.UserAvatarID)
+			avatarURL, err := uc.fileStorage.GetOne(ctx, lastMsg.UserAvatarID)
 			if err != nil {
 				logger.Warningf("could not get avatar URL for user %s: %v", lastMsg.UserID, err)
-				avatar_url = ""
+				avatarURL = ""
 			}
 
 			chatDTO.LastMessage = dtoMessage.MessageDTO{
 				SenderName:      lastMsg.UserName,
 				Text:            lastMsg.Text,
 				CreatedAt:       lastMsg.CreatedAt,
-				SenderAvatarURL: avatar_url,
+				SenderAvatarURL: avatarURL,
 				ChatId:          lastMsg.ChatID,
+				Type:            lastMsg.Type,
 			}
 		}
 
@@ -89,7 +116,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 		return nil, err
 	}
 
-	messages, err := uc.chatsRepo.GetMessagesOfChat(ctx, chatId, 0, 20)
+	messages, err := uc.chatsRepo.GetMessagesOfChat(ctx, chatId, 0, 40)
 	if err != nil {
 		return nil, err
 	}
@@ -106,33 +133,34 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
-		avatar_url, err := uc.fileStorage.GetOne(ctx, message.UserAvatarID)
+		avatarURL, err := uc.fileStorage.GetOne(ctx, message.UserAvatarID)
 		if err != nil {
 			logger.Warningf("could not get avatar URL for user %s: %v", message.UserID, err)
-			avatar_url = ""
+			avatarURL = ""
 		}
 
 		messagesDTO[i] = dtoMessage.MessageDTO{
 			SenderName:      message.UserName,
 			Text:            message.Text,
 			CreatedAt:       message.CreatedAt,
-			SenderAvatarURL: avatar_url,
+			SenderAvatarURL: avatarURL,
 			ChatId:          message.ChatID,
+			Type:            message.Type,
 		}
 	}
 
 	usersDTO := make([]dtoChats.UserInfoChatDTO, len(users))
 	for i, user := range users {
-		avatar_url, err := uc.fileStorage.GetOne(ctx, user.UserAvatarID)
+		avatarURL, err := uc.fileStorage.GetOne(ctx, user.UserAvatarID)
 		if err != nil {
 			logger.Warningf("could not get avatar URL for user %s: %v", user.UserID, err)
-			avatar_url = ""
+			avatarURL = ""
 		}
 
 		usersDTO[i] = dtoChats.UserInfoChatDTO{
 			UserId:     user.UserID,
 			UserName:   user.UserName,
-			UserAvatar: avatar_url,
+			UserAvatar: avatarURL,
 			Role:       user.Role,
 		}
 	}
@@ -151,9 +179,23 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 		isPrivate = true
 	}
 
+	avatarURL := ""
+	// Определяем название чата
+	chatName := chat.Name
+	if chat.Type == modelsChats.ChatTypeDialog {
+		// Для диалогов название - это имя собеседника
+		for _, user := range usersDTO {
+			if user.UserId != userId {
+				chatName = user.UserName
+				avatarURL = user.UserAvatar
+				break
+			}
+		}
+	}
+
 	result := &dtoChats.ChatDetailedInformationDTO{
 		ID:          chat.ID,
-		Name:        chat.Name,
+		Name:        chatName,
 		IsAdmin:     isAdmin,
 		CanChat:     canChat,
 		IsMember:    isMember,
@@ -162,6 +204,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 		Members:     usersDTO,
 		Messages:    messagesDTO,
 		Description: chat.Description,
+		AvatarURL:   avatarURL,
 	}
 
 	return result, nil
@@ -201,7 +244,16 @@ func (s *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCrea
 	return chat.ID, nil
 }
 
-func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+	ok, err := s.chatsRepo.CheckUserHasRole(ctx, userID, chatID, modelsChats.RoleAdmin)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return errs.ErrNoRights
+	}
+
 	usersInfo := make([]modelsChats.UserInfo, len(users))
 	for i, user := range users {
 		usersInfo[i] = modelsChats.UserInfo{
@@ -211,7 +263,7 @@ func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID uuid.UUID, use
 		}
 	}
 
-	err := s.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
+	err = s.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
 	if err != nil {
 		return err
 	}
