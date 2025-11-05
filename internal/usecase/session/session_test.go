@@ -46,6 +46,11 @@ func (m *MockSessionRepository) UpdateSession(sessionID uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *MockSessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error {
+	args := m.Called(userID, currentSessionID)
+	return args.Error(0)
+}
+
 func TestSessionUsecase_GetSession_Success(t *testing.T) {
 	mockRepo := new(MockSessionRepository)
 	uc := New(mockRepo)

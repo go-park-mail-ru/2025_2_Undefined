@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	SessionDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	UserDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
 	interfaceSession "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
 	interfaceUser "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/user"
@@ -16,13 +17,15 @@ import (
 
 type UserHandler struct {
 	uc             interfaceUser.UserUsecase
+	sessionUtils   interfaceSession.SessionUtils
 	sessionUsecase interfaceSession.SessionUsecase
 }
 
-func New(uc interfaceUser.UserUsecase, sessionUsecase interfaceSession.SessionUsecase) *UserHandler {
+func New(uc interfaceUser.UserUsecase, sessionUsecase interfaceSession.SessionUsecase, sessionUtils interfaceSession.SessionUtils) *UserHandler {
 	return &UserHandler{
 		uc:             uc,
 		sessionUsecase: sessionUsecase,
+		sessionUtils:   sessionUtils,
 	}
 }
 
@@ -39,7 +42,7 @@ func New(uc interfaceUser.UserUsecase, sessionUsecase interfaceSession.SessionUs
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetCurrentUser"
 
-	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -67,7 +70,7 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetSessionsByUser"
 
-	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -81,12 +84,84 @@ func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, sessions)
 }
 
+// GetSessionsByUser удалить сессию пользователя
+// @Summary      удалить сессию пользователя
+// @Description  удалить конкретную сессию пользователя
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        session body dto.DeleteSession  true "Сессию которую надо удалить"
+// @Success      200  "сессия удалена"
+// @Failure      401  {object}  dto.ErrorDTO     "Неавторизованный доступ"
+// @Failure      404  {object}  dto.ErrorDTO     "Не удалось удалить"
+// @Router       /session [delete]
+func (h *UserHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
+	const op = "UserHandler.DeleteSession"
+
+	var req SessionDto.DeleteSession
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	err = h.sessionUsecase.DeleteSession(userID, req.ID)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
+}
+
+// GetSessionsByUser удалить сессии пользователя, кроме текущей
+// @Summary      удалить сессии пользователя, кроме текущей
+// @Description  удалить сессии пользователя, кроме текущей
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200  "сессии удалены"
+// @Failure      401  {object}  dto.ErrorDTO     "Неавторизованный доступ"
+// @Failure      404  {object}  dto.ErrorDTO     "Не удалось удалить сессии"
+// @Router       /sessions [delete]
+func (h *UserHandler) DeleteAllSessionWithoutCurrent(w http.ResponseWriter, r *http.Request) {
+	const op = "UserHandler.DeleteAllSessionWithoutCurrent"
+
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	sessionID, err := h.sessionUtils.GetSessionFromCookie(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	err = h.sessionUsecase.DeleteAllSessionWithoutCurrent(userID, sessionID)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
+}
+
 // GetUserByPhone получает информацию о пользователе по номеру телефона
 // @Summary      Получить информацию о пользователе по номеру телефона
 // @Description  Возвращает полные данные о пользователе по указанному номеру телефона
 // @Tags         user
 // @Accept       json
 // @Produce      json
+// @Security     ApiKeyAuth
 // @Param        request body dto.GetUserByPhone true "Запрос с номером телефона"
 // @Success      200    {object}  dto.User   "Информация о пользователе"
 // @Failure      400    {object}  dto.ErrorDTO   "Неверный формат номера телефона"
@@ -126,6 +201,7 @@ func (h *UserHandler) GetUserByPhone(w http.ResponseWriter, r *http.Request) {
 // @Tags         user
 // @Accept       json
 // @Produce      json
+// @Security     ApiKeyAuth
 // @Param        request body dto.GetUserByUsername true "Запрос с именем пользователя"
 // @Success      200       {object}  dto.User   "Информация о пользователе"
 // @Failure      400       {object}  dto.ErrorDTO   "Неверный формат имени пользователя"
@@ -175,7 +251,7 @@ func (h *UserHandler) GetUserByUsername(w http.ResponseWriter, r *http.Request) 
 func (h *UserHandler) UploadUserAvatar(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.UploadUserAvatar"
 
-	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return

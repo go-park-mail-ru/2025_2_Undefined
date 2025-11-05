@@ -36,8 +36,12 @@ definitions:
     type: object
   dto.ChatDetailedInformationDTO:
     properties:
+      avatar_url:
+        type: string
       can_chat:
         type: boolean
+      description:
+        type: string
       id:
         format: uuid
         type: string
@@ -60,8 +64,17 @@ definitions:
       type:
         type: string
     type: object
+  dto.ChatUpdateDTO:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
   dto.ChatViewInformationDTO:
     properties:
+      avatar_url:
+        type: string
       id:
         format: uuid
         type: string
@@ -70,6 +83,11 @@ definitions:
       name:
         type: string
       type:
+        type: string
+    type: object
+  dto.DeleteSession:
+    properties:
+      id:
         type: string
     type: object
   dto.ErrorDTO:
@@ -344,6 +362,49 @@ paths:
       summary: Получить информацию о чате
       tags:
       - chats
+    patch:
+      consumes:
+      - application/json
+      description: Позволяет администратору изменить название и описание чата
+      parameters:
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Поля для обновления чата
+        in: body
+        name: chat
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChatUpdateDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для изменения чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить чат
+      tags:
+      - chats
   /chats/{chatId}/members:
     patch:
       consumes:
@@ -542,7 +603,59 @@ paths:
       summary: Регистрация пользователя
       tags:
       - auth
+  /session:
+    delete:
+      consumes:
+      - application/json
+      description: удалить конкретную сессию пользователя
+      parameters:
+      - description: Сессию которую надо удалить
+        in: body
+        name: session
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DeleteSession'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сессия удалена
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не удалось удалить
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: удалить сессию пользователя
+      tags:
+      - user
   /sessions:
+    delete:
+      consumes:
+      - application/json
+      description: удалить сессии пользователя, кроме текущей
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сессии удалены
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не удалось удалить сессии
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: удалить сессии пользователя, кроме текущей
+      tags:
+      - user
     get:
       consumes:
       - application/json
@@ -638,6 +751,8 @@ paths:
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
       summary: Получить информацию о пользователе по номеру телефона
       tags:
       - user
@@ -672,6 +787,8 @@ paths:
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
       summary: Получить информацию о пользователе по имени пользователя
       tags:
       - user
