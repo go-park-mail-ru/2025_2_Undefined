@@ -3,44 +3,49 @@ services:
     build: .
     container_name: gramm_app
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     depends_on:
       db:
         condition: service_healthy
     networks:
       - gramm-network
     environment:
-      SERVER_PORT: 8080
-      JWT_SIGNATURE: my_secret_key
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: gramm
-      POSTGRES_PORT: 5432
-      POSTGRES_HOST: db
-      MIGRATIONS_PATH: file://db/migrations
-      JWT_TOKEN_LIFESPAN: 24h
-      MINIO_HOST: minio
-      MINIO_PUBLIC_HOST: localhost
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin123
-      MINIO_BUCKET_NAME: avatars
-      MINIO_USE_SSL: false
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      JWT_SIGNATURE: ${SESSION_SIGNATURE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
+      SESSION_TOKEN_LIFESPAN: ${SESSION_TOKEN_LIFESPAN}
+      AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
+      AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
+      AUTH_REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
+      AUTH_REDIS_DB: ${AUTH_REDIS_DB}
+      CSRF_SECRET: ${CSRF_SECRET}
+      MINIO_HOST: ${MINIO_HOST}
+      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
     command: sh -c "./migrate && ./main"
 
   db:
     image: postgres:15
     container_name: gramm_db
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: gramm
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5433:5432"
+      - "5433:${POSTGRES_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d gramm"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -49,15 +54,15 @@ services:
   
   auth_redis:
     image: redis:alpine
-    command: redis-server --bind 0.0.0.0 --port 6380 --requirepass password
+    command: redis-server --bind 0.0.0.0 --port ${AUTH_REDIS_PORT} --requirepass ${AUTH_REDIS_PASSWORD}
     ports:
-      - "6380:6380"
+      - "${AUTH_REDIS_PORT}:${AUTH_REDIS_PORT}"
     volumes:
       - auth_redis_data:/data
     environment:
-      REDIS_PASSWORD: password
+      REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -h localhost -p 6380 -a password ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -h localhost -p ${AUTH_REDIS_PORT} -a ${AUTH_REDIS_PASSWORD} ping | grep PONG"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -68,10 +73,10 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     ports:
-      - "9000:9000"
+      - "${MINIO_PORT}:9000"
       - "9001:9001"
     volumes:
       - minio_data:/data

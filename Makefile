@@ -96,6 +96,5 @@ generate-mocks:
 	go generate ./...
 
 create-env:
-	mkdir .env
-	touch .env/config.yml
-	cp config.yml .env/config.yml
+	touch .env
+	cp config.yml .env
