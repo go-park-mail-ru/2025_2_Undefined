@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	chatsInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
 	sessionInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
@@ -126,7 +127,7 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.SendJSONResponse(r.Context(), op, w, http.StatusCreated, dtoChats.IdDTO{ID: idOfCreatedChat})
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusCreated, dtoUtils.IdDTO{ID: idOfCreatedChat})
 }
 
 // GetInformationAboutChat получает детальную информацию о чате
@@ -150,6 +151,7 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
 		return
 	}
+
 	idStr := parts[len(parts)-1]
 	chatUUID, err := uuid.Parse(idStr)
 	if err != nil {
@@ -171,6 +173,52 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 	}
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, informationDTO)
+}
+
+// GetUsersDialog получает личный чат (диалог) между текущим пользователем и другим пользователем
+// @Summary      Получить личный диалог с пользователем
+// @Description  Возвращает информацию о личном чате между авторизованным пользователем и указанным пользователем. Если чата нет — возвращается ошибку.
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        otherUserId  path      string  true  "ID другого пользователя"  format(uuid)
+// @Success      200  {object}  dto.IdDTO "Информация о личном чате"
+// @Failure      400  {object}  dto.ErrorDTO                "Некорректный ID пользователя"
+// @Failure      401  {object}  dto.ErrorDTO                "Неавторизованный доступ"
+// @Failure      404  {object}  dto.ErrorDTO                "Пользователь не найден"
+// @Router       /chats/dialog/{otherUserId} [get]
+func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsHandler.GetUsersDialog"
+
+	// Получаем id пользователя из пути
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		return
+	}
+
+	IDStr := parts[len(parts)-1]
+	otherUserID, err := uuid.Parse(IDStr)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
+		return
+	}
+
+	// Получаем id пользователя из сессии
+	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	DTO, err := h.chatUsecase.GetUsersDialog(r.Context(), userID, otherUserID)
+	if err != nil {
+		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, DTO)
 }
 
 // AddUsersToChat добавляет пользователей в чат

@@ -4,6 +4,9 @@ RETURNS VOID AS $$
 DECLARE
     member_count INTEGER;
     non_admin_count INTEGER;
+    existing_dialog_count INTEGER;
+    user1_id UUID;
+    user2_id UUID;
 BEGIN
     -- Подсчитываем количество участников в диалоге
     SELECT COUNT(*) INTO member_count
@@ -23,6 +26,31 @@ BEGIN
     
     IF non_admin_count > 0 THEN
         RAISE EXCEPTION 'All members in dialog must have admin role, but % members have different roles', non_admin_count;
+    END IF;
+    
+    -- Получаем ID двух участников диалога
+    SELECT cm1.user_id, cm2.user_id 
+    INTO user1_id, user2_id
+    FROM chat_member cm1
+    CROSS JOIN chat_member cm2
+    WHERE cm1.chat_id = chat_id_param 
+    AND cm2.chat_id = chat_id_param
+    AND cm1.user_id < cm2.user_id
+    LIMIT 1;
+    
+    -- Проверяем, что между этими пользователями нет других диалогов
+    SELECT COUNT(*) INTO existing_dialog_count
+    FROM chat c
+    INNER JOIN chat_member cm1 ON c.id = cm1.chat_id
+    INNER JOIN chat_member cm2 ON c.id = cm2.chat_id
+    WHERE c.chat_type = 'dialog'
+    AND c.id != chat_id_param
+    AND cm1.user_id = user1_id
+    AND cm2.user_id = user2_id
+    AND (SELECT COUNT(*) FROM chat_member WHERE chat_id = c.id) = 2;
+    
+    IF existing_dialog_count > 0 THEN
+        RAISE EXCEPTION 'Dialog between these users already exists';
     END IF;
 END;
 $$ LANGUAGE plpgsql;

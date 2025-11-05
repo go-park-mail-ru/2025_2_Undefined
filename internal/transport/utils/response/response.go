@@ -63,7 +63,7 @@ func SendErrorWithAutoStatus(ctx context.Context, op string, w http.ResponseWrit
 
 	// 404 Not Found - ресурс не найден
 	if errors.Is(err, errs.ErrNotFound) || errors.Is(err, errs.ErrUserNotFound) || errors.Is(err, sql.ErrNoRows) {
-		SendError(ctx, op, w, http.StatusNotFound, err.Error())
+		SendError(ctx, op, w, http.StatusNotFound, errs.ErrNotFound.Error())
 		return
 	}
 

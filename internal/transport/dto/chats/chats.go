@@ -49,10 +49,6 @@ type AddUsersToChatDTO struct {
 	Users []AddChatMemberDTO `json:"members"`
 }
 
-type IdDTO struct {
-	ID uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
-}
-
 type ChatUpdateDTO struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`

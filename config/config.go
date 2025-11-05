@@ -186,7 +186,7 @@ func parseDurationWithDays(s string) (time.Duration, error) {
 		}
 		return time.Duration(days) * 24 * time.Hour, nil
 	}
-	
+
 	return time.ParseDuration(s)
 }
 func newCSRFConfig() (*CSRFConfig, error) {

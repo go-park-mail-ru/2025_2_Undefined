@@ -6,7 +6,7 @@ import (
 )
 
 type ListenerMapInterface interface {
-	SubscribeUserToChat(userId uuid.UUID, chatId uuid.UUID) <-chan message.MessageDTO
+	SubscribeConnectionToChat(userId uuid.UUID, chatId uuid.UUID) <-chan message.MessageDTO
 	GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan message.MessageDTO
 	CloseAll()
 	CleanInactiveChats() int

@@ -36,8 +36,12 @@ definitions:
     type: object
   dto.ChatDetailedInformationDTO:
     properties:
+      avatar_url:
+        type: string
       can_chat:
         type: boolean
+      description:
+        type: string
       id:
         format: uuid
         type: string
@@ -60,8 +64,17 @@ definitions:
       type:
         type: string
     type: object
+  dto.ChatUpdateDTO:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
   dto.ChatViewInformationDTO:
     properties:
+      avatar_url:
+        type: string
       id:
         format: uuid
         type: string
@@ -344,6 +357,49 @@ paths:
       summary: Получить информацию о чате
       tags:
       - chats
+    patch:
+      consumes:
+      - application/json
+      description: Позволяет администратору изменить название и описание чата
+      parameters:
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Поля для обновления чата
+        in: body
+        name: chat
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChatUpdateDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для изменения чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить чат
+      tags:
+      - chats
   /chats/{chatId}/members:
     patch:
       consumes:
@@ -378,6 +434,43 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Добавить пользователей в чат
+      tags:
+      - chats
+  /chats/dialog/{otherUserId}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о личном чате между авторизованным пользователем
+        и указанным пользователем. Если чата нет — возвращается ошибку.
+      parameters:
+      - description: ID другого пользователя
+        format: uuid
+        in: path
+        name: otherUserId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о личном чате
+          schema:
+            $ref: '#/definitions/dto.IdDTO'
+        "400":
+          description: Некорректный ID пользователя
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить личный диалог с пользователем
       tags:
       - chats
   /contacts:
@@ -516,6 +609,61 @@ paths:
       summary: Получить информацию о текущем пользователе
       tags:
       - user
+  /message/ws:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.
+        После установки соединения клиент может отправлять сообщения в формате CreateMessageDTO
+        и получать уведомления о новых сообщениях в формате MessageDTO.
+
+        **Протокол WebSocket:**
+
+        **Отправка сообщения (клиент → сервер):**
+        ```json
+        {
+        "text": "Текст сообщения",
+        "created_at": "2025-01-15T10:30:00Z",
+        "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+        }
+        ```
+
+        **Получение сообщения (сервер → клиент):**
+        ```json
+        {
+        "sender_name": "Имя отправителя",
+        "sender_avatar": "https://example.com/avatar.jpg",
+        "text": "Текст сообщения",
+        "created_at": "2025-01-15T10:30:00Z",
+        "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+        }
+        ```
+
+        **Обработка ошибок:**
+        ```json
+        {
+        "error": "Описание ошибки"
+        }
+        ```
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: WebSocket соединение установлено
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Ошибка сервера при установке WebSocket соединения
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - Cookie: []
+      summary: Установить WebSocket соединение для сообщений
+      tags:
+      - messages
   /register:
     post:
       consumes:
@@ -675,59 +823,4 @@ paths:
       summary: Получить информацию о пользователе по имени пользователя
       tags:
       - user
-  /ws/messages:
-    get:
-      consumes:
-      - application/json
-      description: |-
-        Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.
-        После установки соединения клиент может отправлять сообщения в формате CreateMessageDTO
-        и получать уведомления о новых сообщениях в формате MessageDTO.
-
-        **Протокол WebSocket:**
-
-        **Отправка сообщения (клиент → сервер):**
-        ```json
-        {
-        "text": "Текст сообщения",
-        "created_at": "2025-01-15T10:30:00Z",
-        "chat_id": "123e4567-e89b-12d3-a456-426614174000"
-        }
-        ```
-
-        **Получение сообщения (сервер → клиент):**
-        ```json
-        {
-        "sender_name": "Имя отправителя",
-        "sender_avatar": "https://example.com/avatar.jpg",
-        "text": "Текст сообщения",
-        "created_at": "2025-01-15T10:30:00Z",
-        "chat_id": "123e4567-e89b-12d3-a456-426614174000"
-        }
-        ```
-
-        **Обработка ошибок:**
-        ```json
-        {
-        "error": "Описание ошибки"
-        }
-        ```
-      produces:
-      - application/json
-      responses:
-        "101":
-          description: WebSocket соединение установлено
-        "401":
-          description: Пользователь не авторизован
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Ошибка сервера при установке WebSocket соединения
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-      security:
-      - Cookie: []
-      summary: Установить WebSocket соединение для сообщений
-      tags:
-      - messages
 swagger: "2.0"

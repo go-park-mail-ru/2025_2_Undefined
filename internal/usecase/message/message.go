@@ -125,12 +125,12 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 	return nil
 }
 
-func (uc *MessageUsecase) SubscribeUserToChats(ctx context.Context, userId uuid.UUID, chatsViewDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.MessageDTO {
+func (uc *MessageUsecase) SubscribeConnectionToChats(ctx context.Context, connectionID uuid.UUID, chatsViewDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.MessageDTO {
 	resultChan := make(chan dtoMessage.MessageDTO, MessagesBufferForAllUserChats)
 	var once sync.Once
 
 	for _, chatViewDto := range chatsViewDTO {
-		chatChan := uc.listenerMap.SubscribeUserToChat(userId, chatViewDto.ID)
+		chatChan := uc.listenerMap.SubscribeConnectionToChat(connectionID, chatViewDto.ID)
 		// Fan-in :)
 		go func(chatChan <-chan dtoMessage.MessageDTO) {
 			defer once.Do(func() {

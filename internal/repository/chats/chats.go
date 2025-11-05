@@ -26,7 +26,7 @@ const (
 			FROM avatar_user 
 			ORDER BY user_id, created_at DESC
 		)
-		SELECT 
+		SELECT DISTINCT ON (msg.chat_id)
 			msg.id, msg.chat_id, msg.user_id, usr.name, 
 			la.attachment_id,
 			msg.text, msg.created_at, msg.message_type::text
@@ -89,6 +89,13 @@ const (
 		JOIN "user" usr ON usr.id = cm.user_id
 		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.user_id = $1 AND cm.chat_id = $2`
+
+	getUsersDialogQuery = `
+		SELECT chat.id 
+		FROM chat
+		LEFT JOIN chat_member cm1 ON cm1.chat_id = chat.id
+		LEFT JOIN chat_member cm2 ON cm2.chat_id = chat.id
+		WHERE cm1.user_id = $1 AND cm2.user_id = $2`
 
 	checkUserRoleQuery = `
 		SELECT EXISTS(
@@ -246,6 +253,23 @@ func (r *ChatsRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.UUI
 
 	logger.WithField("messages_count", len(result)).Info("Database operation completed successfully: chat messages retrieved")
 	return result, nil
+}
+
+func (r *ChatsRepository) GetUsersDialog(ctx context.Context, user1ID, user2ID uuid.UUID) (uuid.UUID, error) {
+	const op = "ChatsRepository.GetUsersDialog"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger.Debug("Starting database operation: get users dialog")
+
+	var chatID uuid.UUID
+
+	err := r.db.QueryRow(getUsersDialogQuery, user1ID, user2ID).Scan(&chatID)
+	if err != nil {
+		logger.WithError(err).Errorf("error getting dialog users: %s and %s", user1ID.String(), user2ID.String())
+		return uuid.Nil, err
+	}
+
+	return chatID, nil
 }
 
 func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat, usersInfo []modelsChats.UserInfo, usersNames []string) error {
