@@ -68,6 +68,7 @@ deps:
 	go mod tidy
 
 start:
+	make swagger
 	docker compose up --build
 
 clear: 

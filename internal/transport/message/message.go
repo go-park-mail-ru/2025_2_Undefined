@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
-	_ "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
+	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
+	interfaceMessageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/message"
+	interfaceSessionUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -37,30 +38,17 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type SessionUtilsI interface {
-	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
-}
-
-type MessageUsecase interface {
-	AddMessage(ctx context.Context, msg dtoMessage.CreateMessageDTO, userId uuid.UUID) error
-	SubscribeUserToChats(ctx context.Context, userId uuid.UUID, chatsDTO []dto.ChatViewInformationDTO) <-chan dtoMessage.MessageDTO
-}
-
-type ChatsService interface {
-	GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error)
-}
-
 type MessageHandler struct {
-	messageUsecase MessageUsecase
-	chatsUsecase   ChatsService
-	sessionUtils   SessionUtilsI
+	messageUsecase interfaceMessageUsecase.MessageUsecase
+	chatsUsecase   interfaceChatsUsecase.ChatsUsecase
+	sessionUsecase interfaceSessionUsecase.SessionUsecase
 }
 
-func NewMessageHandler(messageUsecase MessageUsecase, chatsUsecase ChatsService, sessionUtils SessionUtilsI) *MessageHandler {
+func NewMessageHandler(messageUsecase interfaceMessageUsecase.MessageUsecase, chatsUsecase interfaceChatsUsecase.ChatsUsecase, sessionUsecase interfaceSessionUsecase.SessionUsecase) *MessageHandler {
 	return &MessageHandler{
 		messageUsecase: messageUsecase,
 		chatsUsecase:   chatsUsecase,
-		sessionUtils:   sessionUtils,
+		sessionUsecase: sessionUsecase,
 	}
 }
 
@@ -105,10 +93,10 @@ func NewMessageHandler(messageUsecase MessageUsecase, chatsUsecase ChatsService,
 // @Success      101  "WebSocket соединение установлено"
 // @Failure      401  {object}  dto.ErrorDTO  "Пользователь не авторизован"
 // @Failure      500  {object}  dto.ErrorDTO  "Ошибка сервера при установке WebSocket соединения"
-// @Router       /ws/messages [get]
+// @Router       /message/ws [get]
 func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	const op = "MessageHandler.HandleMessages"
-	userId, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
 	if err != nil {
 		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -125,29 +113,33 @@ func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) 
 	defer cancel()
 
 	// Горутины для отправки и приёма сообщений по WebSocket.
-	go h.sendMessages(ctx, cancel, conn, userId)
-	go h.readMessages(ctx, cancel, conn, userId)
+	go h.sendMessages(ctx, cancel, conn, userID)
+	go h.readMessages(ctx, cancel, conn, userID)
 
 	<-ctx.Done()
 }
 
-func (h *MessageHandler) readMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userId uuid.UUID) {
+func (h *MessageHandler) readMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userID uuid.UUID) {
 	defer cancel()
 
 	logger := domains.GetLogger(ctx).WithFields(logrus.Fields{
 		"operation": "MessageHandler.readMessages",
-		"user_id":   userId.String(),
+		"user_id":   userID.String(),
 	})
 
-	chatsViewDTO, err := h.chatsUsecase.GetChats(ctx, userId)
+	logger.Debugf("start read messages from user %s ", userID)
+
+	chatsViewDTO, err := h.chatsUsecase.GetChats(ctx, userID)
 	if err != nil {
 		h.writeJSONErrorWebSocket(conn, err.Error())
 		logger.WithError(err).Error("Failed to get chats for user")
 		return
 	}
 
+	connectionID := uuid.New()
+
 	// Подписываемся на получение сообщений из всех чатов для данного пользователя
-	ch := h.messageUsecase.SubscribeUserToChats(ctx, userId, chatsViewDTO)
+	ch := h.messageUsecase.SubscribeConnectionToChats(ctx, connectionID, chatsViewDTO)
 
 	for {
 		select {
@@ -175,13 +167,15 @@ func (h *MessageHandler) readMessages(ctx context.Context, cancel context.Cancel
 	}
 }
 
-func (h *MessageHandler) sendMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userId uuid.UUID) {
+func (h *MessageHandler) sendMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userID uuid.UUID) {
 	defer cancel()
 
 	logger := domains.GetLogger(ctx).WithFields(logrus.Fields{
 		"operation": "MessageHandler.sendMessages",
-		"user_id":   userId.String(),
+		"user_id":   userID.String(),
 	})
+
+	logger.Debugf("start send messages from user %s ", userID)
 
 	for {
 		var msg dtoMessage.CreateMessageDTO
@@ -213,7 +207,7 @@ func (h *MessageHandler) sendMessages(ctx context.Context, cancel context.Cancel
 			msg.CreatedAt = time.Now()
 		}
 
-		if err := h.messageUsecase.AddMessage(ctx, msg, userId); err != nil {
+		if err := h.messageUsecase.AddMessage(ctx, msg, userID); err != nil {
 			logger.WithError(err).Error("Failed to add message")
 			h.writeJSONErrorWebSocket(conn, err.Error())
 			continue
@@ -227,15 +221,6 @@ func (h *MessageHandler) writeJSONErrorWebSocket(conn *websocket.Conn, str strin
 
 func shouldCloseConnection(err error) bool {
 	// Все случаи когда соединение УЖЕ закрыто или должно быть закрыто
-	return websocket.IsUnexpectedCloseError(err,
-		websocket.CloseGoingAway,               // Клиент ушел (нормально)
-		websocket.CloseAbnormalClosure,         // Соединение разорвано (авария)
-		websocket.CloseInvalidFramePayloadData, // Поврежденные данные
-		websocket.CloseProtocolError,           // Ошибка протокола
-		websocket.CloseMessageTooBig,           // Слишком большое сообщение
-		websocket.CloseUnsupportedData,         // Неподдерживаемый тип данных
-		websocket.ClosePolicyViolation,         // Нарушение политики
-		websocket.CloseInternalServerErr) ||    // Внутренняя ошибка сервера
-		websocket.IsCloseError(err, websocket.CloseNormalClosure) || // Нормальное закрытие
+	return websocket.IsUnexpectedCloseError(err) || //
 		errors.Is(err, io.EOF) // TCP соединение разорвано
 }

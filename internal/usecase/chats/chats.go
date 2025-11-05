@@ -9,6 +9,7 @@ import (
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/chats"
 	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
@@ -210,7 +211,20 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 	return result, nil
 }
 
-func (s *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
+func (uc *ChatsUsecase) GetUsersDialog(ctx context.Context, user1ID, user2ID uuid.UUID) (*dtoUtils.IdDTO, error) {
+	idDialog, err := uc.chatsRepo.GetUsersDialog(ctx, user1ID, user2ID)
+	if err != nil {
+		return nil, err
+	}
+
+	resultDTO := &dtoUtils.IdDTO{
+		ID: idDialog,
+	}
+
+	return resultDTO, nil
+}
+
+func (uc *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCreateInformationDTO) (uuid.UUID, error) {
 	chat := modelsChats.Chat{
 		ID:          uuid.New(),
 		Name:        chatDTO.Name,
@@ -223,7 +237,7 @@ func (s *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCrea
 		usersIds[i] = memberDTO.UserId
 	}
 
-	usersNames, err := s.usersRepo.GetUsersNames(ctx, usersIds)
+	usersNames, err := uc.usersRepo.GetUsersNames(ctx, usersIds)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -237,15 +251,15 @@ func (s *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCrea
 		}
 	}
 
-	err = s.chatsRepo.CreateChat(ctx, chat, usersInfo, usersNames)
+	err = uc.chatsRepo.CreateChat(ctx, chat, usersInfo, usersNames)
 	if err != nil {
 		return uuid.Nil, err
 	}
 	return chat.ID, nil
 }
 
-func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
-	ok, err := s.chatsRepo.CheckUserHasRole(ctx, userID, chatID, modelsChats.RoleAdmin)
+func (uc *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+	ok, err := uc.chatsRepo.CheckUserHasRole(ctx, userID, chatID, modelsChats.RoleAdmin)
 	if err != nil {
 		return err
 	}
@@ -263,7 +277,7 @@ func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.U
 		}
 	}
 
-	err = s.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
+	err = uc.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
 	if err != nil {
 		return err
 	}
@@ -271,10 +285,10 @@ func (s *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.U
 	return nil
 }
 
-func (s *ChatsUsecase) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
-	return s.chatsRepo.DeleteChat(ctx, userId, chatId)
+func (uc *ChatsUsecase) DeleteChat(ctx context.Context, userId, chatId uuid.UUID) error {
+	return uc.chatsRepo.DeleteChat(ctx, userId, chatId)
 }
 
-func (s *ChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
-	return s.chatsRepo.UpdateChat(ctx, userId, chatId, name, description)
+func (uc *ChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
+	return uc.chatsRepo.UpdateChat(ctx, userId, chatId, name, description)
 }

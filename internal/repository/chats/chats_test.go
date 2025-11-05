@@ -101,7 +101,7 @@ func TestChatsRepository_GetLastMessagesOfChats_Success(t *testing.T) {
 			FROM avatar_user 
 			ORDER BY user_id, created_at DESC
 		)
-		SELECT 
+		SELECT DISTINCT ON (msg.chat_id)
 			msg.id, msg.chat_id, msg.user_id, usr.name, 
 			la.attachment_id,
 			msg.text, msg.created_at, msg.message_type::text

@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	dto0 "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
 )
@@ -107,6 +108,21 @@ func (m *MockChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, 
 func (mr *MockChatsUsecaseMockRecorder) GetInformationAboutChat(ctx, userId, chatId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInformationAboutChat", reflect.TypeOf((*MockChatsUsecase)(nil).GetInformationAboutChat), ctx, userId, chatId)
+}
+
+// GetUsersDialog mocks base method.
+func (m *MockChatsUsecase) GetUsersDialog(ctx context.Context, user1_id, user2_id uuid.UUID) (*dto0.IdDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsersDialog", ctx, user1_id, user2_id)
+	ret0, _ := ret[0].(*dto0.IdDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUsersDialog indicates an expected call of GetUsersDialog.
+func (mr *MockChatsUsecaseMockRecorder) GetUsersDialog(ctx, user1_id, user2_id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersDialog", reflect.TypeOf((*MockChatsUsecase)(nil).GetUsersDialog), ctx, user1_id, user2_id)
 }
 
 // UpdateChat mocks base method.

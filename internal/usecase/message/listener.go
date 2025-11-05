@@ -1,28 +1,34 @@
 package message
 
 import (
-	"log"
+	"context"
 	"maps"
 	"sync"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // ListenersMap реализует ListenerMapInterface с безопасным доступом для конкурентных операций
 type ListenerMap struct {
-	mu sync.RWMutex
-	// хранит словарь слушателей сообщений: chatID -> userID -> chan MessageDTO
+	logger *logrus.Entry
+	mu     sync.RWMutex
+	// хранит словарь слушателей сообщений: chatID -> connectionID -> chan MessageDTO
 	data map[uuid.UUID]map[uuid.UUID]chan dtoMessage.MessageDTO
 }
 
 func NewListenerMap() *ListenerMap {
+	logger := domains.GetLogger(context.Background())
+
 	return &ListenerMap{
-		data: make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.MessageDTO),
+		data:   make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.MessageDTO),
+		logger: logger,
 	}
 }
 
-func (lm *ListenerMap) SubscribeUserToChat(userId uuid.UUID, chatId uuid.UUID) <-chan dtoMessage.MessageDTO {
+func (lm *ListenerMap) SubscribeConnectionToChat(connectionID uuid.UUID, chatId uuid.UUID) <-chan dtoMessage.MessageDTO {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -30,10 +36,10 @@ func (lm *ListenerMap) SubscribeUserToChat(userId uuid.UUID, chatId uuid.UUID) <
 		lm.data[chatId] = make(map[uuid.UUID]chan dtoMessage.MessageDTO)
 	}
 
-	ch, ok := lm.data[chatId][userId]
+	ch, ok := lm.data[chatId][connectionID]
 	if !ok {
 		ch = make(chan dtoMessage.MessageDTO, MessagesBufferForOneUserChat)
-		lm.data[chatId][userId] = ch
+		lm.data[chatId][connectionID] = ch
 	}
 
 	return ch
@@ -59,10 +65,10 @@ func (lm *ListenerMap) CloseAll() {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	for chatId, users := range lm.data {
-		for userId, ch := range users {
+	for chatId, connections := range lm.data {
+		for connectionId, ch := range connections {
 			close(ch)
-			log.Printf("Closed channel for user %d in chat %d", userId, chatId)
+			lm.logger.Infof("Closed channel for connection %d in chat %d", connectionId, chatId)
 		}
 	}
 
@@ -74,11 +80,11 @@ func (lm *ListenerMap) CleanInactiveChats() int {
 	defer lm.mu.Unlock()
 
 	cleaned := 0
-	for chatId, users := range lm.data {
-		if len(users) == 0 {
+	for chatId, connections := range lm.data {
+		if len(connections) == 0 {
 			delete(lm.data, chatId)
 			cleaned++
-			log.Printf("Cleaned up inactive chat %d", chatId)
+			lm.logger.Infof("Cleaned up inactive chat %d", chatId)
 		}
 	}
 
@@ -91,24 +97,24 @@ func (lm *ListenerMap) CleanInactiveReaders() int {
 
 	cleanedCount := 0
 
-	for chatId, users := range lm.data {
-		for userId, ch := range users {
+	for chatId, connections := range lm.data {
+		for connectionId, ch := range connections {
 			// Проверяем, заполнен ли буфер канала (читатель не успевает обрабатывать)
 			if len(ch) >= cap(ch) {
 				close(ch)
-				delete(users, userId)
+				delete(connections, connectionId)
 				cleanedCount++
-				log.Printf("Cleaned inactive reader: user %s in chat %s", userId, chatId)
+				lm.logger.Infof("Cleaned inactive reader: connection %s in chat %s", connectionId, chatId)
 			}
 		}
 
-		// Если в чате не осталось пользователей, удаляем сам чат
-		if len(users) == 0 {
+		// Если в чате не осталось соединений, то очищаем запись
+		if len(connections) == 0 {
 			delete(lm.data, chatId)
-			log.Printf("Removed empty chat %s after cleaning readers", chatId)
+			lm.logger.Infof("Removed empty chat %s after cleaning readers", chatId)
 		}
 	}
 
-	log.Printf("Cleaned %d inactive readers", cleanedCount)
+	lm.logger.Infof("Cleaned %d inactive readers", cleanedCount)
 	return cleanedCount
 }

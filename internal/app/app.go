@@ -96,11 +96,11 @@ func NewApp(conf *config.Config) (*App, error) {
 	// Настройка логгера
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
-	logger.SetLevel(logrus.DebugLevel)
+	logger.SetLevel(logrus.WarnLevel)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()
-	router.Use(corsMiddleware)
+	router.Use(middleware.CorsMiddleware)
 	router.Use(func(next http.Handler) http.Handler {
 		return middleware.AccessLogMiddleware(logger, next)
 	})
@@ -128,6 +128,7 @@ func NewApp(conf *config.Config) (*App, error) {
 		chatRouter.HandleFunc("/{chat_id}/members", chatsHandler.AddUsersToChat).Methods(http.MethodPatch)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.DeleteChat).Methods(http.MethodDelete)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.UpdateChat).Methods(http.MethodPatch)
+		chatRouter.HandleFunc("/dialog/{user_id}", chatsHandler.GetUsersDialog).Methods(http.MethodGet)
 	}
 
 	userRouter := protectedRouter.PathPrefix("").Subrouter()
@@ -172,19 +173,4 @@ func (a *App) Run() {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed to start: %v", err)
 	}
-}
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }

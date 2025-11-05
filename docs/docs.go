@@ -115,6 +115,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/chats/dialog/{otherUserId}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает информацию о личном чате между авторизованным пользователем и указанным пользователем. Если чата нет — возвращается ошибку.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Получить личный диалог с пользователем",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID другого пользователя",
+                        "name": "otherUserId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Информация о личном чате",
+                        "schema": {
+                            "$ref": "#/definitions/dto.IdDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID пользователя",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/chats/{chatId}": {
             "get": {
                 "security": [
@@ -215,6 +271,72 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Нет прав для удаления чата",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Чат не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору изменить название и описание чата",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Обновить чат",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID чата",
+                        "name": "chatId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Поля для обновления чата",
+                        "name": "chat",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ChatUpdateDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав для изменения чата",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -496,6 +618,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/message/ws": {
+            "get": {
+                "security": [
+                    {
+                        "Cookie": []
+                    }
+                ],
+                "description": "Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.\nПосле установки соединения клиент может отправлять сообщения в формате CreateMessageDTO\nи получать уведомления о новых сообщениях в формате MessageDTO.\n\n**Протокол WebSocket:**\n\n**Отправка сообщения (клиент → сервер):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Получение сообщения (сервер → клиент):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"sender_name\": \"Имя отправителя\",\n\"sender_avatar\": \"https://example.com/avatar.jpg\",\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Обработка ошибок:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"error\": \"Описание ошибки\"\n}\n` + "`" + `` + "`" + `` + "`" + `",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Установить WebSocket соединение для сообщений",
+                "responses": {
+                    "101": {
+                        "description": "WebSocket соединение установлено"
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера при установке WebSocket соединения",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/register": {
             "post": {
                 "description": "Регистрирует нового пользователя в системе и создает сессию",
@@ -740,43 +899,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/ws/messages": {
-            "get": {
-                "security": [
-                    {
-                        "Cookie": []
-                    }
-                ],
-                "description": "Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.\nПосле установки соединения клиент может отправлять сообщения в формате CreateMessageDTO\nи получать уведомления о новых сообщениях в формате MessageDTO.\n\n**Протокол WebSocket:**\n\n**Отправка сообщения (клиент → сервер):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Получение сообщения (сервер → клиент):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"sender_name\": \"Имя отправителя\",\n\"sender_avatar\": \"https://example.com/avatar.jpg\",\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Обработка ошибок:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"error\": \"Описание ошибки\"\n}\n` + "`" + `` + "`" + `` + "`" + `",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "messages"
-                ],
-                "summary": "Установить WebSocket соединение для сообщений",
-                "responses": {
-                    "101": {
-                        "description": "WebSocket соединение установлено"
-                    },
-                    "401": {
-                        "description": "Пользователь не авторизован",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Ошибка сервера при установке WebSocket соединения",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -833,8 +955,14 @@ const docTemplate = `{
         "dto.ChatDetailedInformationDTO": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
                 "can_chat": {
                     "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "string",
@@ -869,9 +997,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ChatUpdateDTO": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.ChatViewInformationDTO": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string",
                     "format": "uuid"
