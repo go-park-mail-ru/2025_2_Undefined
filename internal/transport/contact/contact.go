@@ -39,6 +39,7 @@ func New(uc ContactUsecase, sessionUtils SessionUtilsI) *ContactHandler {
 // @Tags         contacts
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Param        contact  body  dto.PostContactDTO  true  "Данные контакта для добавления"
 // @Success      201   "Контакт успешно добавлен"
 // @Failure      400   {object}  dto.ErrorDTO  			  "Неверные данные запроса"

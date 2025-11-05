@@ -261,6 +261,11 @@ paths:
       - application/json
       description: Создает новый чат с указанными участниками и настройками
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Данные для создания чата
         in: body
         name: chat
@@ -294,6 +299,11 @@ paths:
       description: Удаляет существующий чат. Только администратор чата может удалить
         чат.
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: ID чата
         format: uuid
         in: path
@@ -367,6 +377,11 @@ paths:
       - application/json
       description: Позволяет администратору изменить название и описание чата
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: ID чата
         format: uuid
         in: path
@@ -411,6 +426,11 @@ paths:
       - application/json
       description: Добавляет указанных пользователей в существующий чат
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: ID чата
         format: uuid
         in: path
@@ -511,6 +531,11 @@ paths:
       - application/json
       description: Добавляет нового пользователя в список контактов текущего пользователя
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Данные контакта для добавления
         in: body
         name: contact
@@ -579,6 +604,12 @@ paths:
       consumes:
       - application/json
       description: Аннулирует текущую сессию и удаляет cookie
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -701,6 +732,11 @@ paths:
       - application/json
       description: удалить конкретную сессию пользователя
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Сессию которую надо удалить
         in: body
         name: session
@@ -730,6 +766,12 @@ paths:
       consumes:
       - application/json
       description: удалить сессии пользователя, кроме текущей
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -781,6 +823,11 @@ paths:
       description: Позволяет текущему авторизованному пользователю загрузить или обновить
         свой аватар
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Файл аватара
         in: formData
         name: avatar
@@ -818,6 +865,11 @@ paths:
       - application/json
       description: Возвращает полные данные о пользователе по указанному номеру телефона
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Запрос с номером телефона
         in: body
         name: request
@@ -854,6 +906,11 @@ paths:
       - application/json
       description: Возвращает полные данные о пользователе по указанному имени пользователя
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Запрос с именем пользователя
         in: body
         name: request

@@ -84,6 +84,13 @@ const docTemplate = `{
                 "summary": "Создать новый чат",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Данные для создания чата",
                         "name": "chat",
                         "in": "body",
@@ -246,6 +253,13 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "format": "uuid",
                         "description": "ID чата",
                         "name": "chatId",
@@ -301,6 +315,13 @@ const docTemplate = `{
                 ],
                 "summary": "Обновить чат",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "format": "uuid",
@@ -369,6 +390,13 @@ const docTemplate = `{
                 ],
                 "summary": "Добавить пользователей в чат",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "format": "uuid",
@@ -466,6 +494,13 @@ const docTemplate = `{
                 ],
                 "summary": "Добавление контакта",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Данные контакта для добавления",
                         "name": "contact",
@@ -571,6 +606,15 @@ const docTemplate = `{
                     "auth"
                 ],
                 "summary": "Выход из системы",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Logout successful"
@@ -715,6 +759,13 @@ const docTemplate = `{
                 "summary": "удалить сессию пользователя",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Сессию которую надо удалить",
                         "name": "session",
                         "in": "body",
@@ -802,6 +853,15 @@ const docTemplate = `{
                     "user"
                 ],
                 "summary": "удалить сессии пользователя, кроме текущей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "сессии удалены"
@@ -840,6 +900,13 @@ const docTemplate = `{
                 ],
                 "summary": "Загрузить аватар пользователя",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "file",
                         "description": "Файл аватара",
@@ -899,6 +966,13 @@ const docTemplate = `{
                 "summary": "Получить информацию о пользователе по номеру телефона",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Запрос с номером телефона",
                         "name": "request",
                         "in": "body",
@@ -955,6 +1029,13 @@ const docTemplate = `{
                 ],
                 "summary": "Получить информацию о пользователе по имени пользователя",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Запрос с именем пользователя",
                         "name": "request",
@@ -1323,7 +1404,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "",
+	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Undefined team API documentation of project Telegram",

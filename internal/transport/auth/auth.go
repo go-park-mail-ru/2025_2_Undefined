@@ -173,6 +173,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Success      200  "Logout successful"
 // @Failure      401  {object}  dto.ErrorDTO  "Неавторизованный доступ"

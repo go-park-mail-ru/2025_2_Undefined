@@ -90,6 +90,7 @@ func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) 
 // @Tags         user
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        session body dto.DeleteSession  true "Сессию которую надо удалить"
 // @Success      200  "сессия удалена"
@@ -126,6 +127,7 @@ func (h *UserHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 // @Tags         user
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Success      200  "сессии удалены"
 // @Failure      401  {object}  dto.ErrorDTO     "Неавторизованный доступ"
@@ -161,6 +163,7 @@ func (h *UserHandler) DeleteAllSessionWithoutCurrent(w http.ResponseWriter, r *h
 // @Tags         user
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        request body dto.GetUserByPhone true "Запрос с номером телефона"
 // @Success      200    {object}  dto.User   "Информация о пользователе"
@@ -201,6 +204,7 @@ func (h *UserHandler) GetUserByPhone(w http.ResponseWriter, r *http.Request) {
 // @Tags         user
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        request body dto.GetUserByUsername true "Запрос с именем пользователя"
 // @Success      200       {object}  dto.User   "Информация о пользователе"
@@ -241,6 +245,7 @@ func (h *UserHandler) GetUserByUsername(w http.ResponseWriter, r *http.Request) 
 // @Tags         user
 // @Accept       multipart/form-data
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        avatar  formData  file  true  "Файл аватара"
 // @Success      200     {object}  map[string]string  "URL загруженного аватара"

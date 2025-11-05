@@ -78,6 +78,13 @@
                 "summary": "Создать новый чат",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Данные для создания чата",
                         "name": "chat",
                         "in": "body",
@@ -240,6 +247,13 @@
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
                         "format": "uuid",
                         "description": "ID чата",
                         "name": "chatId",
@@ -295,6 +309,13 @@
                 ],
                 "summary": "Обновить чат",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "format": "uuid",
@@ -363,6 +384,13 @@
                 ],
                 "summary": "Добавить пользователей в чат",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "string",
                         "format": "uuid",
@@ -460,6 +488,13 @@
                 ],
                 "summary": "Добавление контакта",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Данные контакта для добавления",
                         "name": "contact",
@@ -565,6 +600,15 @@
                     "auth"
                 ],
                 "summary": "Выход из системы",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Logout successful"
@@ -709,6 +753,13 @@
                 "summary": "удалить сессию пользователя",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Сессию которую надо удалить",
                         "name": "session",
                         "in": "body",
@@ -796,6 +847,15 @@
                     "user"
                 ],
                 "summary": "удалить сессии пользователя, кроме текущей",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "сессии удалены"
@@ -834,6 +894,13 @@
                 ],
                 "summary": "Загрузить аватар пользователя",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "type": "file",
                         "description": "Файл аватара",
@@ -893,6 +960,13 @@
                 "summary": "Получить информацию о пользователе по номеру телефона",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
                         "description": "Запрос с номером телефона",
                         "name": "request",
                         "in": "body",
@@ -949,6 +1023,13 @@
                 ],
                 "summary": "Получить информацию о пользователе по имени пользователя",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Запрос с именем пользователя",
                         "name": "request",

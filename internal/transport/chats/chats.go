@@ -62,6 +62,7 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Tags         chats
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        chat  body      dto.ChatCreateInformationDTO  true  "Данные для создания чата"
 // @Success      201   {object}  dto.IdDTO                     "ID созданного чата"
@@ -227,6 +228,7 @@ func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
 // @Tags         chats
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        chatId  path      string                     true  "ID чата"  format(uuid)
 // @Param        users   body      dto.AddUsersToChatDTO      true  "Список пользователей для добавления"
@@ -312,6 +314,7 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 // @Tags         chats
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        chatId  path      string  true  "ID чата"  format(uuid)
 // @Success      200
@@ -368,6 +371,7 @@ func (h *ChatsHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 // @Tags         chats
 // @Accept       json
 // @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
 // @Security     ApiKeyAuth
 // @Param        chatId  path      string          true  "ID чата"  format(uuid)
 // @Param        chat    body      dto.ChatUpdateDTO true "Поля для обновления чата"
