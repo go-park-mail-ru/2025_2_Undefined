@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/google/uuid"
+
 // ValidationErrorDTO представляет ошибку валидации для конкретного поля
 type ValidationErrorDTO struct {
 	Field   string `json:"field"`
@@ -14,4 +16,8 @@ type ValidationErrorsDTO struct {
 
 type ErrorDTO struct {
 	Message string `json:"message"`
+}
+
+type IdDTO struct {
+	ID uuid.UUID `json:"id" swaggertype:"string" format:"uuid"`
 }

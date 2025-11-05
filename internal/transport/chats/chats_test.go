@@ -11,6 +11,7 @@ import (
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
+	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
@@ -115,7 +116,7 @@ func TestPostChats_Success(t *testing.T) {
 	respBody, err := io.ReadAll(w.Body)
 	assert.NoError(t, err)
 
-	var result dto.IdDTO
+	var result dtoUtils.IdDTO
 	err = json.Unmarshal(respBody, &result)
 	assert.NoError(t, err)
 	assert.Equal(t, newChatId, result.ID)

@@ -16,47 +16,47 @@ func TestMessageUsecase_NewListenerMap(t *testing.T) {
 	assert.NotNil(t, lm.data)
 }
 
-func TestMessageUsecase_ListenerMap_SubscribeUserToChat(t *testing.T) {
+func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat(t *testing.T) {
 	lm := NewListenerMap()
-	userId := uuid.New()
+	connectionID := uuid.New()
 	chatId := uuid.New()
 
 	// Первая подписка создает новый канал
-	ch1 := lm.SubscribeUserToChat(userId, chatId)
+	ch1 := lm.SubscribeConnectionToChat(connectionID, chatId)
 	assert.NotNil(t, ch1)
 
 	// Повторная подписка того же пользователя возвращает тот же канал
-	ch2 := lm.SubscribeUserToChat(userId, chatId)
+	ch2 := lm.SubscribeConnectionToChat(connectionID, chatId)
 	assert.Equal(t, ch1, ch2)
 
 	// Проверяем через внутренние данные, что канал создан с правильным размером буфера
 	lm.mu.RLock()
-	internalCh := lm.data[chatId][userId]
+	internalCh := lm.data[chatId][connectionID]
 	lm.mu.RUnlock()
 	assert.Equal(t, MessagesBufferForOneUserChat, cap(internalCh))
 }
 
-func TestMessageUsecase_ListenerMap_SubscribeUserToChat_MultipleChatsSameUser(t *testing.T) {
+func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat_MultipleChatsSameUser(t *testing.T) {
 	lm := NewListenerMap()
-	userId := uuid.New()
+	connectionID := uuid.New()
 	chatId1 := uuid.New()
 	chatId2 := uuid.New()
 
-	ch1 := lm.SubscribeUserToChat(userId, chatId1)
-	ch2 := lm.SubscribeUserToChat(userId, chatId2)
+	ch1 := lm.SubscribeConnectionToChat(connectionID, chatId1)
+	ch2 := lm.SubscribeConnectionToChat(connectionID, chatId2)
 
 	// Каналы должны быть разными для разных чатов
 	assert.NotEqual(t, ch1, ch2)
 }
 
-func TestMessageUsecase_ListenerMap_SubscribeUserToChat_MultipleUsersSameChat(t *testing.T) {
+func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat_MultipleUsersSameChat(t *testing.T) {
 	lm := NewListenerMap()
-	userId1 := uuid.New()
-	userId2 := uuid.New()
+	connectionID1 := uuid.New()
+	connectionID2 := uuid.New()
 	chatId := uuid.New()
 
-	ch1 := lm.SubscribeUserToChat(userId1, chatId)
-	ch2 := lm.SubscribeUserToChat(userId2, chatId)
+	ch1 := lm.SubscribeConnectionToChat(connectionID1, chatId)
+	ch2 := lm.SubscribeConnectionToChat(connectionID2, chatId)
 
 	// Каналы должны быть разными для разных пользователей
 	assert.NotEqual(t, ch1, ch2)
@@ -71,36 +71,36 @@ func TestMessageUsecase_ListenerMap_GetChatListeners(t *testing.T) {
 	assert.Nil(t, listeners)
 
 	// Добавляем пользователей в чат
-	userId1 := uuid.New()
-	userId2 := uuid.New()
-	_ = lm.SubscribeUserToChat(userId1, chatId)
-	_ = lm.SubscribeUserToChat(userId2, chatId)
+	connectionID1 := uuid.New()
+	connectionID2 := uuid.New()
+	_ = lm.SubscribeConnectionToChat(connectionID1, chatId)
+	_ = lm.SubscribeConnectionToChat(connectionID2, chatId)
 
 	// Получаем слушателей
 	listeners = lm.GetChatListeners(chatId)
 	require.NotNil(t, listeners)
 	assert.Len(t, listeners, 2)
 	// Проверяем наличие пользователей в мапе
-	assert.Contains(t, listeners, userId1)
-	assert.Contains(t, listeners, userId2)
+	assert.Contains(t, listeners, connectionID1)
+	assert.Contains(t, listeners, connectionID2)
 
 	// Проверяем, что возвращается копия
-	delete(listeners, userId1)
+	delete(listeners, connectionID1)
 	listenersAgain := lm.GetChatListeners(chatId)
 	assert.Len(t, listenersAgain, 2) // Оригинальная мапа не изменилась
 }
 
 func TestMessageUsecase_ListenerMap_CloseAll(t *testing.T) {
 	lm := NewListenerMap()
-	userId1 := uuid.New()
-	userId2 := uuid.New()
+	connectionID1 := uuid.New()
+	connectionID2 := uuid.New()
 	chatId1 := uuid.New()
 	chatId2 := uuid.New()
 
 	// Подписываем пользователей на чаты
-	ch1 := lm.SubscribeUserToChat(userId1, chatId1)
-	ch2 := lm.SubscribeUserToChat(userId2, chatId1)
-	ch3 := lm.SubscribeUserToChat(userId1, chatId2)
+	ch1 := lm.SubscribeConnectionToChat(connectionID1, chatId1)
+	ch2 := lm.SubscribeConnectionToChat(connectionID2, chatId1)
+	ch3 := lm.SubscribeConnectionToChat(connectionID1, chatId2)
 
 	// Проверяем, что есть подписчики перед закрытием
 	listeners := lm.GetChatListeners(chatId1)
@@ -126,10 +126,10 @@ func TestMessageUsecase_ListenerMap_CleanInactiveChats(t *testing.T) {
 	lm := NewListenerMap()
 	chatId1 := uuid.New()
 	chatId2 := uuid.New()
-	userId := uuid.New()
+	connectionID := uuid.New()
 
 	// Создаем чат с пользователем
-	lm.SubscribeUserToChat(userId, chatId1)
+	lm.SubscribeConnectionToChat(connectionID, chatId1)
 
 	// Создаем пустой чат (имитируем ситуацию, когда пользователи ушли)
 	lm.data[chatId2] = make(map[uuid.UUID]chan dtoMessage.MessageDTO)
@@ -154,10 +154,10 @@ func TestMessageUsecase_ListenerMap_CleanInactiveReaders(t *testing.T) {
 	inactiveUserId := uuid.New()
 
 	// Подписываем активного пользователя
-	_ = lm.SubscribeUserToChat(activeUserId, chatId)
+	_ = lm.SubscribeConnectionToChat(activeUserId, chatId)
 
 	// Подписываем неактивного пользователя
-	inactiveCh := lm.SubscribeUserToChat(inactiveUserId, chatId)
+	inactiveCh := lm.SubscribeConnectionToChat(inactiveUserId, chatId)
 
 	// Получаем доступ к внутреннему каналу и заполняем его буфер до максимума
 	lm.mu.Lock()
@@ -197,14 +197,14 @@ func TestMessageUsecase_ListenerMap_CleanInactiveReaders(t *testing.T) {
 func TestMessageUsecase_ListenerMap_CleanInactiveReaders_EmptyChat(t *testing.T) {
 	lm := NewListenerMap()
 	chatId := uuid.New()
-	userId := uuid.New()
+	connectionID := uuid.New()
 
 	// Подписываем пользователя
-	ch := lm.SubscribeUserToChat(userId, chatId)
+	ch := lm.SubscribeConnectionToChat(connectionID, chatId)
 
 	// Получаем доступ к внутреннему каналу и заполняем его буфер до максимума
 	lm.mu.Lock()
-	chBuffered := lm.data[chatId][userId]
+	chBuffered := lm.data[chatId][connectionID]
 	for i := 0; i < cap(chBuffered); i++ {
 		chBuffered <- dtoMessage.MessageDTO{}
 	}
@@ -240,8 +240,8 @@ func TestMessageUsecase_ListenerMap_ConcurrentAccess(t *testing.T) {
 	// Запускаем несколько горутин для подписки
 	for i := 0; i < 5; i++ {
 		go func(i int) {
-			userId := uuid.New()
-			ch := lm.SubscribeUserToChat(userId, chatId)
+			connectionID := uuid.New()
+			ch := lm.SubscribeConnectionToChat(connectionID, chatId)
 			assert.NotNil(t, ch)
 			done <- true
 		}(i)

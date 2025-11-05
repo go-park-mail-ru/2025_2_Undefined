@@ -155,6 +155,21 @@ func (mr *MockChatsRepositoryMockRecorder) GetUserInfo(ctx, userId, chatId inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserInfo", reflect.TypeOf((*MockChatsRepository)(nil).GetUserInfo), ctx, userId, chatId)
 }
 
+// GetUsersDialog mocks base method.
+func (m *MockChatsRepository) GetUsersDialog(ctx context.Context, user1_id, user2_id uuid.UUID) (uuid.UUID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsersDialog", ctx, user1_id, user2_id)
+	ret0, _ := ret[0].(uuid.UUID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUsersDialog indicates an expected call of GetUsersDialog.
+func (mr *MockChatsRepositoryMockRecorder) GetUsersDialog(ctx, user1_id, user2_id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersDialog", reflect.TypeOf((*MockChatsRepository)(nil).GetUsersDialog), ctx, user1_id, user2_id)
+}
+
 // GetUsersOfChat mocks base method.
 func (m *MockChatsRepository) GetUsersOfChat(ctx context.Context, chatId uuid.UUID) ([]models.UserInfo, error) {
 	m.ctrl.T.Helper()
