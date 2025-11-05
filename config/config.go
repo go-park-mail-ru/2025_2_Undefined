@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -41,7 +41,7 @@ type RedisConfig struct {
 type MinioConfig struct {
 	PORT         string
 	Host         string
-	PublicHost   string // Хост для публичных URLs (например localhost)
+	PublicHost   string
 	BucketName   string
 	RootUser     string
 	RootPassword string
@@ -66,58 +66,43 @@ type MigrationsConfig struct {
 }
 
 func NewConfig() (*Config, error) {
-	raw, err := loadYamlConfig(".env/config.yml")
+	if err := godotenv.Load(); err != nil {
+		return nil, fmt.Errorf("error loading .env file: %v", err)
+	}
+
+	dbConfig, err := newDBConfig()
 	if err != nil {
-		// Если нет .env/config.yml, пробуем обычный config.yml
-		raw, err = loadYamlConfig("config.yml")
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
-	dbConfig := &DBConfig{
-		User:            raw.PostgresUser,
-		Password:        raw.PostgresPass,
-		DB:              raw.PostgresDB,
-		Port:            raw.PostgresPort,
-		Host:            raw.PostgresHost,
-		MaxOpenConns:    100,
-		MaxIdleConns:    90,
-		ConnMaxLifetime: 5 * time.Minute,
+	serverConfig, err := newServerConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	redisConfig := &RedisConfig{
-		Port:     raw.AuthPort,
-		Host:     raw.AuthHost,
-		Password: raw.AuthPass,
-		DB:       raw.AuthDB,
+	sessionConfig, err := newSessionConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	minioConfig := &MinioConfig{
-		PORT:         raw.MinioPort,
-		Host:         raw.MinioHost,
-		PublicHost:   raw.MinioPublicHost,
-		BucketName:   raw.MinioBucketName,
-		RootUser:     raw.MinioAccessKey,
-		RootPassword: raw.MinioSecretKey,
-		UseSSL:       raw.MinioUseSSL,
+	csrfConfig, err := newCSRFConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	serverConfig := &ServerConfig{
-		Port: raw.ServerPort,
+	migrationsConfig, err := newMigrationsConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	sessionConfig := &SessionConfig{
-		Signature: raw.Signature,
-		LifeSpan:  raw.SessionTokenLife,
+	redisConfig, err := newRedisConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	csrfConfig := &CSRFConfig{
-		Secret: raw.CSRFSecret,
-	}
-
-	migrationsConfig := &MigrationsConfig{
-		Path: raw.MigrationsPath,
+	minioConfig, err := newMinioConfig()
+	if err != nil {
+		return nil, err
 	}
 
 	return &Config{
@@ -131,133 +116,149 @@ func NewConfig() (*Config, error) {
 	}, nil
 }
 
-type yamlConfig struct {
-	ServerPort       string        `yaml:"SERVER_PORT"`
-	Signature        string        `yaml:"SESSION_SIGNATURE"`
-	PostgresUser     string        `yaml:"POSTGRES_USER"`
-	PostgresPass     string        `yaml:"POSTGRES_PASSWORD"`
-	PostgresDB       string        `yaml:"POSTGRES_DB"`
-	PostgresPort     int           `yaml:"POSTGRES_PORT"`
-	PostgresHost     string        `yaml:"POSTGRES_HOST"`
-	MigrationsPath   string        `yaml:"MIGRATIONS_PATH"`
-	SessionTokenLife time.Duration `yaml:"SESSION_TOKEN_LIFESPAN"`
-	AuthPass         string        `yaml:"AUTH_REDIS_PASSWORD"`
-	AuthDB           int           `yaml:"AUTH_REDIS_DB"`
-	AuthPort         string        `yaml:"AUTH_REDIS_PORT"`
-	AuthHost         string        `yaml:"AUTH_REDIS_HOST"`
-	CSRFSecret       string        `yaml:"CSRF_SECRET"`
-	MinioPort        string        `yaml:"MINIO_PORT"`
-	MinioHost        string        `yaml:"MINIO_HOST"`
-	MinioPublicHost  string        `yaml:"MINIO_PUBLIC_HOST"`
-	MinioAccessKey   string        `yaml:"MINIO_ACCESS_KEY"`
-	MinioSecretKey   string        `yaml:"MINIO_SECRET_KEY"`
-	MinioBucketName  string        `yaml:"MINIO_BUCKET_NAME"`
-	MinioUseSSL      bool          `yaml:"MINIO_USE_SSL"`
+func newDBConfig() (*DBConfig, error) {
+	user, userExists := os.LookupEnv("POSTGRES_USER")
+	password, passwordExists := os.LookupEnv("POSTGRES_PASSWORD")
+	dbname, dbExists := os.LookupEnv("POSTGRES_DB")
+	host, hostExists := os.LookupEnv("POSTGRES_HOST")
+	portStr, portExists := os.LookupEnv("POSTGRES_PORT")
+
+	if !userExists || !passwordExists || !dbExists || !hostExists || !portExists {
+		return nil, errors.New("incomplete database configuration")
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, errors.New("invalid POSTGRES_PORT value")
+	}
+
+	return &DBConfig{
+		User:            user,
+		Password:        password,
+		DB:              dbname,
+		Port:            port,
+		Host:            host,
+		MaxOpenConns:    100,
+		MaxIdleConns:    90,
+		ConnMaxLifetime: 5 * time.Minute,
+	}, nil
 }
 
-func loadYamlConfig(path string) (*yamlConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("error reading config file: %v", err)
-	}
-
-	var cfg struct {
-		ServerPort       string `yaml:"SERVER_PORT"`
-		Signature        string `yaml:"SESSION_SIGNATURE"`
-		PostgresUser     string `yaml:"POSTGRES_USER"`
-		PostgresPass     string `yaml:"POSTGRES_PASSWORD"`
-		PostgresDB       string `yaml:"POSTGRES_DB"`
-		PostgresPort     string `yaml:"POSTGRES_PORT"`
-		PostgresHost     string `yaml:"POSTGRES_HOST"`
-		MigrationsPath   string `yaml:"MIGRATIONS_PATH"`
-		SessionTokenLife string `yaml:"SESSION_TOKEN_LIFESPAN"`
-		AuthPass         string `yaml:"AUTH_REDIS_PASSWORD"`
-		AuthDB           string `yaml:"AUTH_REDIS_DB"`
-		AuthPort         string `yaml:"AUTH_REDIS_PORT"`
-		AuthHost         string `yaml:"AUTH_REDIS_HOST"`
-		CSRFSecret       string `yaml:"CSRF_SECRET"`
-		MinioPort        string `yaml:"MINIO_PORT"`
-		MinioHost        string `yaml:"MINIO_HOST"`
-		MinioAccessKey   string `yaml:"MINIO_ACCESS_KEY"`
-		MinioSecretKey   string `yaml:"MINIO_SECRET_KEY"`
-		MinioBucketName  string `yaml:"MINIO_BUCKET_NAME"`
-		MinioUseSSL      bool   `yaml:"MINIO_USE_SSL"`
-		MinioPublicHost  string `yaml:"MINIO_PUBLIC_HOST"`
-	}
-
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("error parsing YAML: %v", err)
-	}
-
-	if cfg.ServerPort == "" {
+func newServerConfig() (*ServerConfig, error) {
+	port, portExists := os.LookupEnv("SERVER_PORT")
+	if !portExists {
 		return nil, errors.New("SERVER_PORT is required")
 	}
-	if cfg.Signature == "" {
+
+	return &ServerConfig{
+		Port: port,
+	}, nil
+}
+
+func newSessionConfig() (*SessionConfig, error) {
+	signature, signatureExists := os.LookupEnv("SESSION_SIGNATURE")
+	if !signatureExists {
 		return nil, errors.New("SESSION_SIGNATURE is required")
 	}
 
-	port, err := strconv.Atoi(cfg.PostgresPort)
-	if err != nil {
-		return nil, errors.New("invalid POSTGRES_PORT value")
+	lifespanStr, lifespanExists := os.LookupEnv("SESSION_TOKEN_LIFESPAN")
+	if !lifespanExists {
+		return nil, errors.New("SESSION_TOKEN_LIFESPAN is required")
 	}
 
-	tokenLife := 30 * 24 * time.Hour // значение по умолчанию
-	if cfg.SessionTokenLife != "" {
-		if tl, err := time.ParseDuration(cfg.SessionTokenLife); err == nil {
-			tokenLife = tl
+	lifespan, err := parseDurationWithDays(lifespanStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid SESSION_TOKEN_LIFESPAN value: %v", err)
+	}
+
+	return &SessionConfig{
+		Signature: signature,
+		LifeSpan:  lifespan,
+	}, nil
+}
+
+// parseDurationWithDays парсит duration с поддержкой дней (d)
+func parseDurationWithDays(s string) (time.Duration, error) {
+	if len(s) > 1 && s[len(s)-1] == 'd' {
+		days, err := strconv.Atoi(s[:len(s)-1])
+		if err != nil {
+			return 0, err
 		}
+		return time.Duration(days) * 24 * time.Hour, nil
+	}
+	
+	return time.ParseDuration(s)
+}
+func newCSRFConfig() (*CSRFConfig, error) {
+	secret, secretExists := os.LookupEnv("CSRF_SECRET")
+	if !secretExists {
+		return nil, errors.New("CSRF_SECRET is required")
 	}
 
-	authDb, err := strconv.Atoi(cfg.AuthDB)
+	return &CSRFConfig{
+		Secret: secret,
+	}, nil
+}
+
+func newMigrationsConfig() (*MigrationsConfig, error) {
+	path, pathExists := os.LookupEnv("MIGRATIONS_PATH")
+	if !pathExists {
+		return nil, errors.New("MIGRATIONS_PATH is required")
+	}
+
+	return &MigrationsConfig{
+		Path: path,
+	}, nil
+}
+
+func newRedisConfig() (*RedisConfig, error) {
+	host, hostExists := os.LookupEnv("AUTH_REDIS_HOST")
+	port, portExists := os.LookupEnv("AUTH_REDIS_PORT")
+	password, passwordExists := os.LookupEnv("AUTH_REDIS_PASSWORD")
+	dbStr, dbExists := os.LookupEnv("AUTH_REDIS_DB")
+
+	if !hostExists || !portExists || !passwordExists || !dbExists {
+		return nil, errors.New("incomplete Redis configuration")
+	}
+
+	db, err := strconv.Atoi(dbStr)
 	if err != nil {
-		return nil, errors.New("invalid POSTGRES_PORT value")
+		return nil, errors.New("invalid AUTH_REDIS_DB value")
 	}
 
-	if cfg.AuthPort == "" {
-		return nil, errors.New("AUTH_Redis_PORT is required")
+	return &RedisConfig{
+		Host:     host,
+		Port:     port,
+		Password: password,
+		DB:       db,
+	}, nil
+}
+
+func newMinioConfig() (*MinioConfig, error) {
+	port, portExists := os.LookupEnv("MINIO_PORT")
+	host, hostExists := os.LookupEnv("MINIO_HOST")
+	publicHost, publicHostExists := os.LookupEnv("MINIO_PUBLIC_HOST")
+	bucketName, bucketNameExists := os.LookupEnv("MINIO_BUCKET_NAME")
+	accessKey, accessKeyExists := os.LookupEnv("MINIO_ACCESS_KEY")
+	secretKey, secretKeyExists := os.LookupEnv("MINIO_SECRET_KEY")
+	useSSLStr, useSSLExists := os.LookupEnv("MINIO_USE_SSL")
+
+	if !portExists || !hostExists || !publicHostExists || !bucketNameExists || !accessKeyExists || !secretKeyExists || !useSSLExists {
+		return nil, errors.New("incomplete MinIO configuration")
 	}
 
-	if cfg.AuthHost == "" {
-		return nil, errors.New("AUTH_Redis_Host is required")
+	useSSL, err := strconv.ParseBool(useSSLStr)
+	if err != nil {
+		return nil, errors.New("invalid MINIO_USE_SSL value")
 	}
 
-	if cfg.MinioPort == "" {
-		return nil, errors.New("MINIO_PORT is required")
-	}
-
-	if cfg.MinioHost == "" {
-		return nil, errors.New("MINIO_HOST is required")
-	}
-
-	if cfg.MinioPublicHost == "" {
-		return nil, errors.New("MINIO_PUBLIC_HOST is required")
-	}
-
-	if cfg.MinioBucketName == "" {
-		return nil, errors.New("MINIO_BUCKET_NAME is required")
-	}
-
-	return &yamlConfig{
-		ServerPort:       cfg.ServerPort,
-		Signature:        cfg.Signature,
-		PostgresUser:     cfg.PostgresUser,
-		PostgresPass:     cfg.PostgresPass,
-		PostgresDB:       cfg.PostgresDB,
-		PostgresPort:     port,
-		PostgresHost:     cfg.PostgresHost,
-		MigrationsPath:   cfg.MigrationsPath,
-		SessionTokenLife: tokenLife,
-		AuthPass:         cfg.AuthPass,
-		AuthDB:           authDb,
-		AuthPort:         cfg.AuthPort,
-		AuthHost:         cfg.AuthHost,
-		CSRFSecret:       cfg.CSRFSecret,
-		MinioPort:        cfg.MinioPort,
-		MinioHost:        cfg.MinioHost,
-		MinioAccessKey:   cfg.MinioAccessKey,
-		MinioSecretKey:   cfg.MinioSecretKey,
-		MinioBucketName:  cfg.MinioBucketName,
-		MinioUseSSL:      cfg.MinioUseSSL,
-		MinioPublicHost:  cfg.MinioPublicHost,
+	return &MinioConfig{
+		PORT:         port,
+		Host:         host,
+		PublicHost:   publicHost,
+		BucketName:   bucketName,
+		RootUser:     accessKey,
+		RootPassword: secretKey,
+		UseSSL:       useSSL,
 	}, nil
 }
