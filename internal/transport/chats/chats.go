@@ -206,7 +206,7 @@ func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя из сессии
-	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
