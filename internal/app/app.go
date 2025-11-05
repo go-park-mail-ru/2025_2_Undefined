@@ -74,7 +74,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo, minioClient)
-	userHandler := usert.New(userUC, sessionUtils)
+	userHandler := usert.New(userUC, sessionUC, sessionUtils)
 
 	authRepo := authrepo.New(db)
 	authUC := authuc.New(authRepo, userRepo, sessionRepo)
@@ -138,6 +138,8 @@ func NewApp(conf *config.Config) (*App, error) {
 		userRouter.HandleFunc("/user/by-phone", userHandler.GetUserByPhone).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/by-username", userHandler.GetUserByUsername).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/avatar", userHandler.UploadUserAvatar)
+		userRouter.HandleFunc("/session", userHandler.DeleteSession).Methods(http.MethodDelete)
+		userRouter.HandleFunc("/sessions", userHandler.DeleteAllSessionWithoutCurrent).Methods(http.MethodDelete)
 	}
 
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()

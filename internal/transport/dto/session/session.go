@@ -13,3 +13,7 @@ type Session struct {
 	Created_at time.Time `json:"created_at"`
 	Last_seen  time.Time `json:"last_seen"`
 }
+
+type DeleteSession struct {
+	ID uuid.UUID `json:"id"`
+}

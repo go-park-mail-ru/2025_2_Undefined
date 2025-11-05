@@ -85,6 +85,11 @@ definitions:
       type:
         type: string
     type: object
+  dto.DeleteSession:
+    properties:
+      id:
+        type: string
+    type: object
   dto.ErrorDTO:
     properties:
       message:
@@ -690,7 +695,59 @@ paths:
       summary: Регистрация пользователя
       tags:
       - auth
+  /session:
+    delete:
+      consumes:
+      - application/json
+      description: удалить конкретную сессию пользователя
+      parameters:
+      - description: Сессию которую надо удалить
+        in: body
+        name: session
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DeleteSession'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сессия удалена
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не удалось удалить
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: удалить сессию пользователя
+      tags:
+      - user
   /sessions:
+    delete:
+      consumes:
+      - application/json
+      description: удалить сессии пользователя, кроме текущей
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сессии удалены
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не удалось удалить сессии
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: удалить сессии пользователя, кроме текущей
+      tags:
+      - user
     get:
       consumes:
       - application/json
@@ -786,6 +843,8 @@ paths:
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
       summary: Получить информацию о пользователе по номеру телефона
       tags:
       - user
@@ -820,6 +879,8 @@ paths:
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
       summary: Получить информацию о пользователе по имени пользователя
       tags:
       - user

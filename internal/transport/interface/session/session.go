@@ -8,6 +8,15 @@ import (
 )
 
 type SessionUsecase interface {
+	GetSession(sessionID uuid.UUID) (*dto.Session, error)
+	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
+	UpdateSession(sessionID uuid.UUID) error
+	DeleteSession(userID uuid.UUID, sessionID uuid.UUID) error
+	DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error
+}
+
+type SessionUtils interface {
 	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
 	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
+	GetSessionFromCookie(r *http.Request) (uuid.UUID, error)
 }

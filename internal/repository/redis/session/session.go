@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
+	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -241,4 +241,34 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Ses
 	}
 
 	return sessions, nil
+}
+
+func (r *SessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error {
+	const op = "SessionRepository.DeleteAllSessionWithoutCurrent"
+
+	ctx := context.Background()
+	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
+
+	sessionIDs, err := r.client.SMembers(ctx, userSessionsKey).Result()
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
+		log.Printf("Error: %v", wrappedErr)
+		return wrappedErr
+	}
+
+	for _, sessionIDStr := range sessionIDs {
+		sessionID, err := uuid.Parse(sessionIDStr)
+		if err != nil {
+			log.Printf("%s: Warning: invalid session ID %s for user %s: %v", op, sessionIDStr, userID, err)
+			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
+			continue
+		}
+
+		_, err = r.GetSession(sessionID)
+		if err != nil || currentSessionID != sessionID {
+			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
+			continue
+		}
+	}
+	return nil
 }

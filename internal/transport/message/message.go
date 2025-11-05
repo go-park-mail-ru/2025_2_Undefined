@@ -11,7 +11,7 @@ import (
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
 	interfaceMessageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/message"
-	interfaceSessionUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
+	interfaceSessionUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -41,14 +41,14 @@ var upgrader = websocket.Upgrader{
 type MessageHandler struct {
 	messageUsecase interfaceMessageUsecase.MessageUsecase
 	chatsUsecase   interfaceChatsUsecase.ChatsUsecase
-	sessionUsecase interfaceSessionUsecase.SessionUsecase
+	sessionUtils interfaceSessionUtils.SessionUtils
 }
 
-func NewMessageHandler(messageUsecase interfaceMessageUsecase.MessageUsecase, chatsUsecase interfaceChatsUsecase.ChatsUsecase, sessionUsecase interfaceSessionUsecase.SessionUsecase) *MessageHandler {
+func NewMessageHandler(messageUsecase interfaceMessageUsecase.MessageUsecase, chatsUsecase interfaceChatsUsecase.ChatsUsecase, sessionUtils interfaceSessionUtils.SessionUtils) *MessageHandler {
 	return &MessageHandler{
 		messageUsecase: messageUsecase,
 		chatsUsecase:   chatsUsecase,
-		sessionUsecase: sessionUsecase,
+		sessionUtils: sessionUtils,
 	}
 }
 
@@ -96,7 +96,7 @@ func NewMessageHandler(messageUsecase interfaceMessageUsecase.MessageUsecase, ch
 // @Router       /message/ws [get]
 func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	const op = "MessageHandler.HandleMessages"
-	userID, err := h.sessionUsecase.GetUserIDFromSession(r)
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
 	if err != nil {
 		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return

@@ -695,6 +695,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/session": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "удалить конкретную сессию пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "удалить сессию пользователя",
+                "parameters": [
+                    {
+                        "description": "Сессию которую надо удалить",
+                        "name": "session",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DeleteSession"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "сессия удалена"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Не удалось удалить",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/sessions": {
             "get": {
                 "security": [
@@ -731,6 +779,41 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "удалить сессии пользователя, кроме текущей",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "удалить сессии пользователя, кроме текущей",
+                "responses": {
+                    "200": {
+                        "description": "сессии удалены"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Не удалось удалить сессии",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -798,6 +881,11 @@ const docTemplate = `{
         },
         "/user/by-phone": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает полные данные о пользователе по указанному номеру телефона",
                 "consumes": [
                     "application/json"
@@ -850,6 +938,11 @@ const docTemplate = `{
         },
         "/user/by-username": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Возвращает полные данные о пользователе по указанному имени пользователя",
                 "consumes": [
                     "application/json"
@@ -1025,6 +1118,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DeleteSession": {
+            "type": "object",
+            "properties": {
+                "id": {
                     "type": "string"
                 }
             }

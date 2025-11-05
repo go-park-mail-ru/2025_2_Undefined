@@ -79,3 +79,23 @@ func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, er
 
 	return sessions, nil
 }
+
+func (s *SessionUtils) GetSessionFromCookie(r *http.Request) (uuid.UUID, error) {
+	const op = "SessionUtils.GetSessionFromCookie"
+
+	sessionCookie, err := r.Cookie(s.sessionConfig.Signature)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
+		log.Printf("Error: %v", wrappedErr)
+		return uuid.Nil, errors.New("session required")
+	}
+
+	sessionID, err := uuid.Parse(sessionCookie.Value)
+	if err != nil {
+		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session ID"))
+		log.Printf("Error: %v", wrappedErr)
+		return uuid.Nil, errors.New("invalid session ID")
+	}
+
+	return sessionID, nil
+}
