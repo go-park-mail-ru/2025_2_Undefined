@@ -264,10 +264,17 @@ func (r *SessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, cur
 			continue
 		}
 
-		_, err = r.GetSession(sessionID)
-		if err != nil || currentSessionID != sessionID {
-			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
-			continue
+		if currentSessionID != sessionID {
+			sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
+			
+			pipe := r.client.Pipeline()
+			pipe.Del(ctx, sessionKey)
+			pipe.SRem(ctx, userSessionsKey, sessionIDStr)
+			
+			_, err = pipe.Exec(ctx)
+			if err != nil {
+				log.Printf("%s: Warning: failed to delete session %s for user %s: %v", op, sessionID, userID, err)
+			}
 		}
 	}
 	return nil
