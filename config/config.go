@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -252,7 +253,7 @@ func newMinioConfig() (*MinioConfig, error) {
 		return nil, errors.New("invalid MINIO_USE_SSL value")
 	}
 
-	return &MinioConfig{
+	cfg := &MinioConfig{
 		PORT:         port,
 		Host:         host,
 		PublicHost:   publicHost,
@@ -260,5 +261,9 @@ func newMinioConfig() (*MinioConfig, error) {
 		RootUser:     accessKey,
 		RootPassword: secretKey,
 		UseSSL:       useSSL,
-	}, nil
+	}
+
+	log.Printf("minio config is %v", cfg)
+
+	return cfg, nil
 }
