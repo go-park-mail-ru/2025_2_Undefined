@@ -88,7 +88,7 @@ $$ LANGUAGE plpgsql;
 
 -- Триггер на INSERT/UPDATE/DELETE в таблице chat_member
 CREATE TRIGGER check_dialog_members_trigger
-    AFTER INSERT OR UPDATE OR DELETE ON chat_member
+    AFTER INSERT OR UPDATE ON chat_member
     FOR EACH ROW
     EXECUTE FUNCTION check_dialog_constraints();
 
