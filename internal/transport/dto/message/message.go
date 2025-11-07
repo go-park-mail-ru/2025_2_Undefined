@@ -7,6 +7,7 @@ import (
 )
 
 type MessageDTO struct {
+	SenderID        uuid.UUID `json:"sender_id"`
 	SenderName      string    `json:"sender_name" swaggertype:"string"`
 	SenderAvatarURL string    `json:"sender_avatar_url,omitempty" swaggertype:"string"`
 	Text            string    `json:"text"`

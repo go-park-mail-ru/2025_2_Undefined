@@ -92,6 +92,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 			}
 
 			chatDTO.LastMessage = dtoMessage.MessageDTO{
+				SenderID:        lastMsg.UserID,
 				SenderName:      lastMsg.UserName,
 				Text:            lastMsg.Text,
 				CreatedAt:       lastMsg.CreatedAt,
@@ -141,6 +142,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 		}
 
 		messagesDTO[i] = dtoMessage.MessageDTO{
+			SenderID:        message.UserID,
 			SenderName:      message.UserName,
 			Text:            message.Text,
 			CreatedAt:       message.CreatedAt,
