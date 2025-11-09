@@ -1,46 +1,32 @@
 package models
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
 const (
-	ChatChannel int = iota
-	ChatDialog
-	ChatGroup
+	ChatTypeChannel = "channel"
+	ChatTypeDialog  = "dialog"
+	ChatTypeGroup   = "group"
 )
 
 const (
-	RoleAdmin int = iota
-	RoleMember
-	RoleViewer
-)
-
-const (
-	UserMessage int = iota
-	SystemMessage
+	RoleAdmin  = "admin"
+	RoleMember = "writer"
+	RoleViewer = "viewer"
 )
 
 type Chat struct {
-	ID          uuid.UUID `json:"id"`
-	Type        int       `json:"type"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-}
-
-type Message struct {
-	ID        uuid.UUID `json:"-"`
-	ChatID    uuid.UUID `json:"-"`
-	UserID    uuid.UUID `json:"sender"`
-	Text      string    `json:"text"`
-	CreatedAt time.Time `json:"created_at"`
-	Type      int
+	ID          uuid.UUID
+	Type        string
+	Name        string
+	Description string
 }
 
 type UserInfo struct {
-	UserID uuid.UUID `json:"user_id"`
-	ChatID uuid.UUID `json:"-"`
-	Role   int       `json:"role"`
+	UserID       uuid.UUID
+	ChatID       uuid.UUID
+	UserName     string
+	UserAvatarID *uuid.UUID
+	Role         string
 }

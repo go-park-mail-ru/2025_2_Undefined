@@ -1,25 +1,47 @@
 basePath: /api/v1
 definitions:
+  dto.AddChatMemberDTO:
+    properties:
+      role:
+        description: Роль пользователя в чате - админ(писать и добавлять участников),
+          участник(писать), зритель (только просмотр)
+        type: string
+      user_id:
+        format: uuid
+        type: string
+    type: object
+  dto.AddUsersToChatDTO:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/dto.AddChatMemberDTO'
+        type: array
+    type: object
+  dto.AuthResponse:
+    properties:
+      csrf_token:
+        type: string
+    type: object
   dto.ChatCreateInformationDTO:
     properties:
       members:
         items:
-          $ref: '#/definitions/dto.UserInfoChatDTO'
+          $ref: '#/definitions/dto.AddChatMemberDTO'
         type: array
       name:
         type: string
       type:
-        description: Тип чата - 0 канал, 1 диалог, 2 группа
-        enum:
-        - 0
-        - 1
-        - 2
-        type: integer
+        description: Тип чата - канал, диалог или группа
+        type: string
     type: object
   dto.ChatDetailedInformationDTO:
     properties:
+      avatar_url:
+        type: string
       can_chat:
         type: boolean
+      description:
+        type: string
       id:
         format: uuid
         type: string
@@ -35,24 +57,63 @@ definitions:
         type: array
       messages:
         items:
-          $ref: '#/definitions/dto.MessageDTO'
+          type: object
         type: array
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.ChatUpdateDTO:
+    properties:
+      description:
+        type: string
       name:
         type: string
     type: object
   dto.ChatViewInformationDTO:
     properties:
+      avatar_url:
+        type: string
       id:
         format: uuid
         type: string
       last_message:
-        $ref: '#/definitions/dto.MessageDTO'
+        type: object
       name:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.DeleteSession:
+    properties:
+      id:
         type: string
     type: object
   dto.ErrorDTO:
     properties:
       message:
+        type: string
+    type: object
+  dto.GetContactsDTO:
+    properties:
+      contact:
+        $ref: '#/definitions/dto.User'
+      created_at:
+        type: string
+      update_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.GetUserByPhone:
+    properties:
+      phone_number:
+        type: string
+    type: object
+  dto.GetUserByUsername:
+    properties:
+      username:
         type: string
     type: object
   dto.IdDTO:
@@ -61,28 +122,80 @@ definitions:
         format: uuid
         type: string
     type: object
-  dto.MessageDTO:
+  dto.LoginRequest:
+    properties:
+      password:
+        type: string
+      phone_number:
+        type: string
+    required:
+    - password
+    - phone_number
+    type: object
+  dto.PostContactDTO:
+    properties:
+      contact_id:
+        type: string
+    type: object
+  dto.RegisterRequest:
+    properties:
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone_number:
+        type: string
+    required:
+    - name
+    - password
+    - phone_number
+    type: object
+  dto.Session:
     properties:
       created_at:
         type: string
-      sender:
+      device:
+        type: string
+      id:
+        type: string
+      last_seen:
+        type: string
+    type: object
+  dto.User:
+    properties:
+      account_type:
+        type: string
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      created_at:
+        type: string
+      id:
         format: uuid
         type: string
-      string:
+      name:
+        type: string
+      phone_number:
+        type: string
+      updated_at:
+        type: string
+      username:
         type: string
     type: object
   dto.UserInfoChatDTO:
     properties:
       role:
-        description: Роль пользователя в чате - 0 админ(писать и добавлять участников),
-          1 участник(писать), 2 зритель (только просмотр)
-        enum:
-        - 0
-        - 1
-        - 2
-        type: integer
+        description: Роль пользователя в чате - админ(писать и добавлять участников),
+          участник(писать), зритель (только просмотр)
+        type: string
+      user_avatar:
+        type: string
       user_id:
         format: uuid
+        type: string
+      user_name:
         type: string
     type: object
   dto.ValidationErrorDTO:
@@ -100,60 +213,6 @@ definitions:
         type: array
       message:
         type: string
-    type: object
-  models.LoginRequest:
-    properties:
-      password:
-        type: string
-      phone_number:
-        type: string
-    required:
-    - password
-    - phone_number
-    type: object
-  models.RegisterRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        minLength: 6
-        type: string
-      phone_number:
-        type: string
-      username:
-        type: string
-    required:
-    - email
-    - name
-    - password
-    - phone_number
-    - username
-    type: object
-  models.User:
-    properties:
-      account_type:
-        type: integer
-      bio:
-        type: string
-      created_at:
-        type: string
-      email:
-        type: string
-      id:
-        format: uuid
-        type: string
-      name:
-        type: string
-      phone_number:
-        type: string
-      updated_at:
-        type: string
-      username:
-        type: string
-    required:
-    - email
     type: object
 host: localhost:8080
 info:
@@ -202,6 +261,11 @@ paths:
       - application/json
       description: Создает новый чат с указанными участниками и настройками
       parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       - description: Данные для создания чата
         in: body
         name: chat
@@ -229,6 +293,49 @@ paths:
       tags:
       - chats
   /chats/{chatId}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет существующий чат. Только администратор чата может удалить
+        чат.
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для удаления чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Удалить чат
+      tags:
+      - chats
     get:
       consumes:
       - application/json
@@ -256,29 +363,231 @@ paths:
           description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не существует такого чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
       security:
       - ApiKeyAuth: []
       summary: Получить информацию о чате
       tags:
       - chats
+    patch:
+      consumes:
+      - application/json
+      description: Позволяет администратору изменить название и описание чата
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Поля для обновления чата
+        in: body
+        name: chat
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChatUpdateDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для изменения чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить чат
+      tags:
+      - chats
+  /chats/{chatId}/members:
+    patch:
+      consumes:
+      - application/json
+      description: Добавляет указанных пользователей в существующий чат
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Список пользователей для добавления
+        in: body
+        name: users
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddUsersToChatDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Добавить пользователей в чат
+      tags:
+      - chats
+  /chats/dialog/{otherUserId}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о личном чате между авторизованным пользователем
+        и указанным пользователем. Если чата нет — возвращается ошибку.
+      parameters:
+      - description: ID другого пользователя
+        format: uuid
+        in: path
+        name: otherUserId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о личном чате
+          schema:
+            $ref: '#/definitions/dto.IdDTO'
+        "400":
+          description: Некорректный ID пользователя
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить личный диалог с пользователем
+      tags:
+      - chats
+  /contacts:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех контактов текущего пользователя с полной
+        информацией о пользователях
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список контактов успешно получен
+          schema:
+            items:
+              $ref: '#/definitions/dto.GetContactsDTO'
+            type: array
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получение списка контактов
+      tags:
+      - contacts
+    post:
+      consumes:
+      - application/json
+      description: Добавляет нового пользователя в список контактов текущего пользователя
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Данные контакта для добавления
+        in: body
+        name: contact
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PostContactDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Контакт успешно добавлен
+        "400":
+          description: Неверные данные запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Добавление контакта
+      tags:
+      - contacts
   /login:
     post:
       consumes:
       - application/json
-      description: Аутентифицирует пользователя по номеру телефона и паролю, возвращает
-        JWT токен в cookie
+      description: Аутентифицирует пользователя по номеру телефона и паролю, создает
+        сессию
       parameters:
       - description: Креденшиалы для входа
         in: body
         name: credentials
         required: true
         schema:
-          $ref: '#/definitions/models.LoginRequest'
+          $ref: '#/definitions/dto.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Вход выполнен успешно
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
         "400":
           description: Ошибки валидации
           schema:
@@ -294,7 +603,13 @@ paths:
     post:
       consumes:
       - application/json
-      description: Аннулирует текущий JWT токен и удаляет cookie
+      description: Аннулирует текущую сессию и удаляет cookie
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -320,7 +635,7 @@ paths:
         "200":
           description: Информация о пользователе
           schema:
-            $ref: '#/definitions/models.User'
+            $ref: '#/definitions/dto.User'
         "401":
           description: Неавторизованный доступ
           schema:
@@ -329,25 +644,81 @@ paths:
       - ApiKeyAuth: []
       summary: Получить информацию о текущем пользователе
       tags:
-      - auth
+      - user
+  /message/ws:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.
+        После установки соединения клиент может отправлять сообщения в формате CreateMessageDTO
+        и получать уведомления о новых сообщениях в формате MessageDTO.
+
+        **Протокол WebSocket:**
+
+        **Отправка сообщения (клиент → сервер):**
+        ```json
+        {
+        "text": "Текст сообщения",
+        "created_at": "2025-01-15T10:30:00Z",
+        "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+        }
+        ```
+
+        **Получение сообщения (сервер → клиент):**
+        ```json
+        {
+        "sender_name": "Имя отправителя",
+        "sender_avatar": "https://example.com/avatar.jpg",
+        "text": "Текст сообщения",
+        "created_at": "2025-01-15T10:30:00Z",
+        "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+        }
+        ```
+
+        **Обработка ошибок:**
+        ```json
+        {
+        "error": "Описание ошибки"
+        }
+        ```
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: WebSocket соединение установлено
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Ошибка сервера при установке WebSocket соединения
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - Cookie: []
+      summary: Установить WebSocket соединение для сообщений
+      tags:
+      - messages
   /register:
     post:
       consumes:
       - application/json
-      description: Регистрирует нового пользователя в системе и возвращает JWT токен
-        в cookie
+      description: Регистрирует нового пользователя в системе и создает сессию
       parameters:
       - description: Данные для регистрации
         in: body
         name: user
         required: true
         schema:
-          $ref: '#/definitions/models.RegisterRequest'
+          $ref: '#/definitions/dto.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Пользователь успешно зарегистрирован
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
         "400":
           description: Ошибки валидации
           schema:
@@ -355,4 +726,219 @@ paths:
       summary: Регистрация пользователя
       tags:
       - auth
+  /session:
+    delete:
+      consumes:
+      - application/json
+      description: удалить конкретную сессию пользователя
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Сессию которую надо удалить
+        in: body
+        name: session
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DeleteSession'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сессия удалена
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не удалось удалить
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: удалить сессию пользователя
+      tags:
+      - user
+  /sessions:
+    delete:
+      consumes:
+      - application/json
+      description: удалить сессии пользователя, кроме текущей
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: сессии удалены
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Не удалось удалить сессии
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: удалить сессии пользователя, кроме текущей
+      tags:
+      - user
+    get:
+      consumes:
+      - application/json
+      description: Возвращает все активные сессии текущего авторизованного пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список сессий пользователя
+          schema:
+            items:
+              $ref: '#/definitions/dto.Session'
+            type: array
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить список сессий пользователя
+      tags:
+      - user
+  /user/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Позволяет текущему авторизованному пользователю загрузить или обновить
+        свой аватар
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Файл аватара
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL загруженного аватара
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Ошибка загрузки файла
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить аватар пользователя
+      tags:
+      - user
+  /user/by-phone:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает полные данные о пользователе по указанному номеру телефона
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Запрос с номером телефона
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetUserByPhone'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о пользователе
+          schema:
+            $ref: '#/definitions/dto.User'
+        "400":
+          description: Неверный формат номера телефона
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить информацию о пользователе по номеру телефона
+      tags:
+      - user
+  /user/by-username:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает полные данные о пользователе по указанному имени пользователя
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Запрос с именем пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetUserByUsername'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о пользователе
+          schema:
+            $ref: '#/definitions/dto.User'
+        "400":
+          description: Неверный формат имени пользователя
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить информацию о пользователе по имени пользователя
+      tags:
+      - user
 swagger: "2.0"

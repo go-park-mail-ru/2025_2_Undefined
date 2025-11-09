@@ -1,9 +1,6 @@
 package domains
 
 type (
-	UserIDKey struct{}
-)
-
-const (
-	TokenCookieName = "token"
+	UserIDKey        struct{}
+	ContextKeyLogger struct{}
 )
