@@ -96,6 +96,13 @@ generate-mocks:
 	@echo "Генерация моков через go generate..."
 	go generate ./...
 
+CONFIG_SOURCE=config.yml
+ENV_FILE=.env
+
 create-env:
-	touch .env
-	cp config.yml .env
+	@if [ -f $(ENV_FILE) ]; then \
+		echo "$(ENV_FILE) already exists. Removing old version..."; \
+		rm $(ENV_FILE); \
+	fi
+	cp $(CONFIG_SOURCE) $(ENV_FILE)
+	@echo "Created $(ENV_FILE) from $(CONFIG_SOURCE)"
