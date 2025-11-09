@@ -1,15 +1,14 @@
 package redis
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
+	"github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -18,14 +17,14 @@ const (
 )
 
 type SessionRepository struct {
-	client *redis.Client
-	ttl    time.Duration // время жизни сессии
+	pool *redis.Pool
+	ttl  int // время жизни сессии в секундах
 }
 
-func New(client *redis.Client, sessionTTL time.Duration) *SessionRepository {
+func New(pool *redis.Pool, sessionTTL time.Duration) *SessionRepository {
 	return &SessionRepository{
-		client: client,
-		ttl:    sessionTTL,
+		pool: pool,
+		ttl:  int(sessionTTL.Seconds()),
 	}
 }
 
@@ -57,19 +56,21 @@ func (r *SessionRepository) AddSession(userID uuid.UUID, device string) (uuid.UU
 		return uuid.Nil, wrappedErr
 	}
 
-	ctx := context.Background()
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
-	pipe := r.client.Pipeline()
+	// Используем MULTI/EXEC для транзакции
+	conn.Send("MULTI")
+	conn.Send("SETEX", sessionKey, r.ttl, sessionJSON)
+	conn.Send("SADD", userSessionsKey, sessionID.String())
+	conn.Send("EXPIRE", userSessionsKey, r.ttl)
+	_, err = conn.Do("EXEC")
 
-	pipe.Set(ctx, sessionKey, sessionJSON, r.ttl)
-	pipe.SAdd(ctx, userSessionsKey, sessionID.String())
-	pipe.Expire(ctx, userSessionsKey, r.ttl)
-
-	_, err = pipe.Exec(ctx)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
+		wrappedErr := fmt.Errorf("%s: failed to execute redis transaction: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return uuid.Nil, wrappedErr
 	}
@@ -80,13 +81,15 @@ func (r *SessionRepository) AddSession(userID uuid.UUID, device string) (uuid.UU
 func (r *SessionRepository) DeleteSession(sessionID uuid.UUID) error {
 	const op = "SessionRepository.DeleteSession"
 
-	ctx := context.Background()
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	// Сначала получаем данные сессии, чтобы узнать user_id
-	sessionJSON, err := r.client.Get(ctx, sessionKey).Result()
+	sessionJSON, err := redis.String(conn.Do("GET", sessionKey))
 	if err != nil {
-		if err == redis.Nil {
+		if err == redis.ErrNil {
 			return fmt.Errorf("%s: session not found", op)
 		}
 		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
@@ -104,13 +107,13 @@ func (r *SessionRepository) DeleteSession(sessionID uuid.UUID) error {
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, data.UserID.String())
 
 	// Удаляем сессию и убираем её из списка пользователя
-	pipe := r.client.Pipeline()
-	pipe.Del(ctx, sessionKey)
-	pipe.SRem(ctx, userSessionsKey, sessionID.String())
+	conn.Send("MULTI")
+	conn.Send("DEL", sessionKey)
+	conn.Send("SREM", userSessionsKey, sessionID.String())
+	_, err = conn.Do("EXEC")
 
-	_, err = pipe.Exec(ctx)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
+		wrappedErr := fmt.Errorf("%s: failed to execute redis transaction: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return wrappedErr
 	}
@@ -121,12 +124,14 @@ func (r *SessionRepository) DeleteSession(sessionID uuid.UUID) error {
 func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
 	const op = "SessionRepository.UpdateSession"
 
-	ctx := context.Background()
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
-	sessionJSON, err := r.client.Get(ctx, sessionKey).Result()
+	sessionJSON, err := redis.String(conn.Do("GET", sessionKey))
 	if err != nil {
-		if err == redis.Nil {
+		if err == redis.ErrNil {
 			return fmt.Errorf("%s: session not found", op)
 		}
 		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
@@ -153,15 +158,13 @@ func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
 
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, data.UserID.String())
 
-	pipe := r.client.Pipeline()
+	conn.Send("MULTI")
+	conn.Send("SETEX", sessionKey, r.ttl, updatedJSON)
+	conn.Send("EXPIRE", userSessionsKey, r.ttl)
+	_, err = conn.Do("EXEC")
 
-	// Обновляем данные сессии и продлеваем TTL
-	pipe.Set(ctx, sessionKey, updatedJSON, r.ttl)
-	pipe.Expire(ctx, userSessionsKey, r.ttl)
-
-	_, err = pipe.Exec(ctx)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
+		wrappedErr := fmt.Errorf("%s: failed to execute redis transaction: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
 		return wrappedErr
 	}
@@ -172,12 +175,14 @@ func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
 func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*models.Session, error) {
 	const op = "SessionRepository.GetSession"
 
-	ctx := context.Background()
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
-	sessionJSON, err := r.client.Get(ctx, sessionKey).Result()
+	sessionJSON, err := redis.String(conn.Do("GET", sessionKey))
 	if err != nil {
-		if err == redis.Nil {
+		if err == redis.ErrNil {
 			return nil, fmt.Errorf("%s: session not found", op)
 		}
 		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
@@ -206,11 +211,13 @@ func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*models.Session, er
 func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Session, error) {
 	const op = "SessionRepository.GetSessionsByUserID"
 
-	ctx := context.Background()
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
 	// Получаем все ID сессий пользователя
-	sessionIDs, err := r.client.SMembers(ctx, userSessionsKey).Result()
+	sessionIDs, err := redis.Strings(conn.Do("SMEMBERS", userSessionsKey))
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -226,14 +233,14 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Ses
 		sessionID, err := uuid.Parse(sessionIDStr)
 		if err != nil {
 			log.Printf("%s: Warning: invalid session ID %s for user %s: %v", op, sessionIDStr, userID, err)
-			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
+			conn.Do("SREM", userSessionsKey, sessionIDStr)
 			continue
 		}
 
 		sess, err := r.GetSession(sessionID)
 		if err != nil {
 			log.Printf("%s: Warning: failed to get session %s for user %s: %v", op, sessionID, userID, err)
-			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
+			conn.Do("SREM", userSessionsKey, sessionIDStr)
 			continue
 		}
 
@@ -246,10 +253,12 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Ses
 func (r *SessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error {
 	const op = "SessionRepository.DeleteAllSessionWithoutCurrent"
 
-	ctx := context.Background()
+	conn := r.pool.Get()
+	defer conn.Close()
+
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
-	sessionIDs, err := r.client.SMembers(ctx, userSessionsKey).Result()
+	sessionIDs, err := redis.Strings(conn.Do("SMEMBERS", userSessionsKey))
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
 		log.Printf("Error: %v", wrappedErr)
@@ -260,7 +269,7 @@ func (r *SessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, cur
 		sessionID, err := uuid.Parse(sessionIDStr)
 		if err != nil {
 			log.Printf("%s: Warning: invalid session ID %s for user %s: %v", op, sessionIDStr, userID, err)
-			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
+			conn.Do("SREM", userSessionsKey, sessionIDStr)
 			continue
 		}
 

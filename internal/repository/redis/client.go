@@ -1,31 +1,55 @@
 package redis
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
-	"github.com/redis/go-redis/v9"
+	"github.com/gomodule/redigo/redis"
 )
 
 type Client struct {
-	*redis.Client
+	Pool *redis.Pool
 }
 
 func NewClient(cfg *config.RedisConfig) (*Client, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		Password: cfg.Password,
-		DB:       cfg.DB,
-	})
+	pool := &redis.Pool{
+		MaxIdle:     10,
+		MaxActive:   100,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			conn, err := redis.Dial("tcp", fmt.Sprintf("%s:%s", cfg.Host, cfg.Port))
+			if err != nil {
+				return nil, err
+			}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+			if cfg.Password != "" {
+				if _, err := conn.Do("AUTH", cfg.Password); err != nil {
+					conn.Close()
+					return nil, err
+				}
+			}
 
-	if _, err := rdb.Ping(ctx).Result(); err != nil {
+			if _, err := conn.Do("SELECT", cfg.DB); err != nil {
+				conn.Close()
+				return nil, err
+			}
+
+			return conn, nil
+		},
+		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+			_, err := c.Do("PING")
+			return err
+		},
+	}
+
+	// Тестируем соединение
+	conn := pool.Get()
+	defer conn.Close()
+
+	if _, err := conn.Do("PING"); err != nil {
 		return nil, fmt.Errorf("failed to connect to redis: %v", err)
 	}
 
-	return &Client{rdb}, nil
+	return &Client{Pool: pool}, nil
 }

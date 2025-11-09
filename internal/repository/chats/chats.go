@@ -2,15 +2,16 @@ package repository
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
-	"strings"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -103,18 +104,30 @@ const (
 			WHERE user_id = $1 AND chat_id = $2 AND chat_member_role = $3::chat_member_role_enum
 		)`
 
+	createChatQuery = `
+		INSERT INTO chat (id, chat_type, name, description) 
+		VALUES ($1, $2::chat_type_enum, $3, $4)`
+
+	insertChatMemberQuery = `
+		INSERT INTO chat_member (user_id, chat_id, chat_member_role) 
+		VALUES ($1, $2, $3::chat_member_role_enum)`
+
+	insertSystemMessageQuery = `
+		INSERT INTO message (chat_id, user_id, text, message_type) 
+		VALUES ($1, $2, $3, $4::message_type_enum)`
+
 	deleteChatQuery = `DELETE FROM chat WHERE id = $1`
 
 	updateChatQuery = `UPDATE chat SET name = $1, description = $2 WHERE id = $3`
 )
 
 type ChatsRepository struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func NewChatsRepository(db *sql.DB) *ChatsRepository {
+func NewChatsRepository(pool *pgxpool.Pool) *ChatsRepository {
 	return &ChatsRepository{
-		db: db,
+		pool: pool,
 	}
 }
 
@@ -124,10 +137,10 @@ func (r *ChatsRepository) GetChats(ctx context.Context, userId uuid.UUID) ([]mod
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String())
 	logger.Debug("Starting database operation: get user chats")
 
-	rows, err := r.db.Query(getChatsQuery, userId)
+	rows, err := r.pool.Query(ctx, getChatsQuery, userId)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get user chats query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get user chats: %w", err)
 	}
 	defer rows.Close()
 
@@ -136,10 +149,15 @@ func (r *ChatsRepository) GetChats(ctx context.Context, userId uuid.UUID) ([]mod
 		var chat modelsChats.Chat
 		if err := rows.Scan(&chat.ID, &chat.Type, &chat.Name, &chat.Description); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan chat row")
-			return nil, err
+			return nil, fmt.Errorf("failed to scan chat row: %w", err)
 		}
 
 		result = append(result, chat)
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.WithError(err).Error("Database operation failed: rows iteration error")
+		return nil, fmt.Errorf("failed to iterate over rows: %w", err)
 	}
 
 	logger.WithField("chats_count", len(result)).Info("Database operation completed successfully: user chats retrieved")
@@ -152,10 +170,10 @@ func (r *ChatsRepository) GetLastMessagesOfChats(ctx context.Context, userId uui
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String())
 	logger.Debug("Starting database operation: get last messages of user chats")
 
-	rows, err := r.db.Query(getLastMessagesOfChatsQuery, userId)
+	rows, err := r.pool.Query(ctx, getLastMessagesOfChatsQuery, userId)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get last messages query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get last messages: %w", err)
 	}
 	defer rows.Close()
 
@@ -166,10 +184,15 @@ func (r *ChatsRepository) GetLastMessagesOfChats(ctx context.Context, userId uui
 			&message.UserAvatarID, &message.Text, &message.CreatedAt,
 			&message.Type); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan message row")
-			return nil, err
+			return nil, fmt.Errorf("failed to scan message row: %w", err)
 		}
 
 		result = append(result, message)
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.WithError(err).Error("Database operation failed: rows iteration error")
+		return nil, fmt.Errorf("failed to iterate over rows: %w", err)
 	}
 
 	logger.WithField("messages_count", len(result)).Info("Database operation completed successfully: last messages retrieved")
@@ -184,11 +207,15 @@ func (r *ChatsRepository) GetChat(ctx context.Context, userId, chatId uuid.UUID)
 
 	chat := &modelsChats.Chat{}
 
-	err := r.db.QueryRow(getChatQuery, userId, chatId).
+	err := r.pool.QueryRow(ctx, getChatQuery, userId, chatId).
 		Scan(&chat.ID, &chat.Type, &chat.Name, &chat.Description)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Debug("Database operation completed: chat not found")
+			return nil, fmt.Errorf("chat not found")
+		}
 		logger.WithError(err).Error("Database operation failed: get chat query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get chat: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: chat retrieved")
@@ -201,10 +228,10 @@ func (r *ChatsRepository) GetUsersOfChat(ctx context.Context, chatId uuid.UUID) 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatId.String())
 	logger.Debug("Starting database operation: get chat users")
 
-	rows, err := r.db.Query(getUsersOfChat, chatId)
+	rows, err := r.pool.Query(ctx, getUsersOfChat, chatId)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get chat users query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get chat users: %w", err)
 	}
 	defer rows.Close()
 
@@ -214,10 +241,15 @@ func (r *ChatsRepository) GetUsersOfChat(ctx context.Context, chatId uuid.UUID) 
 		if err := rows.Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.UserName,
 			&userInfo.UserAvatarID, &userInfo.Role); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan user info row")
-			return nil, err
+			return nil, fmt.Errorf("failed to scan user info row: %w", err)
 		}
 
 		result = append(result, userInfo)
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.WithError(err).Error("Database operation failed: rows iteration error")
+		return nil, fmt.Errorf("failed to iterate over rows: %w", err)
 	}
 
 	logger.WithField("users_count", len(result)).Info("Database operation completed successfully: chat users retrieved")
@@ -230,10 +262,10 @@ func (r *ChatsRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.UUI
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatId.String()).WithField("offset", offset).WithField("limit", limit)
 	logger.Debug("Starting database operation: get chat messages")
 
-	rows, err := r.db.Query(getMessagesOfChatQuery, chatId, offset, limit)
+	rows, err := r.pool.Query(ctx, getMessagesOfChatQuery, chatId, offset, limit)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get chat messages query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get chat messages: %w", err)
 	}
 	defer rows.Close()
 
@@ -244,11 +276,16 @@ func (r *ChatsRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.UUI
 			&message.UserAvatarID, &message.Text, &message.CreatedAt,
 			&message.Type); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan message row")
-			return nil, err
+			return nil, fmt.Errorf("failed to scan message row: %w", err)
 		}
 
 		message.ChatID = chatId
 		result = append(result, message)
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.WithError(err).Error("Database operation failed: rows iteration error")
+		return nil, fmt.Errorf("failed to iterate over rows: %w", err)
 	}
 
 	logger.WithField("messages_count", len(result)).Info("Database operation completed successfully: chat messages retrieved")
@@ -263,10 +300,14 @@ func (r *ChatsRepository) GetUsersDialog(ctx context.Context, user1ID, user2ID u
 
 	var chatID uuid.UUID
 
-	err := r.db.QueryRow(getUsersDialogQuery, user1ID, user2ID).Scan(&chatID)
+	err := r.pool.QueryRow(ctx, getUsersDialogQuery, user1ID, user2ID).Scan(&chatID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Debug("Database operation completed: dialog not found")
+			return uuid.Nil, fmt.Errorf("dialog not found")
+		}
 		logger.WithError(err).Errorf("error getting dialog users: %s and %s", user1ID.String(), user2ID.String())
-		return uuid.Nil, err
+		return uuid.Nil, fmt.Errorf("failed to get users dialog: %w", err)
 	}
 
 	return chatID, nil
@@ -284,66 +325,61 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 		return err
 	}
 
-	logger.Debug("Starting database transaction")
-	tx, err := r.db.Begin()
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: begin transaction")
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
 
 	// 1. Вставка чата
 	logger.Debug("Executing database query: INSERT chat")
-	_, err = tx.Exec(`INSERT INTO chat (id, chat_type, name, description) 
-        VALUES ($1, $2::chat_type_enum, $3, $4)`,
-		chat.ID, chat.Type, chat.Name, chat.Description)
+	_, err = tx.Exec(ctx, createChatQuery, chat.ID, chat.Type, chat.Name, chat.Description)
 	if err != nil {
+		tx.Rollback(ctx)
 		logger.WithError(err).Error("Database operation failed: insert chat")
-		return err
+		return fmt.Errorf("failed to insert chat: %w", err)
 	}
 
 	// 2. Вставка участников чата
-	err = r.insertUsersToChat(ctx, tx, chat.ID, usersInfo)
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: insert chat members")
-		return err
+	for _, userInfo := range usersInfo {
+		_, err := tx.Exec(ctx, insertChatMemberQuery, userInfo.UserID, chat.ID, userInfo.Role)
+		if err != nil {
+			tx.Rollback(ctx)
+			logger.WithError(err).Error("Database operation failed: insert chat member")
+			return fmt.Errorf("failed to insert chat member: %w", err)
+		}
 	}
 
 	// 3. Вставка системных сообщений
-	query := `INSERT INTO message (chat_id, user_id, text, message_type) VALUES `
-	values := []interface{}{}
-	placeholders := []string{}
-
 	if chat.Type == modelsChats.ChatTypeDialog {
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
-			len(values)+1, len(values)+2, len(values)+3, len(values)+4))
 		text := "Чат создан"
-		values = append(values, chat.ID, usersInfo[0].UserID, text, "system")
+		_, err := tx.Exec(ctx, insertSystemMessageQuery, chat.ID, usersInfo[0].UserID, text, "system")
+		if err != nil {
+			tx.Rollback(ctx)
+			logger.WithError(err).Error("Database operation failed: insert system message")
+			return fmt.Errorf("failed to insert system message: %w", err)
+		}
 	} else {
 		for i, userName := range usersNames {
-
-			placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
-				len(values)+1, len(values)+2, len(values)+3, len(values)+4))
 			text := fmt.Sprintf("Пользователь %s вступил в чат", userName)
-			values = append(values, chat.ID, usersInfo[i].UserID, text, "system")
-
+			_, err := tx.Exec(ctx, insertSystemMessageQuery, chat.ID, usersInfo[i].UserID, text, "system")
+			if err != nil {
+				tx.Rollback(ctx)
+				logger.WithError(err).Error("Database operation failed: insert system message")
+				return fmt.Errorf("failed to insert system message: %w", err)
+			}
 		}
 	}
 
-	if len(placeholders) > 0 {
-		query += strings.Join(placeholders, ", ")
-		logger.Debug("Executing database query: INSERT system messages")
-		_, err = tx.Exec(query, values...)
-		if err != nil {
-			logger.WithError(err).Error("Database operation failed: insert system messages")
-			return err
-		}
-	}
-
-	logger.Debug("Committing database transaction")
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		logger.WithError(err).Error("Database operation failed: commit transaction")
-		return err
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: chat created with transaction")
@@ -358,12 +394,16 @@ func (r *ChatsRepository) GetUserInfo(ctx context.Context, userId, chatId uuid.U
 
 	userInfo := &modelsChats.UserInfo{}
 
-	err := r.db.QueryRow(getUserInfo, userId, chatId).
+	err := r.pool.QueryRow(ctx, getUserInfo, userId, chatId).
 		Scan(&userInfo.UserID, &userInfo.ChatID, &userInfo.UserName,
 			&userInfo.UserAvatarID, &userInfo.Role)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Debug("Database operation completed: user info not found")
+			return nil, fmt.Errorf("user info not found")
+		}
 		logger.WithError(err).Error("Database operation failed: get user info query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: user info retrieved")
@@ -376,52 +416,33 @@ func (r *ChatsRepository) InsertUsersToChat(ctx context.Context, chatID uuid.UUI
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String()).WithField("users_count", len(usersInfo))
 	logger.Debug("Starting database operation: insert users to chat")
 
-	tx, err := r.db.Begin()
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: begin transaction")
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
 
-	err = r.insertUsersToChat(ctx, tx, chatID, usersInfo)
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: insert users to chat")
-		return err
+	for _, userInfo := range usersInfo {
+		_, err := tx.Exec(ctx, insertChatMemberQuery, userInfo.UserID, chatID, userInfo.Role)
+		if err != nil {
+			tx.Rollback(ctx)
+			logger.WithError(err).Error("Database operation failed: insert chat member")
+			return fmt.Errorf("failed to insert chat member: %w", err)
+		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		logger.WithError(err).Error("Database operation failed: commit transaction")
-		return err
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: users inserted to chat")
-
-	return nil
-}
-
-func (r *ChatsRepository) insertUsersToChat(ctx context.Context, tx *sql.Tx, chatID uuid.UUID, usersInfo []modelsChats.UserInfo) error {
-	const op = "ChatsRepository.insertUsersToChat"
-
-	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String()).WithField("users_count", len(usersInfo))
-
-	query := `INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES `
-	values := []interface{}{}
-	placeholders := []string{}
-
-	for _, userInfo := range usersInfo {
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d::chat_member_role_enum)",
-			len(values)+1, len(values)+2, len(values)+3))
-		values = append(values, userInfo.UserID, chatID, userInfo.Role)
-	}
-
-	query += strings.Join(placeholders, ", ")
-	logger.Debug("Executing database query: INSERT chat members")
-	_, err := tx.Exec(query, values...)
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: insert chat members")
-		return err
-	}
-
 	return nil
 }
 
@@ -432,10 +453,10 @@ func (r *ChatsRepository) CheckUserHasRole(ctx context.Context, userId, chatId u
 	logger.Debug("Starting database operation: check user role in chat")
 
 	var hasRole bool
-	err := r.db.QueryRow(checkUserRoleQuery, userId, chatId, role).Scan(&hasRole)
+	err := r.pool.QueryRow(ctx, checkUserRoleQuery, userId, chatId, role).Scan(&hasRole)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: check user role query")
-		return false, err
+		return false, fmt.Errorf("failed to check user role: %w", err)
 	}
 
 	logger.WithField("has_role", hasRole).Info("Database operation completed successfully: user role checked")
@@ -462,19 +483,13 @@ func (r *ChatsRepository) DeleteChat(ctx context.Context, userId, chatId uuid.UU
 	}
 
 	// Удаляем чат (связанные записи удалятся каскадно)
-	result, err := r.db.Exec(deleteChatQuery, chatId)
+	cmdTag, err := r.pool.Exec(ctx, deleteChatQuery, chatId)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: delete chat")
-		return err
+		return fmt.Errorf("failed to delete chat: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: check rows affected")
-		return err
-	}
-
-	if rowsAffected == 0 {
+	if cmdTag.RowsAffected() == 0 {
 		err := fmt.Errorf("chat not found")
 		logger.WithError(err).Error("Database operation failed: chat not found")
 		return err
@@ -503,19 +518,13 @@ func (r *ChatsRepository) UpdateChat(ctx context.Context, userId, chatId uuid.UU
 		return err
 	}
 
-	result, err := r.db.Exec(updateChatQuery, name, description, chatId)
+	cmdTag, err := r.pool.Exec(ctx, updateChatQuery, name, description, chatId)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: update chat")
-		return err
+		return fmt.Errorf("failed to update chat: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: check rows affected")
-		return err
-	}
-
-	if rowsAffected == 0 {
+	if cmdTag.RowsAffected() == 0 {
 		err := fmt.Errorf("chat not found")
 		logger.WithError(err).Error("Database operation failed: chat not found")
 		return err

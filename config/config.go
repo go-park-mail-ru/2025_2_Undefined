@@ -24,9 +24,10 @@ type Config struct {
 type DBConfig struct {
 	User            string
 	Password        string
-	DB              string
+	DBName          string
 	Port            int
 	Host            string
+	SSLMode         string
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
@@ -123,6 +124,10 @@ func newDBConfig() (*DBConfig, error) {
 	dbname, dbExists := os.LookupEnv("POSTGRES_DB")
 	host, hostExists := os.LookupEnv("POSTGRES_HOST")
 	portStr, portExists := os.LookupEnv("POSTGRES_PORT")
+	sslMode := os.Getenv("POSTGRES_SSLMODE")
+	if sslMode == "" {
+		sslMode = "disable"
+	}
 
 	if !userExists || !passwordExists || !dbExists || !hostExists || !portExists {
 		return nil, errors.New("incomplete database configuration")
@@ -136,9 +141,10 @@ func newDBConfig() (*DBConfig, error) {
 	return &DBConfig{
 		User:            user,
 		Password:        password,
-		DB:              dbname,
+		DBName:          dbname,
 		Port:            port,
 		Host:            host,
+		SSLMode:         sslMode,
 		MaxOpenConns:    100,
 		MaxIdleConns:    90,
 		ConnMaxLifetime: 5 * time.Minute,

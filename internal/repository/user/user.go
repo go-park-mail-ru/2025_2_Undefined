@@ -2,15 +2,15 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -47,6 +47,15 @@ const (
         ) latest_avatar ON latest_avatar.user_id = u.id
         WHERE u.id = $1`
 
+	updateUserQuery = `
+		UPDATE "user" 
+		SET name = $2, description = $3
+		WHERE id = $1
+		RETURNING updated_at`
+
+	getUsersNamesQuery = `
+		SELECT name FROM "user" WHERE id = ANY($1)`
+
 	insertUserAvatarInAttachmentTableQuery = `
 		INSERT INTO attachment (id, file_name, file_size, content_disposition)
 		VALUES ($1, $2, $3, $4)`
@@ -57,12 +66,12 @@ const (
 )
 
 type UserRepository struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func New(db *sql.DB) *UserRepository {
+func New(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{
-		db: db,
+		pool: pool,
 	}
 }
 
@@ -73,17 +82,16 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*mod
 	logger.Debug("Starting database operation: get user by phone")
 
 	var user models.User
-	err := r.db.QueryRow(getUserByPhoneQuery, phone).
+	err := r.pool.QueryRow(ctx, getUserByPhoneQuery, phone).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			logger.Debug("Database operation completed: user not found")
-			err = errors.New("user not found")
-			return nil, err
+			return nil, errs.ErrUserNotFound
 		}
 		logger.WithError(err).Error("Database operation failed: get user by phone query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get user by phone: %w", err)
 	}
 
 	logger.WithField("user_id", user.ID.String()).Info("Database operation completed successfully: user found by phone")
@@ -97,17 +105,16 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 	logger.Debug("Starting database operation: get user by username")
 
 	var user models.User
-	err := r.db.QueryRow(getUserByUsernameQuery, username).
+	err := r.pool.QueryRow(ctx, getUserByUsernameQuery, username).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			logger.Debug("Database operation completed: user not found")
-			err = errors.New("user not found")
-			return nil, err
+			return nil, errs.ErrUserNotFound
 		}
 		logger.WithError(err).Error("Database operation failed: get user by username query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get user by username: %w", err)
 	}
 
 	logger.WithField("user_id", user.ID.String()).Info("Database operation completed successfully: user found by username")
@@ -121,21 +128,41 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	logger.Debug("Starting database operation: get user by ID")
 
 	var user models.User
-	err := r.db.QueryRow(getUserByIDQuery, id).
+	err := r.pool.QueryRow(ctx, getUserByIDQuery, id).
 		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			logger.Debug("Database operation completed: user not found")
-			err = errs.ErrUserNotFound
-			return nil, err
+			return nil, errs.ErrUserNotFound
 		}
 		logger.WithError(err).Error("Database operation failed: get user by ID query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: user found by ID")
 	return &user, nil
+}
+
+func (r *UserRepository) UpdateUser(ctx context.Context, userID uuid.UUID, name, description string) error {
+	const op = "UserRepository.UpdateUser"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+	logger.Debug("Starting database operation: update user")
+
+	var updatedAt interface{}
+	err := r.pool.QueryRow(ctx, updateUserQuery, userID, name, description).Scan(&updatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Debug("Database operation completed: user not found")
+			return errs.ErrUserNotFound
+		}
+		logger.WithError(err).Error("Database operation failed: update user")
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	logger.Info("Database operation completed successfully: user updated")
+	return nil
 }
 
 func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error) {
@@ -149,22 +176,10 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 		return []string{}, nil
 	}
 
-	query := `SELECT name FROM "user" WHERE id IN (`
-	placeholders := []string{}
-	args := make([]interface{}, len(usersIds))
-
-	for i, userID := range usersIds {
-		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
-		args[i] = userID
-	}
-
-	query += strings.Join(placeholders, ", ")
-	query += ")"
-
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.pool.Query(ctx, getUsersNamesQuery, usersIds)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get users names query")
-		return nil, err
+		return nil, fmt.Errorf("failed to get users names: %w", err)
 	}
 	defer rows.Close()
 
@@ -173,42 +188,58 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			logger.WithError(err).Error("Database operation failed: scan user name row")
-			return nil, err
+			return nil, fmt.Errorf("failed to scan user name: %w", err)
 		}
 		result = append(result, name)
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.WithError(err).Error("Database operation failed: rows iteration error")
+		return nil, fmt.Errorf("failed to iterate over rows: %w", err)
 	}
 
 	logger.WithField("names_count", len(result)).Info("Database operation completed successfully: users names retrieved")
 	return result, nil
 }
 
-func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, file_size int64) error {
+func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, fileSize int64) error {
 	const op = "UserRepository.UpdateUserAvatar"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
 	logger.Debug("Starting database operation: update user avatar")
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: begin transaction")
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
 
-	_, err = tx.Exec(insertUserAvatarInAttachmentTableQuery, avatarID, "avatar_"+avatarID.String(), file_size, "inline")
+	// Вставляем запись в таблицу attachment
+	_, err = tx.Exec(ctx, insertUserAvatarInAttachmentTableQuery,
+		avatarID, "avatar_"+avatarID.String(), fileSize, "inline")
 	if err != nil {
+		tx.Rollback(ctx)
 		logger.WithError(err).Error("Database operation failed: insert user avatar in attachment table")
-		return err
+		return fmt.Errorf("failed to insert attachment: %w", err)
 	}
 
-	_, err = tx.Exec(insertUserAvatarInUserAvatarTableQuery, userID, avatarID)
+	// Вставляем связь в таблицу avatar_user
+	_, err = tx.Exec(ctx, insertUserAvatarInUserAvatarTableQuery, userID, avatarID)
 	if err != nil {
+		tx.Rollback(ctx)
 		logger.WithError(err).Error("Database operation failed: insert user avatar in user_avatar table")
-		return err
+		return fmt.Errorf("failed to insert user avatar: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		logger.WithError(err).Error("Database operation failed: commit transaction")
-		return err
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: user avatar updated")
