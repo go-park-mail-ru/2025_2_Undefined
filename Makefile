@@ -100,9 +100,9 @@ CONFIG_SOURCE=config.yml
 ENV_FILE=.env
 
 create-env:
-	@if [ -f $(ENV_FILE) ]; then \
-		echo "$(ENV_FILE) already exists. Removing old version..."; \
-		rm $(ENV_FILE); \
+	@if [ ! -f .env ]; then \
+		cp config.yml .env; \
+		echo "Created .env from config.yml"; \
+	else \
+		echo ".env already exists. Skipping..."; \
 	fi
-	cp $(CONFIG_SOURCE) $(ENV_FILE)
-	@echo "Created $(ENV_FILE) from $(CONFIG_SOURCE)"
