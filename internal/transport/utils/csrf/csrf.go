@@ -50,3 +50,26 @@ func ValidateCSRFToken(csrfToken string, sessionID string, secret string, timeou
 	
 	return nil
 }
+
+// GetCSRFTokenTimeLeft возвращает оставшееся время жизни CSRF токена
+func GetCSRFTokenTimeLeft(csrfToken string, timeout time.Duration) (time.Duration, error) {
+	parts := strings.Split(csrfToken, ".")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid CSRF token format")
+	}
+	
+	timestampStr := parts[0]
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid CSRF token timestamp")
+	}
+	
+	tokenTime := time.Unix(timestamp, 0)
+	elapsed := time.Since(tokenTime)
+	
+	if elapsed > timeout {
+		return 0, fmt.Errorf("CSRF token has expired")
+	}
+	
+	return timeout - elapsed, nil
+}

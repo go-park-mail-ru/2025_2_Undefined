@@ -207,3 +207,42 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie.Unset(w, h.sessionConfig.Signature)
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
 }
+
+// RefreshCSRF обновляет CSRF токен для активной сессии
+// @Summary      Обновить CSRF токен
+// @Description  Генерирует новый CSRF токен для текущей сессии пользователя
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  dto.AuthResponse  "Получен свежий CSRF токен"
+// @Failure      401  {object}  dto.ErrorDTO "Неавторизован"
+// @Router       /csrf/refresh [get]
+func (h *AuthHandler) RefreshCSRF(w http.ResponseWriter, r *http.Request) {
+	const op = "AuthHandler.RefreshCSRF"
+
+	_, err := h.sessionUtils.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Session required")
+		return
+	}
+
+	sessionCookie, err := r.Cookie(h.sessionConfig.Signature)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Session cookie required")
+		return
+	}
+
+	sessionID, err := uuid.Parse(sessionCookie.Value)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Invalid session ID")
+		return
+	}
+
+	csrfToken := csrf.GenerateCSRFToken(sessionID.String(), h.csrfConfig.Secret)
+
+	response := AuthDTO.AuthResponse{
+		CSRFToken: csrfToken,
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, response)
+}

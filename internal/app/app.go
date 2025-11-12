@@ -114,6 +114,9 @@ func NewApp(conf *config.Config) (*App, error) {
 		authRouter.Handle("/logout",
 			middleware.AuthMiddleware(conf.SessionConfig, sessionUC)(http.HandlerFunc(authHandler.Logout)),
 		).Methods(http.MethodPost)
+		authRouter.Handle("/csrf/refresh",
+			middleware.AuthMiddleware(conf.SessionConfig, sessionUC)(http.HandlerFunc(authHandler.RefreshCSRF)),
+		).Methods(http.MethodGet)
 	}
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()

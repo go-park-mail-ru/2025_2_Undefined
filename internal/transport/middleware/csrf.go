@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/csrf"
@@ -43,6 +44,12 @@ func CSRFMiddleware(sessionConf *config.SessionConfig, csrfConfig *config.CSRFCo
 			if err != nil {
 				utils.SendError(r.Context(), op, w, http.StatusForbidden, "Invalid CSRF token")
 				return
+			}
+
+			timeLeft, err := csrf.GetCSRFTokenTimeLeft(csrfToken, csrfConfig.Timeout)
+			if err == nil && timeLeft < 15*time.Minute {
+				newCSRFToken := csrf.GenerateCSRFToken(sessionID.String(), csrfConfig.Secret)
+				w.Header().Set("X-CSRF-Refresh", newCSRFToken)
 			}
 
 			next.ServeHTTP(w, r)
