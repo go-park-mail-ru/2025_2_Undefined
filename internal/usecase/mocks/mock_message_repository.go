@@ -36,6 +36,36 @@ func (m *MockMessageRepository) EXPECT() *MockMessageRepositoryMockRecorder {
 	return m.recorder
 }
 
+// GetLastMessagesOfChats mocks base method.
+func (m *MockMessageRepository) GetLastMessagesOfChats(ctx context.Context, userID uuid.UUID) ([]models.Message, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastMessagesOfChats", ctx, userID)
+	ret0, _ := ret[0].([]models.Message)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastMessagesOfChats indicates an expected call of GetLastMessagesOfChats.
+func (mr *MockMessageRepositoryMockRecorder) GetLastMessagesOfChats(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastMessagesOfChats", reflect.TypeOf((*MockMessageRepository)(nil).GetLastMessagesOfChats), ctx, userID)
+}
+
+// GetMessagesOfChat mocks base method.
+func (m *MockMessageRepository) GetMessagesOfChat(ctx context.Context, chatID uuid.UUID, offset, limit int) ([]models.Message, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessagesOfChat", ctx, chatID, offset, limit)
+	ret0, _ := ret[0].([]models.Message)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMessagesOfChat indicates an expected call of GetMessagesOfChat.
+func (mr *MockMessageRepositoryMockRecorder) GetMessagesOfChat(ctx, chatID, offset, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessagesOfChat", reflect.TypeOf((*MockMessageRepository)(nil).GetMessagesOfChat), ctx, chatID, offset, limit)
+}
+
 // InsertMessage mocks base method.
 func (m *MockMessageRepository) InsertMessage(ctx context.Context, msg models.CreateMessage) (uuid.UUID, error) {
 	m.ctrl.T.Helper()

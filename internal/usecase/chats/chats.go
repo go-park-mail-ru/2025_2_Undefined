@@ -10,21 +10,24 @@ import (
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
-	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/chats"
+	interfaceChatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/chats"
+	interfaceMessageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/message"
 	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
-	interfaceUserUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
+	interfaceUserRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
 	"github.com/google/uuid"
 )
 
 type ChatsUsecase struct {
-	chatsRepo   interfaceChatsUsecase.ChatsRepository
-	usersRepo   interfaceUserUsecase.UserRepository
+	chatsRepo   interfaceChatsRepository.ChatsRepository
+	messageRepo interfaceMessageRepository.MessageRepository
+	usersRepo   interfaceUserRepository.UserRepository
 	fileStorage interfaceFileStorage.FileStorage
 }
 
-func NewChatsUsecase(chatsRepo interfaceChatsUsecase.ChatsRepository, usersRepo interfaceUserUsecase.UserRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
+func NewChatsUsecase(chatsRepo interfaceChatsRepository.ChatsRepository, usersRepo interfaceUserRepository.UserRepository, messageRepo interfaceMessageRepository.MessageRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
 	return &ChatsUsecase{
 		chatsRepo:   chatsRepo,
+		messageRepo: messageRepo,
 		usersRepo:   usersRepo,
 		fileStorage: fileStorage,
 	}
@@ -40,7 +43,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 		return nil, err
 	}
 
-	lastMessages, err := uc.chatsRepo.GetLastMessagesOfChats(ctx, userId)
+	lastMessages, err := uc.messageRepo.GetLastMessagesOfChats(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +121,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 		return nil, err
 	}
 
-	messages, err := uc.chatsRepo.GetMessagesOfChat(ctx, chatID, 0, 40)
+	messages, err := uc.messageRepo.GetMessagesOfChat(ctx, chatID, 0, 40)
 	if err != nil {
 		return nil, err
 	}

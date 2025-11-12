@@ -33,7 +33,7 @@ type MessageUsecase struct {
 	fileStorage       interfaceFileStorage.FileStorage
 	messageRepository interfaceMessageUsecase.MessageRepository
 	userRepository    interfaceUserUsecase.UserRepository
-	ChatsRepository   interfaceChatsUsecase.ChatsRepository
+	chatsRepository   interfaceChatsUsecase.ChatsRepository
 
 	listenerMap                    interfaceListenerMap.ListenerMapInterface
 	distributeChannel              chan dtoMessage.WebSocketMessageDTO
@@ -52,7 +52,7 @@ func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageReposito
 		listenerMap:            listenerMap,
 		messageRepository:      messageRepository,
 		userRepository:         userRepository,
-		ChatsRepository:        chatsRepository,
+		chatsRepository:        chatsRepository,
 		fileStorage:            fileStorage,
 		distributeChannel:      make(chan dtoMessage.WebSocketMessageDTO, MessagesGLobalBuffer),
 		ctx:                    ctx,
@@ -78,7 +78,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
-	ok, err := uc.ChatsRepository.CheckUserHasRole(ctx, userId, msg.ChatId, modelsChats.RoleViewer)
+	ok, err := uc.chatsRepository.CheckUserHasRole(ctx, userId, msg.ChatId, modelsChats.RoleViewer)
 	if err != nil {
 		logger.WithError(err).Errorf("could not check user %s role in chat %s", userId, msg.ChatId)
 		return err
@@ -168,12 +168,12 @@ func (uc *MessageUsecase) SubscribeUsersOnChat(ctx context.Context, chatID uuid.
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 	logger.Debug("Start operation")
 
-	chatView, err := uc.ChatsRepository.GetChat(ctx, chatID)
+	chatView, err := uc.chatsRepository.GetChat(ctx, chatID)
 	if err != nil {
 		return fmt.Errorf("error during getting chat: %w", err)
 	}
 
-	lastMessage, err := uc.ChatsRepository.GetMessagesOfChat(ctx, chatID, 0, 1)
+	lastMessage, err := uc.messageRepository.GetMessagesOfChat(ctx, chatID, 0, 1)
 	if err != nil {
 		return fmt.Errorf("error during getting last message: %w", err)
 	}
@@ -217,22 +217,22 @@ func (uc *MessageUsecase) SubscribeUsersOnChat(ctx context.Context, chatID uuid.
 }
 
 func (uc *MessageUsecase) distributeToOutChannel(connectionID uuid.UUID, in <-chan dtoMessage.WebSocketMessageDTO, out chan<- dtoMessage.WebSocketMessageDTO) {
-	uc.mu.RLock()
+	uc.mu.Lock()
 	ctx := uc.connectionContext[connectionID]
 	uc.connectionContextCount[connectionID]++
-	uc.mu.RUnlock()
+	uc.mu.Unlock()
 
 	go func(chatChan <-chan dtoMessage.WebSocketMessageDTO) {
 		uc.distributersToOutChannelsCount.Add(1)
 		defer func() {
 			uc.distributersToOutChannelsCount.Add(-1)
 
-			uc.mu.RLock()
+			uc.mu.Lock()
 			if uc.connectionContextCount[connectionID] == 0 {
 				delete(uc.connectionContextCount, connectionID)
 			}
 
-			uc.mu.RUnlock()
+			uc.mu.Unlock()
 		}()
 
 		for {

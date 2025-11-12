@@ -45,8 +45,8 @@ test-coverage:
 	go clean -testcache
 	@echo "Запуск тестов с покрытием кода..."
 	go test -v -coverprofile=coverage.out -coverpkg=./... ./...
-	@echo "Исключаем docs.go, fill.go, mock*.go из покрытия..."
-	grep -v -E "(docs|fill\.go|mock.*\.go|generate\.go)" coverage.out > coverage_filtered.out || true
+	@echo "Исключаем docs.go, fill.go, mock*.go, main.go, config.go, app.go из покрытия..."
+	grep -v -E "(docs|fill\.go|mock.*\.go|generate\.go|cmd/.*main\.go|config/config\.go|internal/app/app\.go)" coverage.out > coverage_filtered.out || true
 	@echo "Результаты покрытия:"
 	go tool cover -func=coverage_filtered.out | grep total
 

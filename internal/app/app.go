@@ -85,7 +85,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	messageRepo := messageRepository.NewMessageRepository(db)
 	listenerMap := messageUsecase.NewListenerMap()
 
-	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, minioClient)
+	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, messageRepo, minioClient)
 	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, chatsRepo, minioClient, listenerMap)
 
 	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC, sessionUtils)
