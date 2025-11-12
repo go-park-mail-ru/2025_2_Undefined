@@ -82,7 +82,7 @@ func TestGetInformationAboutChat_Success(t *testing.T) {
 	chatId := uuid.New()
 
 	mockChatsRepo.EXPECT().
-		GetChat(gomock.Any(), userId, chatId).
+		GetChat(gomock.Any(), chatId).
 		Return(&modelsChats.Chat{ID: chatId, Name: "Chat1", Type: modelsChats.ChatTypeDialog}, nil)
 
 	mockChatsRepo.EXPECT().
@@ -133,7 +133,7 @@ func TestGetInformationAboutChat_Error(t *testing.T) {
 	chatId := uuid.New()
 
 	mockChatsRepo.EXPECT().
-		GetChat(gomock.Any(), userId, chatId).
+		GetChat(gomock.Any(), chatId).
 		Return(nil, errors.New("not found"))
 
 	service := NewChatsUsecase(mockChatsRepo, mockUserRepo, mockStorage)

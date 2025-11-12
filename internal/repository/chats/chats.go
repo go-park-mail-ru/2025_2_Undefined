@@ -40,8 +40,7 @@ const (
 	getChatQuery = `
 		SELECT c.id, c.chat_type::text, c.name, c.description 
 		FROM chat c
-		JOIN chat_member cm ON cm.chat_id = c.id
-		WHERE cm.user_id = $1 AND c.id = $2`
+		WHERE c.id = $1`
 
 	getUsersOfChat = `
 		WITH latest_avatars AS (
@@ -176,15 +175,15 @@ func (r *ChatsRepository) GetLastMessagesOfChats(ctx context.Context, userId uui
 	return result, nil
 }
 
-func (r *ChatsRepository) GetChat(ctx context.Context, userId, chatId uuid.UUID) (*modelsChats.Chat, error) {
+func (r *ChatsRepository) GetChat(ctx context.Context, chatID uuid.UUID) (*modelsChats.Chat, error) {
 	const op = "ChatsRepository.GetChat"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String()).WithField("chat_id", chatId.String())
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String())
 	logger.Debug("Starting database operation: get specific chat")
 
 	chat := &modelsChats.Chat{}
 
-	err := r.db.QueryRow(getChatQuery, userId, chatId).
+	err := r.db.QueryRow(getChatQuery, chatID).
 		Scan(&chat.ID, &chat.Type, &chat.Name, &chat.Description)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get chat query")

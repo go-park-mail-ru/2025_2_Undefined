@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	"github.com/gorilla/mux"
@@ -81,12 +82,13 @@ func NewApp(conf *config.Config) (*App, error) {
 	authHandler := autht.New(authUC, conf.SessionConfig, conf.CSRFConfig, sessionUtils)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
-	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, minioClient)
-	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionUtils)
-
 	messageRepo := messageRepository.NewMessageRepository(db)
 	listenerMap := messageUsecase.NewListenerMap()
+
+	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, minioClient)
 	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, chatsRepo, minioClient, listenerMap)
+
+	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC, sessionUtils)
 	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionUtils)
 
 	contactRepo := contactRepository.New(db)
@@ -96,7 +98,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	// Настройка логгера
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
-	logger.SetLevel(logrus.WarnLevel)
+	logger.SetLevel(domains.LoggingLevel)
 
 	// Настройка маршрутищатора
 	router := mux.NewRouter()

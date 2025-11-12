@@ -15,37 +15,50 @@ import (
 type ListenerMap struct {
 	logger *logrus.Entry
 	mu     sync.RWMutex
-	// хранит словарь слушателей сообщений: chatID -> connectionID -> chan MessageDTO
-	data map[uuid.UUID]map[uuid.UUID]chan dtoMessage.MessageDTO
+	// хранит словарь слушателей сообщений: chatID -> connectionID -> chan WebSocketMessageDTO
+	data map[uuid.UUID]map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO
+	// хранит словарь соединений пользователя: userID -> connectionID -> chan WebSocketMessageDTO
+	userConnections map[uuid.UUID]map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO
+	// хранит словарь соединения и канала, в который сливаются сообщения: connectionID -> chan WebSocketMessageDTO
+	outgoingChannels map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO
 }
 
 func NewListenerMap() *ListenerMap {
 	logger := domains.GetLogger(context.Background())
 
 	return &ListenerMap{
-		data:   make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.MessageDTO),
-		logger: logger,
+		data:             make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO),
+		userConnections:  make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO),
+		outgoingChannels: make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO),
+		logger:           logger,
 	}
 }
 
-func (lm *ListenerMap) SubscribeConnectionToChat(connectionID uuid.UUID, chatId uuid.UUID) <-chan dtoMessage.MessageDTO {
+func (lm *ListenerMap) SubscribeConnectionToChat(connectionID uuid.UUID, chatID, userID uuid.UUID) <-chan dtoMessage.WebSocketMessageDTO {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
-	if lm.data[chatId] == nil {
-		lm.data[chatId] = make(map[uuid.UUID]chan dtoMessage.MessageDTO)
+	if lm.data[chatID] == nil {
+		lm.data[chatID] = make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
 	}
 
-	ch, ok := lm.data[chatId][connectionID]
+	ch, ok := lm.data[chatID][connectionID]
 	if !ok {
-		ch = make(chan dtoMessage.MessageDTO, MessagesBufferForOneUserChat)
-		lm.data[chatId][connectionID] = ch
+		ch = make(chan dtoMessage.WebSocketMessageDTO, MessagesBufferForOneUserChat)
+		lm.data[chatID][connectionID] = ch
 	}
+
+	// Добавляем ко всем соединениям пользователя новое соединение
+	if lm.userConnections[userID] == nil {
+		lm.userConnections[userID] = make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
+	}
+
+	lm.userConnections[userID][connectionID] = lm.data[chatID][connectionID]
 
 	return ch
 }
 
-func (lm *ListenerMap) GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan dtoMessage.MessageDTO {
+func (lm *ListenerMap) GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -55,10 +68,55 @@ func (lm *ListenerMap) GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan dto
 	}
 
 	// Копируем, чтобы не было гонки данных
-	result := make(map[uuid.UUID]chan dtoMessage.MessageDTO)
+	result := make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
 	maps.Copy(result, chatMap)
 
 	return result
+}
+
+// Добавляет чат к подпискам пользователя и возвращает все его соединения
+func (lm *ListenerMap) AddChatToUserSubscription(userID, chatID uuid.UUID) map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+
+	result := make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
+
+	// Если у пользователя нет соединений, тогда ничего не делаем для него
+	if lm.userConnections[userID] == nil {
+		return result
+	}
+
+	for connectionID := range lm.userConnections[userID] {
+
+		// Аналогично функции SubscribeConnectionToChat добавляем соединение.
+		if lm.data[chatID] == nil {
+			lm.data[chatID] = make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
+		} else {
+			lm.logger.Warningf("AddChatToUserSubscription: chat %s already exists for user %s!", chatID, userID)
+		}
+
+		ch, ok := lm.data[chatID][connectionID]
+		if !ok {
+			ch = make(chan dtoMessage.WebSocketMessageDTO, MessagesBufferForOneUserChat)
+			lm.data[chatID][connectionID] = ch
+		}
+
+		result[connectionID] = ch
+	}
+
+	return result
+}
+
+func (lm *ListenerMap) GetOutgoingChannel(connectionID uuid.UUID) chan dtoMessage.WebSocketMessageDTO {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	ch, ok := lm.outgoingChannels[connectionID]
+	if !ok {
+		ch = make(chan dtoMessage.WebSocketMessageDTO, MessagesBufferForAllUserChats)
+		lm.outgoingChannels[connectionID] = ch
+	}
+
+	return ch
 }
 
 func (lm *ListenerMap) CloseAll() {
@@ -72,7 +130,7 @@ func (lm *ListenerMap) CloseAll() {
 		}
 	}
 
-	lm.data = make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.MessageDTO)
+	lm.data = make(map[uuid.UUID]map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
 }
 
 func (lm *ListenerMap) CleanInactiveChats() int {

@@ -7,7 +7,7 @@ package mocks
 import (
 	reflect "reflect"
 
-	message "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
 )
@@ -33,6 +33,20 @@ func NewMockListenerMapInterface(ctrl *gomock.Controller) *MockListenerMapInterf
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockListenerMapInterface) EXPECT() *MockListenerMapInterfaceMockRecorder {
 	return m.recorder
+}
+
+// AddChatToUserSubscription mocks base method.
+func (m *MockListenerMapInterface) AddChatToUserSubscription(userID, chatID uuid.UUID) map[uuid.UUID]chan dto.WebSocketMessageDTO {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddChatToUserSubscription", userID, chatID)
+	ret0, _ := ret[0].(map[uuid.UUID]chan dto.WebSocketMessageDTO)
+	return ret0
+}
+
+// AddChatToUserSubscription indicates an expected call of AddChatToUserSubscription.
+func (mr *MockListenerMapInterfaceMockRecorder) AddChatToUserSubscription(userID, chatID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddChatToUserSubscription", reflect.TypeOf((*MockListenerMapInterface)(nil).AddChatToUserSubscription), userID, chatID)
 }
 
 // CleanInactiveChats mocks base method.
@@ -76,10 +90,10 @@ func (mr *MockListenerMapInterfaceMockRecorder) CloseAll() *gomock.Call {
 }
 
 // GetChatListeners mocks base method.
-func (m *MockListenerMapInterface) GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan message.MessageDTO {
+func (m *MockListenerMapInterface) GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan dto.WebSocketMessageDTO {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChatListeners", chatId)
-	ret0, _ := ret[0].(map[uuid.UUID]chan message.MessageDTO)
+	ret0, _ := ret[0].(map[uuid.UUID]chan dto.WebSocketMessageDTO)
 	return ret0
 }
 
@@ -89,16 +103,30 @@ func (mr *MockListenerMapInterfaceMockRecorder) GetChatListeners(chatId interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChatListeners", reflect.TypeOf((*MockListenerMapInterface)(nil).GetChatListeners), chatId)
 }
 
-// SubscribeConnectionToChat mocks base method.
-func (m *MockListenerMapInterface) SubscribeConnectionToChat(userId, chatId uuid.UUID) <-chan message.MessageDTO {
+// GetOutgoingChannel mocks base method.
+func (m *MockListenerMapInterface) GetOutgoingChannel(connectionID uuid.UUID) chan dto.WebSocketMessageDTO {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubscribeConnectionToChat", userId, chatId)
-	ret0, _ := ret[0].(<-chan message.MessageDTO)
+	ret := m.ctrl.Call(m, "GetOutgoingChannel", connectionID)
+	ret0, _ := ret[0].(chan dto.WebSocketMessageDTO)
+	return ret0
+}
+
+// GetOutgoingChannel indicates an expected call of GetOutgoingChannel.
+func (mr *MockListenerMapInterfaceMockRecorder) GetOutgoingChannel(connectionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOutgoingChannel", reflect.TypeOf((*MockListenerMapInterface)(nil).GetOutgoingChannel), connectionID)
+}
+
+// SubscribeConnectionToChat mocks base method.
+func (m *MockListenerMapInterface) SubscribeConnectionToChat(connectionID, chatID, userID uuid.UUID) <-chan dto.WebSocketMessageDTO {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeConnectionToChat", connectionID, chatID, userID)
+	ret0, _ := ret[0].(<-chan dto.WebSocketMessageDTO)
 	return ret0
 }
 
 // SubscribeConnectionToChat indicates an expected call of SubscribeConnectionToChat.
-func (mr *MockListenerMapInterfaceMockRecorder) SubscribeConnectionToChat(userId, chatId interface{}) *gomock.Call {
+func (mr *MockListenerMapInterfaceMockRecorder) SubscribeConnectionToChat(connectionID, chatID, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeConnectionToChat", reflect.TypeOf((*MockListenerMapInterface)(nil).SubscribeConnectionToChat), userId, chatId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeConnectionToChat", reflect.TypeOf((*MockListenerMapInterface)(nil).SubscribeConnectionToChat), connectionID, chatID, userID)
 }

@@ -20,13 +20,14 @@ func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat(t *testing.T) {
 	lm := NewListenerMap()
 	connectionID := uuid.New()
 	chatId := uuid.New()
+	userID := uuid.New()
 
 	// Первая подписка создает новый канал
-	ch1 := lm.SubscribeConnectionToChat(connectionID, chatId)
+	ch1 := lm.SubscribeConnectionToChat(connectionID, chatId, userID)
 	assert.NotNil(t, ch1)
 
 	// Повторная подписка того же пользователя возвращает тот же канал
-	ch2 := lm.SubscribeConnectionToChat(connectionID, chatId)
+	ch2 := lm.SubscribeConnectionToChat(connectionID, chatId, userID)
 	assert.Equal(t, ch1, ch2)
 
 	// Проверяем через внутренние данные, что канал создан с правильным размером буфера
@@ -39,11 +40,12 @@ func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat(t *testing.T) {
 func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat_MultipleChatsSameUser(t *testing.T) {
 	lm := NewListenerMap()
 	connectionID := uuid.New()
+	userID := uuid.New()
 	chatId1 := uuid.New()
 	chatId2 := uuid.New()
 
-	ch1 := lm.SubscribeConnectionToChat(connectionID, chatId1)
-	ch2 := lm.SubscribeConnectionToChat(connectionID, chatId2)
+	ch1 := lm.SubscribeConnectionToChat(connectionID, chatId1, userID)
+	ch2 := lm.SubscribeConnectionToChat(connectionID, chatId2, userID)
 
 	// Каналы должны быть разными для разных чатов
 	assert.NotEqual(t, ch1, ch2)
@@ -53,10 +55,12 @@ func TestMessageUsecase_ListenerMap_SubscribeConnectionToChat_MultipleUsersSameC
 	lm := NewListenerMap()
 	connectionID1 := uuid.New()
 	connectionID2 := uuid.New()
+	userID1 := uuid.New()
+	userID2 := uuid.New()
 	chatId := uuid.New()
 
-	ch1 := lm.SubscribeConnectionToChat(connectionID1, chatId)
-	ch2 := lm.SubscribeConnectionToChat(connectionID2, chatId)
+	ch1 := lm.SubscribeConnectionToChat(connectionID1, chatId, userID1)
+	ch2 := lm.SubscribeConnectionToChat(connectionID2, chatId, userID2)
 
 	// Каналы должны быть разными для разных пользователей
 	assert.NotEqual(t, ch1, ch2)
@@ -73,8 +77,9 @@ func TestMessageUsecase_ListenerMap_GetChatListeners(t *testing.T) {
 	// Добавляем пользователей в чат
 	connectionID1 := uuid.New()
 	connectionID2 := uuid.New()
-	_ = lm.SubscribeConnectionToChat(connectionID1, chatId)
-	_ = lm.SubscribeConnectionToChat(connectionID2, chatId)
+	userID := uuid.New()
+	_ = lm.SubscribeConnectionToChat(connectionID1, chatId, userID)
+	_ = lm.SubscribeConnectionToChat(connectionID2, chatId, userID)
 
 	// Получаем слушателей
 	listeners = lm.GetChatListeners(chatId)
@@ -98,9 +103,11 @@ func TestMessageUsecase_ListenerMap_CloseAll(t *testing.T) {
 	chatId2 := uuid.New()
 
 	// Подписываем пользователей на чаты
-	ch1 := lm.SubscribeConnectionToChat(connectionID1, chatId1)
-	ch2 := lm.SubscribeConnectionToChat(connectionID2, chatId1)
-	ch3 := lm.SubscribeConnectionToChat(connectionID1, chatId2)
+	userID1 := uuid.New()
+	userID2 := uuid.New()
+	ch1 := lm.SubscribeConnectionToChat(connectionID1, chatId1, userID1)
+	ch2 := lm.SubscribeConnectionToChat(connectionID2, chatId1, userID2)
+	ch3 := lm.SubscribeConnectionToChat(connectionID1, chatId2, userID1)
 
 	// Проверяем, что есть подписчики перед закрытием
 	listeners := lm.GetChatListeners(chatId1)
@@ -127,12 +134,13 @@ func TestMessageUsecase_ListenerMap_CleanInactiveChats(t *testing.T) {
 	chatId1 := uuid.New()
 	chatId2 := uuid.New()
 	connectionID := uuid.New()
+	userID := uuid.New()
 
 	// Создаем чат с пользователем
-	lm.SubscribeConnectionToChat(connectionID, chatId1)
+	lm.SubscribeConnectionToChat(connectionID, chatId1, userID)
 
 	// Создаем пустой чат (имитируем ситуацию, когда пользователи ушли)
-	lm.data[chatId2] = make(map[uuid.UUID]chan dtoMessage.MessageDTO)
+	lm.data[chatId2] = make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
 
 	// Проверяем, что есть 2 чата
 	assert.Len(t, lm.data, 2)
@@ -150,20 +158,21 @@ func TestMessageUsecase_ListenerMap_CleanInactiveChats(t *testing.T) {
 func TestMessageUsecase_ListenerMap_CleanInactiveReaders(t *testing.T) {
 	lm := NewListenerMap()
 	chatId := uuid.New()
+	userID := uuid.New()
 	activeUserId := uuid.New()
 	inactiveUserId := uuid.New()
 
 	// Подписываем активного пользователя
-	_ = lm.SubscribeConnectionToChat(activeUserId, chatId)
+	_ = lm.SubscribeConnectionToChat(activeUserId, chatId, userID)
 
 	// Подписываем неактивного пользователя
-	inactiveCh := lm.SubscribeConnectionToChat(inactiveUserId, chatId)
+	inactiveCh := lm.SubscribeConnectionToChat(inactiveUserId, chatId, userID)
 
 	// Получаем доступ к внутреннему каналу и заполняем его буфер до максимума
 	lm.mu.Lock()
 	inactiveChBuffered := lm.data[chatId][inactiveUserId]
 	for i := 0; i < cap(inactiveChBuffered); i++ {
-		inactiveChBuffered <- dtoMessage.MessageDTO{}
+		inactiveChBuffered <- dtoMessage.WebSocketMessageDTO{}
 	}
 	lm.mu.Unlock()
 
@@ -198,15 +207,16 @@ func TestMessageUsecase_ListenerMap_CleanInactiveReaders_EmptyChat(t *testing.T)
 	lm := NewListenerMap()
 	chatId := uuid.New()
 	connectionID := uuid.New()
+	userID := uuid.New()
 
 	// Подписываем пользователя
-	ch := lm.SubscribeConnectionToChat(connectionID, chatId)
+	ch := lm.SubscribeConnectionToChat(connectionID, chatId, userID)
 
 	// Получаем доступ к внутреннему каналу и заполняем его буфер до максимума
 	lm.mu.Lock()
 	chBuffered := lm.data[chatId][connectionID]
 	for i := 0; i < cap(chBuffered); i++ {
-		chBuffered <- dtoMessage.MessageDTO{}
+		chBuffered <- dtoMessage.WebSocketMessageDTO{}
 	}
 	lm.mu.Unlock()
 
@@ -241,7 +251,8 @@ func TestMessageUsecase_ListenerMap_ConcurrentAccess(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		go func(i int) {
 			connectionID := uuid.New()
-			ch := lm.SubscribeConnectionToChat(connectionID, chatId)
+			userID := uuid.New()
+			ch := lm.SubscribeConnectionToChat(connectionID, chatId, userID)
 			assert.NotNil(t, ch)
 			done <- true
 		}(i)

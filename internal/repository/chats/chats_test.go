@@ -136,7 +136,6 @@ func TestChatsRepository_GetChat_Success(t *testing.T) {
 
 	repo := NewChatsRepository(db)
 
-	userID := uuid.New()
 	chatID := uuid.New()
 
 	rows := sqlmock.NewRows([]string{"id", "chat_type", "name", "description"}).
@@ -145,13 +144,12 @@ func TestChatsRepository_GetChat_Success(t *testing.T) {
 	mock.ExpectQuery(regexp.QuoteMeta(`
 		SELECT c.id, c.chat_type::text, c.name, c.description 
 		FROM chat c
-		JOIN chat_member cm ON cm.chat_id = c.id
-		WHERE cm.user_id = $1 AND c.id = $2`)).
-		WithArgs(userID, chatID).
+		WHERE c.id = $1`)).
+		WithArgs(chatID).
 		WillReturnRows(rows)
 
 	ctx := context.Background()
-	chat, err := repo.GetChat(ctx, userID, chatID)
+	chat, err := repo.GetChat(ctx, chatID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, chat)
@@ -171,19 +169,17 @@ func TestChatsRepository_GetChat_NotFound(t *testing.T) {
 
 	repo := NewChatsRepository(db)
 
-	userID := uuid.New()
 	chatID := uuid.New()
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
 		SELECT c.id, c.chat_type::text, c.name, c.description 
 		FROM chat c
-		JOIN chat_member cm ON cm.chat_id = c.id
-		WHERE cm.user_id = $1 AND c.id = $2`)).
-		WithArgs(userID, chatID).
+		WHERE c.id = $1`)).
+		WithArgs(chatID).
 		WillReturnError(sql.ErrNoRows)
 
 	ctx := context.Background()
-	chat, err := repo.GetChat(ctx, userID, chatID)
+	chat, err := repo.GetChat(ctx, chatID)
 
 	assert.Error(t, err)
 	assert.Nil(t, chat)

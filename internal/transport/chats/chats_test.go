@@ -18,20 +18,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewChatsHandler(t *testing.T) {
-	ctrl := gomock.NewController(t)
+func createTestHandler(ctrl *gomock.Controller) (*ChatsHandler, *mocks.MockMessageUsecase, *mocks.MockChatsUsecase, *mocks.MockSessionUtils) {
+	mockMessageUsecase := mocks.NewMockMessageUsecase(ctrl)
 	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
 	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler := NewChatsHandler(mockMessageUsecase, mockChatUsecase, mockSessionUtils)
+	return handler, mockMessageUsecase, mockChatUsecase, mockSessionUtils
+}
 
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
-
+func TestNewChatsHandler(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	handler, _, _, _ := createTestHandler(ctrl)
 	assert.NotNil(t, handler)
 }
 
 func TestGetChats_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, mockChatUsecase, mockSessionUtils := createTestHandler(ctrl)
 
 	userId := uuid.New()
 	expectedChats := []dto.ChatViewInformationDTO{
@@ -45,8 +48,6 @@ func TestGetChats_Success(t *testing.T) {
 	mockChatUsecase.EXPECT().
 		GetChats(gomock.Any(), userId).
 		Return(expectedChats, nil)
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodGet, "/chats", nil)
 	w := httptest.NewRecorder()
@@ -64,14 +65,11 @@ func TestGetChats_Success(t *testing.T) {
 
 func TestGetChats_SessionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, _, mockSessionUtils := createTestHandler(ctrl)
 
 	mockSessionUtils.EXPECT().
 		GetUserIDFromSession(gomock.Any()).
 		Return(uuid.UUID{}, errors.New("session error"))
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodGet, "/chats", nil)
 	w := httptest.NewRecorder()
@@ -83,8 +81,7 @@ func TestGetChats_SessionError(t *testing.T) {
 
 func TestPostChats_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, mockMessageUsecase, mockChatUsecase, _ := createTestHandler(ctrl)
 
 	newChatId := uuid.New()
 
@@ -100,7 +97,9 @@ func TestPostChats_Success(t *testing.T) {
 		CreateChat(gomock.Any(), chatDTO).
 		Return(newChatId, nil)
 
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
+	mockMessageUsecase.EXPECT().
+		SubscribeUsersOnChat(gomock.Any(), newChatId, chatDTO.Members).
+		Return(nil)
 
 	body, err := json.Marshal(chatDTO)
 	assert.NoError(t, err)
@@ -124,10 +123,8 @@ func TestPostChats_Success(t *testing.T) {
 
 func TestPostChats_BadJSON(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
 
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
+	handler, _, _, _ := createTestHandler(ctrl)
 
 	req := httptest.NewRequest(http.MethodPost, "/chats", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -140,10 +137,7 @@ func TestPostChats_BadJSON(t *testing.T) {
 
 func TestGetInformationAboutChat_BadUUID(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
+	handler, _, _, _ := createTestHandler(ctrl)
 
 	req := httptest.NewRequest(http.MethodGet, "/chats/invalid-uuid", nil)
 	w := httptest.NewRecorder()
@@ -155,16 +149,13 @@ func TestGetInformationAboutChat_BadUUID(t *testing.T) {
 
 func TestGetInformationAboutChat_SessionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, _, mockSessionUtils := createTestHandler(ctrl)
 
 	testUUID := uuid.New()
 
 	mockSessionUtils.EXPECT().
 		GetUserIDFromSession(gomock.Any()).
 		Return(uuid.UUID{}, errors.New("session error"))
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodGet, "/chats/"+testUUID.String(), nil)
 	w := httptest.NewRecorder()
@@ -176,8 +167,7 @@ func TestGetInformationAboutChat_SessionError(t *testing.T) {
 
 func TestGetChats_ServiceError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, mockChatUsecase, mockSessionUtils := createTestHandler(ctrl)
 
 	userId := uuid.New()
 
@@ -189,8 +179,6 @@ func TestGetChats_ServiceError(t *testing.T) {
 		GetChats(gomock.Any(), userId).
 		Return(nil, errors.New("service error"))
 
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
-
 	req := httptest.NewRequest(http.MethodGet, "/chats", nil)
 	w := httptest.NewRecorder()
 
@@ -201,10 +189,7 @@ func TestGetChats_ServiceError(t *testing.T) {
 
 func TestPostChats_SessionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
+	handler, _, _, _ := createTestHandler(ctrl)
 
 	req := httptest.NewRequest(http.MethodPost, "/chats", nil)
 	w := httptest.NewRecorder()
@@ -216,8 +201,7 @@ func TestPostChats_SessionError(t *testing.T) {
 
 func TestPostChats_ServiceError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, mockChatUsecase, _ := createTestHandler(ctrl)
 
 	chatDTO := dto.ChatCreateInformationDTO{
 		Name: "Test Chat",
@@ -230,8 +214,6 @@ func TestPostChats_ServiceError(t *testing.T) {
 	mockChatUsecase.EXPECT().
 		CreateChat(gomock.Any(), chatDTO).
 		Return(uuid.UUID{}, errors.New("service error"))
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	body, err := json.Marshal(chatDTO)
 	assert.NoError(t, err)
@@ -247,8 +229,7 @@ func TestPostChats_ServiceError(t *testing.T) {
 
 func TestAddUsersToChat_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, mockMessageUsecase, mockChatUsecase, mockSessionUtils := createTestHandler(ctrl)
 
 	chatId := uuid.New()
 	userId := uuid.New()
@@ -267,7 +248,9 @@ func TestAddUsersToChat_Success(t *testing.T) {
 		AddUsersToChat(gomock.Any(), chatId, userId, usersToAddDTO).
 		Return(nil)
 
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
+	mockMessageUsecase.EXPECT().
+		SubscribeUsersOnChat(gomock.Any(), chatId, usersToAddDTO).
+		Return(nil)
 
 	addUsersDTO := dto.AddUsersToChatDTO{
 		Users: usersToAddDTO,
@@ -285,10 +268,7 @@ func TestAddUsersToChat_Success(t *testing.T) {
 
 func TestAddUsersToChat_BadUUID(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
+	handler, _, _, _ := createTestHandler(ctrl)
 
 	req := httptest.NewRequest(http.MethodPatch, "/chats/invalid-uuid/members", nil)
 	w := httptest.NewRecorder()
@@ -300,8 +280,7 @@ func TestAddUsersToChat_BadUUID(t *testing.T) {
 
 func TestAddUsersToChat_BadJSON(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, _, mockSessionUtils := createTestHandler(ctrl)
 
 	chatId := uuid.New()
 	userId := uuid.New()
@@ -309,8 +288,6 @@ func TestAddUsersToChat_BadJSON(t *testing.T) {
 	mockSessionUtils.EXPECT().
 		GetUserIDFromSession(gomock.Any()).
 		Return(userId, nil)
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	req := httptest.NewRequest(http.MethodPatch, "/chats/"+chatId.String()+"/members", bytes.NewBufferString("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -323,8 +300,7 @@ func TestAddUsersToChat_BadJSON(t *testing.T) {
 
 func TestAddUsersToChat_ServiceError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, mockChatUsecase, mockSessionUtils := createTestHandler(ctrl)
 
 	chatId := uuid.New()
 	userId := uuid.New()
@@ -342,8 +318,6 @@ func TestAddUsersToChat_ServiceError(t *testing.T) {
 		AddUsersToChat(gomock.Any(), chatId, userId, usersToAddDTO).
 		Return(errors.New("service error"))
 
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
-
 	addUsersDTO := dto.AddUsersToChatDTO{
 		Users: usersToAddDTO,
 	}
@@ -360,8 +334,7 @@ func TestAddUsersToChat_ServiceError(t *testing.T) {
 
 func TestAddUsersToChat_DuplicateUsers(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
+	handler, _, _, mockSessionUtils := createTestHandler(ctrl)
 
 	chatId := uuid.New()
 	userId := uuid.New()
@@ -376,8 +349,6 @@ func TestAddUsersToChat_DuplicateUsers(t *testing.T) {
 		{UserId: duplicateUserId, Role: "writer"},
 		{UserId: duplicateUserId, Role: "admin"}, // Дубликат
 	}
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	addUsersDTO := dto.AddUsersToChatDTO{
 		Users: usersToAddDTO,
@@ -395,9 +366,7 @@ func TestAddUsersToChat_DuplicateUsers(t *testing.T) {
 
 func TestPostChats_DuplicateMembers(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockChatUsecase := mocks.NewMockChatsUsecase(ctrl)
-	mockSessionUtils := mocks.NewMockSessionUtils(ctrl)
-
+	handler, _, _, _ := createTestHandler(ctrl)
 	duplicateUserId := uuid.New()
 
 	chatDTO := dto.ChatCreateInformationDTO{
@@ -408,8 +377,6 @@ func TestPostChats_DuplicateMembers(t *testing.T) {
 			{UserId: duplicateUserId, Role: "writer"}, // Дубликат
 		},
 	}
-
-	handler := NewChatsHandler(mockChatUsecase, mockSessionUtils)
 
 	body, err := json.Marshal(chatDTO)
 	assert.NoError(t, err)

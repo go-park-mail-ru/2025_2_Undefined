@@ -108,29 +108,41 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 	return result, nil
 }
 
-func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
+func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, chatID uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
 	const op = "ChatsUsecase.GetInformationAboutChat"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
-	chat, err := uc.chatsRepo.GetChat(ctx, userId, chatId)
+	chat, err := uc.chatsRepo.GetChat(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
 
-	messages, err := uc.chatsRepo.GetMessagesOfChat(ctx, chatId, 0, 40)
+	messages, err := uc.chatsRepo.GetMessagesOfChat(ctx, chatID, 0, 40)
 	if err != nil {
 		return nil, err
 	}
 
-	users, err := uc.chatsRepo.GetUsersOfChat(ctx, chatId)
+	users, err := uc.chatsRepo.GetUsersOfChat(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
 
-	userInfo, err := uc.chatsRepo.GetUserInfo(ctx, userId, chatId)
+	userInfo, err := uc.chatsRepo.GetUserInfo(ctx, userID, chatID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Проверяем, что пользователь есть в участниках чата. Иначе - возвращаем ошибку
+	isUserInChat := false
+	for _, user := range users {
+		if user.UserID == userID {
+			isUserInChat = true
+			break
+		}
+	}
+	if !isUserInChat {
+		return nil, errs.ErrNotFound
 	}
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
@@ -188,7 +200,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, cha
 	if chat.Type == modelsChats.ChatTypeDialog {
 		// Для диалогов название - это имя собеседника
 		for _, user := range usersDTO {
-			if user.UserId != userId {
+			if user.UserId != userID {
 				chatName = user.UserName
 				avatarURL = user.UserAvatar
 				break
