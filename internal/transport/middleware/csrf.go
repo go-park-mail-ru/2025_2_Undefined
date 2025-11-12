@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CSRFMiddleware(sessionConf *config.SessionConfig, csrfSecret string) func(http.Handler) http.Handler {
+func CSRFMiddleware(sessionConf *config.SessionConfig, csrfConfig *config.CSRFConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			const op = "CSRFMiddleware"
@@ -38,8 +38,8 @@ func CSRFMiddleware(sessionConf *config.SessionConfig, csrfSecret string) func(h
 				return
 			}
 
-			// Валидируем CSRF токен
-			err = csrf.ValidateCSRFToken(csrfToken, sessionID.String(), csrfSecret)
+			// Валидируем CSRF токен с учетом времени жизни
+			err = csrf.ValidateCSRFToken(csrfToken, sessionID.String(), csrfConfig.Secret, csrfConfig.Timeout)
 			if err != nil {
 				utils.SendError(r.Context(), op, w, http.StatusForbidden, "Invalid CSRF token")
 				return

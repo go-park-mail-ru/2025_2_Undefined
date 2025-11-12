@@ -59,7 +59,8 @@ type SessionConfig struct {
 }
 
 type CSRFConfig struct {
-	Secret string
+	Secret  string
+	Timeout time.Duration
 }
 
 type MigrationsConfig struct {
@@ -196,8 +197,18 @@ func newCSRFConfig() (*CSRFConfig, error) {
 		return nil, errors.New("CSRF_SECRET is required")
 	}
 
+	csrftime, csrfExists := os.LookupEnv("CSRF_TIMEOUT")
+	if !csrfExists {
+		return nil, errors.New("CSRF_TIMEOUT is required")
+	}
+
+	csrftimeout, err := parseDurationWithDays(csrftime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CSRF_TIMEOUT value: %v", err)
+	}
 	return &CSRFConfig{
-		Secret: secret,
+		Secret:  secret,
+		Timeout: csrftimeout,
 	}, nil
 }
 

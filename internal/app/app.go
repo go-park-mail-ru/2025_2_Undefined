@@ -118,7 +118,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
 	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
-	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig.Secret))
+	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig))
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
