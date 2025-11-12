@@ -73,3 +73,28 @@ func GetCSRFTokenTimeLeft(csrfToken string, timeout time.Duration) (time.Duratio
 	
 	return timeout - elapsed, nil
 }
+
+// ValidateCSRFTokenSignature проверяет только подпись CSRF токена без проверки времени
+func ValidateCSRFTokenSignature(csrfToken string, sessionID string, secret string) error {
+	parts := strings.Split(csrfToken, ".")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid CSRF token format")
+	}
+	
+	timestampStr, signature := parts[0], parts[1]
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid CSRF token timestamp")
+	}
+	
+	data := fmt.Sprintf("%s:%d", sessionID, timestamp)
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(data))
+	expectedSignature := hex.EncodeToString(h.Sum(nil))
+	
+	if subtle.ConstantTimeCompare([]byte(signature), []byte(expectedSignature)) != 1 {
+		return fmt.Errorf("invalid CSRF token signature")
+	}
+	
+	return nil
+}

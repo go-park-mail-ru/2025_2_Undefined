@@ -536,35 +536,6 @@
                 }
             }
         },
-        "/csrf/refresh": {
-            "get": {
-                "description": "Генерирует новый CSRF токен для текущей сессии пользователя",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Обновить CSRF токен",
-                "responses": {
-                    "200": {
-                        "description": "Получен свежий CSRF токен",
-                        "schema": {
-                            "$ref": "#/definitions/dto.AuthResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Неавторизован",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    }
-                }
-            }
-        },
         "/login": {
             "post": {
                 "description": "Аутентифицирует пользователя по номеру телефона и паролю, создает сессию",

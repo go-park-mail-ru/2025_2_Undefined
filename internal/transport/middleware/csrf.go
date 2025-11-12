@@ -39,15 +39,16 @@ func CSRFMiddleware(sessionConf *config.SessionConfig, csrfConfig *config.CSRFCo
 				return
 			}
 
-			// Валидируем CSRF токен с учетом времени жизни
-			err = csrf.ValidateCSRFToken(csrfToken, sessionID.String(), csrfConfig.Secret, csrfConfig.Timeout)
+			err = csrf.ValidateCSRFTokenSignature(csrfToken, sessionID.String(), csrfConfig.Secret)
 			if err != nil {
 				utils.SendError(r.Context(), op, w, http.StatusForbidden, "Invalid CSRF token")
 				return
 			}
 
-			timeLeft, err := csrf.GetCSRFTokenTimeLeft(csrfToken, csrfConfig.Timeout)
-			if err == nil && timeLeft < 15*time.Minute {
+			timeLeft, timeErr := csrf.GetCSRFTokenTimeLeft(csrfToken, csrfConfig.Timeout)
+
+			// Если токен просрочен ИЛИ близок к истечению (< 15 минут), генерируем новый
+			if timeErr != nil || timeLeft < 15*time.Minute {
 				newCSRFToken := csrf.GenerateCSRFToken(sessionID.String(), csrfConfig.Secret)
 				w.Header().Set("X-CSRF-Refresh", newCSRFToken)
 			}

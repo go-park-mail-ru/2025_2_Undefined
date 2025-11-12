@@ -568,25 +568,6 @@ paths:
       summary: Добавление контакта
       tags:
       - contacts
-  /csrf/refresh:
-    get:
-      consumes:
-      - application/json
-      description: Генерирует новый CSRF токен для текущей сессии пользователя
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Получен свежий CSRF токен
-          schema:
-            $ref: '#/definitions/dto.AuthResponse'
-        "401":
-          description: Неавторизован
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-      summary: Обновить CSRF токен
-      tags:
-      - auth
   /login:
     post:
       consumes:
