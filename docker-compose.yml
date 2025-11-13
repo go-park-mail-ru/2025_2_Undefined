@@ -9,28 +9,9 @@ services:
         condition: service_healthy
     networks:
       - gramm-network
-    environment:
-      SERVER_PORT: ${SERVER_PORT:-8080}
-      JWT_SIGNATURE: ${SESSION_SIGNATURE}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
-      SESSION_TOKEN_LIFESPAN: ${SESSION_TOKEN_LIFESPAN}
-      AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
-      AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
-      AUTH_REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
-      AUTH_REDIS_DB: ${AUTH_REDIS_DB}
-      CSRF_SECRET: ${CSRF_SECRET}
-      MINIO_HOST: ${MINIO_HOST}
-      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
-      MINIO_PORT: ${MINIO_PORT}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
-      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    image: lzimin05/100gramm_backend_app
+    volumes:
+      - ./.env:/app/.env
     command: sh -c "./migrate && ./main"
 
   db:
