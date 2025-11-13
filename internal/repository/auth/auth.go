@@ -66,7 +66,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 	if err != nil {
 		// Проверяем является ли ошибка нарушением уникального ограничения
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique_violation
+		if errors.As(err, &pgErr) && pgErr.Code == errs.PostgresErrorUniqueViolationCode { // unique_violation
 			logger.WithError(err).Error("Database operation failed: duplicate key constraint violation")
 			return nil, errs.ErrIsDuplicateKey
 		}

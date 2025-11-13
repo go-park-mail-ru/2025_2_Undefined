@@ -60,11 +60,11 @@ func (r *ContactRepository) CreateContact(ctx context.Context, userID uuid.UUID,
 		// Проверяем является ли ошибка нарушением уникального ограничения
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
-			if pgErr.Code == "23505" { // unique_violation
+			if pgErr.Code == errs.PostgresErrorUniqueViolationCode { // unique_violation
 				logger.WithError(err).Error("Database operation failed: duplicate key constraint violation")
 				return errs.ErrIsDuplicateKey
 			}
-			if pgErr.Code == "23503" { // foreign_key_violation
+			if pgErr.Code == errs.PostgresErrorForeignKeyViolationCode { // foreign_key_violation
 				logger.WithError(err).Error("Database operation failed: user not found")
 				return errs.ErrUserNotFound
 			}
