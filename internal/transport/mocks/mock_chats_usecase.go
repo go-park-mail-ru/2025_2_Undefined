@@ -111,18 +111,18 @@ func (mr *MockChatsUsecaseMockRecorder) GetInformationAboutChat(ctx, userId, cha
 }
 
 // GetUsersDialog mocks base method.
-func (m *MockChatsUsecase) GetUsersDialog(ctx context.Context, user1_id, user2_id uuid.UUID) (*dto0.IdDTO, error) {
+func (m *MockChatsUsecase) GetUsersDialog(ctx context.Context, user1ID, user2ID uuid.UUID) (*dto0.IdDTO, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUsersDialog", ctx, user1_id, user2_id)
+	ret := m.ctrl.Call(m, "GetUsersDialog", ctx, user1ID, user2ID)
 	ret0, _ := ret[0].(*dto0.IdDTO)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetUsersDialog indicates an expected call of GetUsersDialog.
-func (mr *MockChatsUsecaseMockRecorder) GetUsersDialog(ctx, user1_id, user2_id interface{}) *gomock.Call {
+func (mr *MockChatsUsecaseMockRecorder) GetUsersDialog(ctx, user1ID, user2ID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersDialog", reflect.TypeOf((*MockChatsUsecase)(nil).GetUsersDialog), ctx, user1_id, user2_id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersDialog", reflect.TypeOf((*MockChatsUsecase)(nil).GetUsersDialog), ctx, user1ID, user2ID)
 }
 
 // UpdateChat mocks base method.

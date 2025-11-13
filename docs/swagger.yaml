@@ -162,6 +162,15 @@ definitions:
       last_seen:
         type: string
     type: object
+  dto.UpdateUserInfo:
+    properties:
+      bio:
+        type: string
+      name:
+        type: string
+      username:
+        type: string
+    type: object
   dto.User:
     properties:
       account_type:
@@ -643,6 +652,47 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Получить информацию о текущем пользователе
+      tags:
+      - user
+    patch:
+      consumes:
+      - application/json
+      description: Частичное обновление информации пользователя. Можно обновить только
+        нужные поля.
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Данные для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserInfo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация пользователя обновилось
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Обновить информацию пользователя
       tags:
       - user
   /message/ws:
