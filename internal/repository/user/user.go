@@ -54,6 +54,11 @@ const (
 	insertUserAvatarInUserAvatarTableQuery = `
 		INSERT INTO avatar_user (user_id, attachment_id)
 		VALUES ($1, $2)`
+
+	updateUserInfoQuery = `
+		UPDATE "user"
+		SET name = $1, username = $2, bio = $3
+		WHERE id = $4`
 )
 
 type UserRepository struct {
@@ -212,5 +217,33 @@ func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID uuid.UUID,
 	}
 
 	logger.Info("Database operation completed successfully: user avatar updated")
+	return nil
+}
+
+func (r *UserRepository) UpdateUserInfo(ctx context.Context, userID uuid.UUID, name string, username string, bio string) error {
+	const op = "UserRepository.UpdateUserInfo"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+	logger.Debug("Starting database operation: update user info")
+
+	result, err := r.db.Exec(updateUserInfoQuery, name, username, bio, userID)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check rows affected")
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check rows affected")
+		return err
+	}
+
+	if rowsAffected == 0 {
+		err := errors.New("user not updated")
+		logger.WithError(err).Error("Database operation failed: user not updated")
+		return err
+	}
+
+	logger.Info("Database operation completed successfully: user into update")
 	return nil
 }
