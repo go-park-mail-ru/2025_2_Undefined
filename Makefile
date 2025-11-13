@@ -3,7 +3,8 @@
 # Переменные для подключения к БД
 DB_URL=postgres://user:password@localhost:5433/gramm?sslmode=disable
 MIGRATIONS_PATH=db/migrations
-
+CONFIG_SOURCE=config.yml
+ENV_FILE=.env
 
 # Миграции базы данных (через CLI migrate)
 db-up:
@@ -71,6 +72,10 @@ start:
 	make swagger
 	docker compose up --build
 
+start-background:
+	make swagger
+	docker compose up --build -d
+
 clear: 
 	@echo "Остановка приложения и очистка БД..."
 	docker compose down
@@ -97,5 +102,10 @@ generate-mocks:
 	go generate ./...
 
 create-env:
-	touch .env
-	cp config.yml .env
+	@if [ ! -f $(ENV_FILE) ]; then \
+		echo "Generating $(ENV_FILE) from $(CONFIG_SOURCE)..."; \
+		python3 -c "import yaml; config = yaml.safe_load(open('$(CONFIG_SOURCE)')); open('$(ENV_FILE)', 'w').write('\n'.join([f'{k}={v}' for k, v in config.items()]))"; \
+		echo "$(ENV_FILE) file generated!"; \
+	else \
+		echo "$(ENV_FILE) already exists. Skipping..."; \
+	fi

@@ -107,18 +107,16 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
+	protectedRouter := apiRouter.NewRoute().Subrouter()
+	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
+	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig))
+
 	authRouter := apiRouter.PathPrefix("").Subrouter()
 	{
 		authRouter.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 		authRouter.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
-		authRouter.Handle("/logout",
-			middleware.AuthMiddleware(conf.SessionConfig, sessionUC)(http.HandlerFunc(authHandler.Logout)),
-		).Methods(http.MethodPost)
+		protectedRouter.HandleFunc("/logout", authHandler.Logout).Methods(http.MethodPost)
 	}
-
-	protectedRouter := apiRouter.NewRoute().Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
-	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig.Secret))
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
