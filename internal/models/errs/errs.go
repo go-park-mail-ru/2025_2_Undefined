@@ -2,6 +2,12 @@ package errs
 
 import "errors"
 
+// PostgreSQL коды ошибок
+const (
+	PostgresErrorUniqueViolationCode     = "23505"
+	PostgresErrorForeignKeyViolationCode = "23503"
+)
+
 var (
 	ErrInvalidToken          = errors.New("invalid token")
 	ErrNotFound              = errors.New("not found")

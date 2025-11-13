@@ -2,16 +2,16 @@ package repository
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -19,19 +19,23 @@ const (
 		INSERT INTO "user" (id, username, name, phone_number, password_hash, user_type, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6::user_type_enum, $7, $8)
 		RETURNING id, username, phone_number, user_type`
+
+	countUsersQuery = `SELECT COUNT(*) FROM "user"`
+
+	checkUsernameExistsQuery = `SELECT EXISTS(SELECT 1 FROM "user" WHERE username = $1)`
 )
 
 type AuthRepository struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
-func New(db *sql.DB) *AuthRepository {
+func New(pool *pgxpool.Pool) *AuthRepository {
 	return &AuthRepository{
-		db: db,
+		pool: pool,
 	}
 }
 
-func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone string, password_hash string) (*models.User, error) {
+func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone string, passwordHash string) (*models.User, error) {
 	const op = "AuthRepository.CreateUser"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
@@ -42,10 +46,11 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 		logger.WithError(err).Error("Database operation failed: generate username")
 		return nil, err
 	}
+
 	user := &models.User{
 		ID:           uuid.New(),
 		PhoneNumber:  phone,
-		PasswordHash: password_hash,
+		PasswordHash: passwordHash,
 		Name:         name,
 		Username:     newUsername,
 		AccountType:  models.UserAccount,
@@ -54,19 +59,19 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 	}
 
 	logger.Debug("Executing database query: INSERT user")
-	err = r.db.QueryRow(createUserQuery,
+	err = r.pool.QueryRow(ctx, createUserQuery,
 		user.ID, user.Username, user.Name, user.PhoneNumber, user.PasswordHash, user.AccountType, user.CreatedAt, user.UpdatedAt).
 		Scan(&user.ID, &user.Username, &user.PhoneNumber, &user.AccountType)
 
 	if err != nil {
-		// Проверяем является ли ошибка наруением уникального ограничения
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			err = errs.ErrIsDuplicateKey
+		// Проверяем является ли ошибка нарушением уникального ограничения
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == errs.PostgresErrorUniqueViolationCode { // unique_violation
 			logger.WithError(err).Error("Database operation failed: duplicate key constraint violation")
-			return nil, err
+			return nil, errs.ErrIsDuplicateKey
 		}
 		logger.WithError(err).Error("Database operation failed: create user query")
-		return nil, err
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	logger.Info("Database operation completed successfully: user created")
@@ -80,10 +85,10 @@ func (r *AuthRepository) generateUsername(ctx context.Context) (string, error) {
 	logger.Debug("Starting database operation: count users")
 
 	var count int
-	err := r.db.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&count)
+	err := r.pool.QueryRow(ctx, countUsersQuery).Scan(&count)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: count users query")
-		return "", err
+		return "", fmt.Errorf("failed to count users: %w", err)
 	}
 
 	username := fmt.Sprintf("user_%d", count)
@@ -98,7 +103,7 @@ func (r *AuthRepository) generateUsername(ctx context.Context) (string, error) {
 		return username, nil
 	}
 
-	//если не получилось создать юзернейм по умолчанию, то создаем через uuid
+	// если не получилось создать юзернейм по умолчанию, то создаем через uuid
 	logger.Debug("Database operation completed: fallback to UUID-based username")
 	return "user_" + uuid.New().String()[:8], nil
 }
@@ -108,12 +113,12 @@ func (r *AuthRepository) checkUsernameExists(ctx context.Context, username strin
 	logger.Debug("Starting database operation: check username exists")
 
 	var exists bool
-	err := r.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM "user" WHERE username = $1)`, username).Scan(&exists)
+	err := r.pool.QueryRow(ctx, checkUsernameExistsQuery, username).Scan(&exists)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: check username exists query")
-		return false, err
+		return false, fmt.Errorf("failed to check username exists: %w", err)
 	}
 
 	logger.Debug("Database operation completed: username existence checked")
-	return exists, err
+	return exists, nil
 }

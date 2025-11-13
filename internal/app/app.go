@@ -1,7 +1,6 @@
 package app
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,77 +19,75 @@ import (
 	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
 	sessionuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
 
-	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
 	useruc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
 
-	authrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/auth"
 	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
 	authuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 
-	chatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
 	chatsTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
 	chatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
 
-	messageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
 	messageTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/message"
 	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
 
-	contactRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/contact"
 	contactTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/contact"
 	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
 )
 
 type App struct {
 	conf   *config.Config
-	db     *sql.DB
+	repos  *repository.Repositories
 	router *mux.Router
 }
 
 func NewApp(conf *config.Config) (*App, error) {
-	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get connection string: %v", err)
+	// Подключение к PostgreSQL через pgx v5
+	dbConfig := &repository.Config{
+		Host:     conf.DBConfig.Host,
+		Port:     conf.DBConfig.Port,
+		User:     conf.DBConfig.User,
+		Password: conf.DBConfig.Password,
+		DBName:   conf.DBConfig.DBName,
+		SSLMode:  conf.DBConfig.SSLMode,
 	}
 
-	db, err := sql.Open("postgres", dbConn)
+	repos, err := repository.NewRepositories(dbConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
+		return nil, fmt.Errorf("failed to initialize repositories: %w", err)
 	}
 
+	// Подключение к Redis
 	redisClient, err := redisClient.NewClient(conf.RedisConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to redis: %v", err)
 	}
 
+	// Подключение к MinIO
 	minioClient, err := minio.NewMinioProvider(*conf.MinioConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to minio: %v", err)
 	}
 
-	sessionRepo := redisSessionRepo.New(redisClient.Client, conf.SessionConfig.LifeSpan)
+	// Инициализация Use Cases и Handlers
+	sessionRepo := redisSessionRepo.New(redisClient.Pool, conf.SessionConfig.LifeSpan)
 	sessionUC := sessionuc.New(sessionRepo)
 	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf.SessionConfig)
 
-	userRepo := userrepo.New(db)
-	userUC := useruc.New(userRepo, minioClient)
+	userUC := useruc.New(repos.User, minioClient)
 	userHandler := usert.New(userUC, sessionUC, sessionUtils)
 
-	authRepo := authrepo.New(db)
-	authUC := authuc.New(authRepo, userRepo, sessionRepo)
+	authUC := authuc.New(repos.Auth, repos.User, sessionRepo)
 	authHandler := autht.New(authUC, conf.SessionConfig, conf.CSRFConfig, sessionUtils)
 
-	chatsRepo := chatsRepository.NewChatsRepository(db)
-	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, minioClient)
+	chatsUC := chatsUsecase.NewChatsUsecase(repos.Chats, repos.User, minioClient)
 	chatsHandler := chatsTransport.NewChatsHandler(chatsUC, sessionUtils)
 
-	messageRepo := messageRepository.NewMessageRepository(db)
 	listenerMap := messageUsecase.NewListenerMap()
-	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, chatsRepo, minioClient, listenerMap)
+	messageUC := messageUsecase.NewMessageUsecase(repos.Message, repos.User, repos.Chats, minioClient, listenerMap)
 	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionUtils)
 
-	contactRepo := contactRepository.New(db)
-	contactUC := contactUsecase.New(contactRepo, userRepo, minioClient)
+	contactUC := contactUsecase.New(repos.Contact, repos.User, minioClient)
 	contactHandler := contactTransport.New(contactUC, sessionUtils)
 
 	// Настройка логгера
@@ -98,7 +95,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetLevel(logrus.WarnLevel)
 
-	// Настройка маршрутищатора
+	// Настройка маршрутизатора
 	router := mux.NewRouter()
 	router.Use(middleware.CorsMiddleware)
 	router.Use(func(next http.Handler) http.Handler {
@@ -158,7 +155,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	return &App{
 		conf:   conf,
-		db:     db,
+		repos:  repos,
 		router: router,
 	}, nil
 }
@@ -174,5 +171,11 @@ func (a *App) Run() {
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed to start: %v", err)
+	}
+}
+
+func (a *App) Close() {
+	if a.repos != nil {
+		a.repos.Close()
 	}
 }
