@@ -31,11 +31,11 @@ func TestUserRepository_GetUserByPhone_Success(t *testing.T) {
 	createdAt := time.Now()
 	updatedAt := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "username", "name", "phone_number", "password_hash", "user_type", "attachment_id", "created_at", "updated_at"}).
-		AddRow(userID, username, name, phone, passwordHash, accountType, nil, createdAt, updatedAt)
+	rows := sqlmock.NewRows([]string{"id", "username", "name", "phone_number", "password_hash", "description", "user_type", "attachment_id", "created_at", "updated_at"}).
+		AddRow(userID, username, name, phone, passwordHash, nil, accountType, nil, createdAt, updatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -71,7 +71,7 @@ func TestUserRepository_GetUserByPhone_NotFound(t *testing.T) {
 	phone := "+79998887766"
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -102,7 +102,7 @@ func TestUserRepository_GetUserByPhone_QueryError(t *testing.T) {
 	phone := "+79998887766"
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -139,11 +139,11 @@ func TestUserRepository_GetUserByUsername_Success(t *testing.T) {
 	createdAt := time.Now()
 	updatedAt := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "username", "name", "phone_number", "password_hash", "user_type", "attachment_id", "created_at", "updated_at"}).
-		AddRow(userID, username, name, phone, passwordHash, accountType, nil, createdAt, updatedAt)
+	rows := sqlmock.NewRows([]string{"id", "username", "name", "phone_number", "password_hash", "description", "user_type", "attachment_id", "created_at", "updated_at"}).
+		AddRow(userID, username, name, phone, passwordHash, nil, accountType, nil, createdAt, updatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -179,7 +179,7 @@ func TestUserRepository_GetUserByUsername_NotFound(t *testing.T) {
 	username := "nonexistent_user"
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -210,7 +210,7 @@ func TestUserRepository_GetUserByUsername_QueryError(t *testing.T) {
 	username := "test_user"
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -246,11 +246,13 @@ func TestUserRepository_GetUserByID_Success(t *testing.T) {
 	createdAt := time.Now()
 	updatedAt := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "username", "name", "phone_number", "user_type", "attachment_id", "created_at", "updated_at"}).
-		AddRow(userID, username, name, phone, accountType, nil, createdAt, updatedAt)
+	passwordHash := "hashed_password"
+
+	rows := sqlmock.NewRows([]string{"id", "username", "name", "phone_number", "password_hash", "description", "user_type", "attachment_id", "created_at", "updated_at"}).
+		AddRow(userID, username, name, phone, passwordHash, nil, accountType, nil, createdAt, updatedAt)
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -285,7 +287,7 @@ func TestUserRepository_GetUserByID_NotFound(t *testing.T) {
 	userID := uuid.New()
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -316,7 +318,7 @@ func TestUserRepository_GetUserByID_QueryError(t *testing.T) {
 	userID := uuid.New()
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT u.id, u.username, u.name, u.phone_number, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (

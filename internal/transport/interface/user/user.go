@@ -12,4 +12,5 @@ type UserUsecase interface {
 	GetUserByPhone(ctx context.Context, phone string) (*UserDTO.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*UserDTO.User, error)
 	UploadUserAvatar(ctx context.Context, userID uuid.UUID, data []byte, filename, contentType string) (string, error)
+	UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error
 }

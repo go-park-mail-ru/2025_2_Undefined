@@ -146,3 +146,17 @@ func (uc *UserUsecase) UploadUserAvatar(ctx context.Context, userID uuid.UUID, d
 
 	return avatar_url, nil
 }
+
+func (uc *UserUsecase) UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error {
+	const op = "UserUsecase.UpdateUserInfo"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	err := uc.userrepo.UpdateUserInfo(ctx, userID, name, username, bio)
+	if err != nil {
+		logger.WithError(err).Error("could not update user info")
+		return err
+	}
+
+	return nil
+}
