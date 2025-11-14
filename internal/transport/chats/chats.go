@@ -81,45 +81,9 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(chatDTO.Name) == "" {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "name is required and cannot be empty")
+	if err := validateChatCreateDTO(chatDTO); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
-	}
-	if strings.TrimSpace(chatDTO.Type) == "" {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "type is required and cannot be empty")
-		return
-	}
-	if len(chatDTO.Members) == 0 {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "members field is required and cannot be empty")
-		return
-	}
-
-	for i, member := range chatDTO.Members {
-		if member.UserId == uuid.Nil {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "user_id is required for all members")
-			return
-		}
-
-		if strings.TrimSpace(member.Role) == "" {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role is required for all members")
-			return
-		}
-
-		if member.Role != "admin" && member.Role != "writer" && member.Role != "viewer" {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role must be one of: admin, writer, viewer")
-			return
-		}
-		chatDTO.Members[i].Role = strings.TrimSpace(member.Role)
-	}
-
-	// Проверка на дубликаты пользователей в создаваемом чате
-	memberIds := make(map[uuid.UUID]bool)
-	for _, member := range chatDTO.Members {
-		if memberIds[member.UserId] {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "duplicate user_id found in members")
-			return
-		}
-		memberIds[member.UserId] = true
 	}
 
 	// Обрезаем пробелы в основных полях
@@ -275,37 +239,9 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(addUsersDTO.Users) == 0 {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "users field is required and cannot be empty")
+	if err := validateUsers(addUsersDTO.Users); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	for i, user := range addUsersDTO.Users {
-		if user.UserId == uuid.Nil {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "user_id is required for all users")
-			return
-		}
-
-		if strings.TrimSpace(user.Role) == "" {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role is required for all users")
-			return
-		}
-
-		if user.Role != "admin" && user.Role != "writer" && user.Role != "viewer" {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "role must be one of: admin, writer, viewer")
-			return
-		}
-		addUsersDTO.Users[i].Role = strings.TrimSpace(user.Role)
-	}
-
-	// Проверка на дубликаты пользователей
-	userIds := make(map[uuid.UUID]bool)
-	for _, user := range addUsersDTO.Users {
-		if userIds[user.UserId] {
-			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "duplicate user_id found in request")
-			return
-		}
-		userIds[user.UserId] = true
 	}
 
 	err = h.chatUsecase.AddUsersToChat(r.Context(), chatUUID, userUUID, addUsersDTO.Users)
@@ -426,8 +362,8 @@ func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(updateDTO.Name) == "" {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "name is required and cannot be empty")
+	if err := validateChatUpdateDTO(updateDTO); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -448,4 +384,90 @@ func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
+}
+
+func validateChatCreateDTO(chatDTO *dtoChats.ChatCreateInformationDTO) error {
+	if strings.TrimSpace(chatDTO.Name) == "" {
+		return errors.New("name is required and cannot be empty")
+	}
+	if strings.TrimSpace(chatDTO.Type) == "" {
+		return errors.New("type is required and cannot be empty")
+	}
+	if len(chatDTO.Members) == 0 {
+		return errors.New("members field is required and cannot be empty")
+	}
+
+	return validateMembers(chatDTO.Members)
+}
+
+func validateMembers(members []dtoChats.AddChatMemberDTO) error {
+	memberIds := make(map[uuid.UUID]bool)
+
+	for i, member := range members {
+		if member.UserId == uuid.Nil {
+			return errors.New("user_id is required for all members")
+		}
+
+		if strings.TrimSpace(member.Role) == "" {
+			return errors.New("role is required for all members")
+		}
+
+		if err := validateRole(member.Role); err != nil {
+			return err
+		}
+
+		if memberIds[member.UserId] {
+			return errors.New("duplicate user_id found in members")
+		}
+		memberIds[member.UserId] = true
+
+		members[i].Role = strings.TrimSpace(member.Role)
+	}
+
+	return nil
+}
+
+func validateUsers(users []dtoChats.AddChatMemberDTO) error {
+	if len(users) == 0 {
+		return errors.New("users field is required and cannot be empty")
+	}
+
+	userIds := make(map[uuid.UUID]bool)
+
+	for i, user := range users {
+		if user.UserId == uuid.Nil {
+			return errors.New("user_id is required for all users")
+		}
+
+		if strings.TrimSpace(user.Role) == "" {
+			return errors.New("role is required for all users")
+		}
+
+		if err := validateRole(user.Role); err != nil {
+			return err
+		}
+
+		if userIds[user.UserId] {
+			return errors.New("duplicate user_id found in request")
+		}
+		userIds[user.UserId] = true
+
+		users[i].Role = strings.TrimSpace(user.Role)
+	}
+
+	return nil
+}
+
+func validateRole(role string) error {
+	if role != "admin" && role != "writer" && role != "viewer" {
+		return errors.New("role must be one of: admin, writer, viewer")
+	}
+	return nil
+}
+
+func validateChatUpdateDTO(updateDTO *dtoChats.ChatUpdateDTO) error {
+	if strings.TrimSpace(updateDTO.Name) == "" {
+		return errors.New("name is required and cannot be empty")
+	}
+	return nil
 }

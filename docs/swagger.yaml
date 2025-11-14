@@ -57,7 +57,7 @@ definitions:
         type: array
       messages:
         items:
-          type: object
+          $ref: '#/definitions/dto.MessageDTO'
         type: array
       name:
         type: string
@@ -131,6 +131,27 @@ definitions:
     required:
     - password
     - phone_number
+    type: object
+  dto.MessageDTO:
+    properties:
+      chat_id:
+        format: uuid
+        type: string
+      created_at:
+        format: date-time
+        type: string
+      sender_avatar_url:
+        type: string
+      sender_id:
+        format: uuid
+        type: string
+      sender_name:
+        type: string
+      text:
+        type: string
+      type:
+        description: Тип сообщения - системное или пользовательское
+        type: string
     type: object
   dto.PostContactDTO:
     properties:

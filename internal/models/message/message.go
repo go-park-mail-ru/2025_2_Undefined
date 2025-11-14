@@ -14,7 +14,7 @@ const (
 type Message struct {
 	ID           uuid.UUID
 	ChatID       uuid.UUID
-	UserID       uuid.UUID
+	UserID       *uuid.UUID
 	UserName     string
 	UserAvatarID *uuid.UUID
 	Text         string
@@ -24,7 +24,7 @@ type Message struct {
 
 type CreateMessage struct {
 	ChatID    uuid.UUID
-	UserID    uuid.UUID
+	UserID    *uuid.UUID
 	Text      string
 	CreatedAt time.Time
 	Type      string

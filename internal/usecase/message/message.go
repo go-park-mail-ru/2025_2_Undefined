@@ -103,7 +103,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 	}
 
 	msgDTO := dtoMessage.MessageDTO{
-		SenderID:        user.ID,
+		SenderID:        &user.ID,
 		SenderName:      user.Name,
 		SenderAvatarURL: avatar_url,
 		Text:            msg.Text,
@@ -128,7 +128,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		Text:      msg.Text,
 		CreatedAt: msg.CreatedAt,
 		Type:      modelsMessage.MessageTypeUser,
-		UserID:    user.ID,
+		UserID:    &user.ID,
 	}
 
 	_, err = uc.messageRepository.InsertMessage(ctx, msgCreateModel)

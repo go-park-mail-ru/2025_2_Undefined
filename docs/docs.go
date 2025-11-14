@@ -1220,7 +1220,7 @@ const docTemplate = `{
                 "messages": {
                     "type": "array",
                     "items": {
-                        "type": "object"
+                        "$ref": "#/definitions/dto.MessageDTO"
                     }
                 },
                 "name": {
@@ -1332,6 +1332,36 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.MessageDTO": {
+            "type": "object",
+            "properties": {
+                "chat_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "sender_avatar_url": {
+                    "type": "string"
+                },
+                "sender_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "sender_name": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Тип сообщения - системное или пользовательское",
                     "type": "string"
                 }
             }

@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const LoggingLevel = logrus.ErrorLevel
+const LoggingLevel = logrus.DebugLevel
 
 func GetLogger(ctx context.Context) *logrus.Entry {
 	if logger, ok := ctx.Value(ContextKeyLogger{}).(*logrus.Entry); ok {

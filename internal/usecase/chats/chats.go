@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -49,7 +51,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 	}
 
 	// Создаем мапу для быстрого поиска последних сообщений по chat_id
-	messageMap := make(map[uuid.UUID]modelsMessage.Message)
+	messageMap := make(map[uuid.UUID]modelsMessage.Message, len(lastMessages))
 	for _, msg := range lastMessages {
 		messageMap[msg.ChatID] = msg
 	}
@@ -286,17 +288,46 @@ func (uc *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.
 	}
 
 	usersInfo := make([]modelsChats.UserInfo, len(users))
+	usersIDs := make([]uuid.UUID, len(users))
 	for i, user := range users {
 		usersInfo[i] = modelsChats.UserInfo{
 			UserID: user.UserId,
 			ChatID: chatID,
 			Role:   user.Role,
 		}
+
+		usersIDs[i] = user.UserId
 	}
 
 	err = uc.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
 	if err != nil {
 		return err
+	}
+
+	chat, err := uc.chatsRepo.GetChat(ctx, chatID)
+	if err != nil {
+		return err
+	}
+
+	if chat.Type == modelsChats.ChatTypeGroup {
+		usersNames, err := uc.usersRepo.GetUsersNames(ctx, usersIDs)
+		if err != nil {
+			return err
+		}
+
+		for i := range users {
+			_, err = uc.messageRepo.InsertMessage(ctx, modelsMessage.CreateMessage{
+				ChatID:    chatID,
+				UserID:    &users[i].UserId,
+				Text:      fmt.Sprintf("Пользователь %s вступил в группу", usersNames[i]),
+				Type:      modelsMessage.MessageTypeSystem,
+				CreatedAt: time.Now(),
+			})
+
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
