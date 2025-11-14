@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
-	message "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	dto0 "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
 )
@@ -38,7 +38,7 @@ func (m *MockMessageUsecase) EXPECT() *MockMessageUsecaseMockRecorder {
 }
 
 // AddMessage mocks base method.
-func (m *MockMessageUsecase) AddMessage(ctx context.Context, msg message.CreateMessageDTO, userID uuid.UUID) error {
+func (m *MockMessageUsecase) AddMessage(ctx context.Context, msg dto0.CreateMessageDTO, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddMessage", ctx, msg, userID)
 	ret0, _ := ret[0].(error)
@@ -52,15 +52,29 @@ func (mr *MockMessageUsecaseMockRecorder) AddMessage(ctx, msg, userID interface{
 }
 
 // SubscribeConnectionToChats mocks base method.
-func (m *MockMessageUsecase) SubscribeConnectionToChats(ctx context.Context, connectionID uuid.UUID, chatsDTO []dto.ChatViewInformationDTO) <-chan message.MessageDTO {
+func (m *MockMessageUsecase) SubscribeConnectionToChats(ctx context.Context, connectionID, userID uuid.UUID, chatsDTO []dto.ChatViewInformationDTO) <-chan dto0.WebSocketMessageDTO {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SubscribeConnectionToChats", ctx, connectionID, chatsDTO)
-	ret0, _ := ret[0].(<-chan message.MessageDTO)
+	ret := m.ctrl.Call(m, "SubscribeConnectionToChats", ctx, connectionID, userID, chatsDTO)
+	ret0, _ := ret[0].(<-chan dto0.WebSocketMessageDTO)
 	return ret0
 }
 
 // SubscribeConnectionToChats indicates an expected call of SubscribeConnectionToChats.
-func (mr *MockMessageUsecaseMockRecorder) SubscribeConnectionToChats(ctx, connectionID, chatsDTO interface{}) *gomock.Call {
+func (mr *MockMessageUsecaseMockRecorder) SubscribeConnectionToChats(ctx, connectionID, userID, chatsDTO interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeConnectionToChats", reflect.TypeOf((*MockMessageUsecase)(nil).SubscribeConnectionToChats), ctx, connectionID, chatsDTO)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeConnectionToChats", reflect.TypeOf((*MockMessageUsecase)(nil).SubscribeConnectionToChats), ctx, connectionID, userID, chatsDTO)
+}
+
+// SubscribeUsersOnChat mocks base method.
+func (m *MockMessageUsecase) SubscribeUsersOnChat(ctx context.Context, chatID uuid.UUID, members []dto.AddChatMemberDTO) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubscribeUsersOnChat", ctx, chatID, members)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SubscribeUsersOnChat indicates an expected call of SubscribeUsersOnChat.
+func (mr *MockMessageUsecaseMockRecorder) SubscribeUsersOnChat(ctx, chatID, members interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeUsersOnChat", reflect.TypeOf((*MockMessageUsecase)(nil).SubscribeUsersOnChat), ctx, chatID, members)
 }

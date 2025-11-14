@@ -1,4 +1,4 @@
-package message
+package dto
 
 import (
 	"time"
@@ -20,4 +20,17 @@ type CreateMessageDTO struct {
 	Text      string    `json:"text"`
 	CreatedAt time.Time `json:"created_at"`
 	ChatId    uuid.UUID `json:"chat_id" swaggertype:"string" format:"uuid"`
+}
+
+const (
+	WebSocketMessageTypeNewChatMessage    = "new message of chat"
+	WebSocketMessageTypeEditChatMessage   = "edit chat message"
+	WebSocketMessageTypeDeleteChatMessage = "delete chat message"
+	WebSocketMessageTypeCreatedNewChat    = "new chat created"
+)
+
+type WebSocketMessageDTO struct {
+	Type   string    `json:"type"`
+	ChatID uuid.UUID `json:"chat_id"`
+	Value  any       `json:"value"`
 }

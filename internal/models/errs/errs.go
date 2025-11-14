@@ -14,6 +14,7 @@ var (
 	ErrServiceIsOverloaded   = errors.New("service is overloaded, try again later")
 	ErrNoRights              = errors.New("no rights to perform this action")
 	ErrSessionNotFound       = errors.New("session not found")
+	ErrInternalServerError   = errors.New("internal server error")
 )
 
 // ValidationError представляет ошибку валидации поля

@@ -11,6 +11,7 @@ import (
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	chatsInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
+	messageInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/message"
 	sessionInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
@@ -18,13 +19,15 @@ import (
 
 type ChatsHandler struct {
 	chatUsecase    chatsInterface.ChatsUsecase
-	sessionUtils sessionInterface.SessionUtils
+	messageUsecase messageInterface.MessageUsecase
+	sessionUtils   sessionInterface.SessionUtils
 }
 
-func NewChatsHandler(chatUsecase chatsInterface.ChatsUsecase, sessionUtils sessionInterface.SessionUtils) *ChatsHandler {
+func NewChatsHandler(messageUsecase messageInterface.MessageUsecase, chatUsecase chatsInterface.ChatsUsecase, sessionUtils sessionInterface.SessionUtils) *ChatsHandler {
 	return &ChatsHandler{
 		chatUsecase:    chatUsecase,
-		sessionUtils: sessionUtils,
+		messageUsecase: messageUsecase,
+		sessionUtils:   sessionUtils,
 	}
 }
 
@@ -125,6 +128,12 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 	idOfCreatedChat, err := h.chatUsecase.CreateChat(r.Context(), *chatDTO)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = h.messageUsecase.SubscribeUsersOnChat(r.Context(), idOfCreatedChat, chatDTO.Members)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, errs.ErrInternalServerError.Error())
 		return
 	}
 
@@ -302,6 +311,12 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 	err = h.chatUsecase.AddUsersToChat(r.Context(), chatUUID, userUUID, addUsersDTO.Users)
 	if err != nil {
 		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		return
+	}
+
+	err = h.messageUsecase.SubscribeUsersOnChat(r.Context(), chatUUID, addUsersDTO.Users)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, errs.ErrInternalServerError.Error())
 		return
 	}
 

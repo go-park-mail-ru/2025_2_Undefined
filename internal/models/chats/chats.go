@@ -21,6 +21,7 @@ type Chat struct {
 	Type        string
 	Name        string
 	Description string
+	AvatarID    *uuid.UUID
 }
 
 type UserInfo struct {

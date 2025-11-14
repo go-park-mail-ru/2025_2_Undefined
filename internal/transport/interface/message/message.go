@@ -10,5 +10,6 @@ import (
 
 type MessageUsecase interface {
 	AddMessage(ctx context.Context, msg dtoMessage.CreateMessageDTO, userID uuid.UUID) error
-	SubscribeConnectionToChats(ctx context.Context, connectionID uuid.UUID, chatsDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.MessageDTO
+	SubscribeConnectionToChats(ctx context.Context, connectionID, userID uuid.UUID, chatsDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.WebSocketMessageDTO
+	SubscribeUsersOnChat(ctx context.Context, chatID uuid.UUID, members []dtoChats.AddChatMemberDTO) error
 }

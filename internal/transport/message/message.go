@@ -15,7 +15,6 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 )
 
 var upgrader = websocket.Upgrader{
@@ -41,14 +40,14 @@ var upgrader = websocket.Upgrader{
 type MessageHandler struct {
 	messageUsecase interfaceMessageUsecase.MessageUsecase
 	chatsUsecase   interfaceChatsUsecase.ChatsUsecase
-	sessionUtils interfaceSessionUtils.SessionUtils
+	sessionUtils   interfaceSessionUtils.SessionUtils
 }
 
 func NewMessageHandler(messageUsecase interfaceMessageUsecase.MessageUsecase, chatsUsecase interfaceChatsUsecase.ChatsUsecase, sessionUtils interfaceSessionUtils.SessionUtils) *MessageHandler {
 	return &MessageHandler{
 		messageUsecase: messageUsecase,
 		chatsUsecase:   chatsUsecase,
-		sessionUtils: sessionUtils,
+		sessionUtils:   sessionUtils,
 	}
 }
 
@@ -120,12 +119,10 @@ func (h *MessageHandler) HandleMessages(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *MessageHandler) readMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userID uuid.UUID) {
+	const op = "MessageHandler.readMessages"
 	defer cancel()
 
-	logger := domains.GetLogger(ctx).WithFields(logrus.Fields{
-		"operation": "MessageHandler.readMessages",
-		"user_id":   userID.String(),
-	})
+	logger := domains.GetLogger(ctx).WithField("user_id", userID.String()).WithField("operation", op)
 
 	logger.Debugf("start read messages from user %s ", userID)
 
@@ -139,7 +136,7 @@ func (h *MessageHandler) readMessages(ctx context.Context, cancel context.Cancel
 	connectionID := uuid.New()
 
 	// Подписываемся на получение сообщений из всех чатов для данного пользователя
-	ch := h.messageUsecase.SubscribeConnectionToChats(ctx, connectionID, chatsViewDTO)
+	ch := h.messageUsecase.SubscribeConnectionToChats(ctx, connectionID, userID, chatsViewDTO)
 
 	for {
 		select {
@@ -168,12 +165,10 @@ func (h *MessageHandler) readMessages(ctx context.Context, cancel context.Cancel
 }
 
 func (h *MessageHandler) sendMessages(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, userID uuid.UUID) {
+	const op = "MessageHandler.sendMessages"
 	defer cancel()
 
-	logger := domains.GetLogger(ctx).WithFields(logrus.Fields{
-		"operation": "MessageHandler.sendMessages",
-		"user_id":   userID.String(),
-	})
+	logger := domains.GetLogger(ctx).WithField("user_id", userID.String()).WithField("operation", op)
 
 	logger.Debugf("start send messages from user %s ", userID)
 
@@ -221,6 +216,6 @@ func (h *MessageHandler) writeJSONErrorWebSocket(conn *websocket.Conn, str strin
 
 func shouldCloseConnection(err error) bool {
 	// Все случаи когда соединение УЖЕ закрыто или должно быть закрыто
-	return websocket.IsUnexpectedCloseError(err) || //
+	return websocket.IsUnexpectedCloseError(err) ||
 		errors.Is(err, io.EOF) // TCP соединение разорвано
 }
