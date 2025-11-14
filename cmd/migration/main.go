@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
 	"github.com/golang-migrate/migrate/v4"
@@ -15,14 +15,18 @@ import (
 )
 
 func main() {
+	const op = "main"
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	cfg, err := config.NewConfig()
 	if err != nil {
-		log.Fatalf("Error loading configuration: %v", err)
+		logger.WithError(err).Fatal("Error loading configuration")
 	}
 
 	dsn, err := repository.GetConnectionString(cfg.DBConfig)
 	if err != nil {
-		log.Fatalf("Can't connect to database: %v", err)
+		logger.WithError(err).Fatal("Can't connect to database")
 	}
 
 	m, err := migrate.New(
@@ -30,12 +34,12 @@ func main() {
 		dsn,
 	)
 	if err != nil {
-		log.Panicf("Error initializing migrations: %v", err)
+		logger.WithError(err).Panic("Error initializing migrations")
 	}
 
 	redis, err := redisClient.NewClient(cfg.RedisConfig)
 	if err != nil {
-		log.Printf("Warning: Could not connect to Redis: %v", err)
+		logger.WithError(err).Warn("Warning: Could not connect to Redis")
 	}
 
 	if len(os.Args) > 1 {
@@ -43,16 +47,16 @@ func main() {
 		case "down":
 			// Откат миграций PostgreSQL
 			if err = m.Down(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-				log.Fatalf("Error rolling back migrations: %v", err)
+				logger.WithError(err).Fatal("Error rolling back migrations")
 			}
-			log.Println("Migrations rolled back successfully.")
+			logger.Info("Migrations rolled back successfully.")
 
 			// Очистка Redis при откате
 			if redis != nil {
 				if err := clearRedis(redis); err != nil {
-					log.Printf("Warning: Could not clear Redis: %v", err)
+					logger.WithError(err).Warn("Warning: Could not clear Redis")
 				} else {
-					log.Println("Redis cleared successfully.")
+					logger.Info("Redis cleared successfully.")
 				}
 			}
 
@@ -60,27 +64,27 @@ func main() {
 			// Только очистка Redis
 			if redis != nil {
 				if err := clearRedis(redis); err != nil {
-					log.Fatalf("Error clearing Redis: %v", err)
+					logger.WithError(err).Fatal("Error clearing Redis")
 				} else {
-					log.Println("Redis cleared successfully.")
+					logger.Info("Redis cleared successfully.")
 				}
 			} else {
-				log.Fatalf("Could not connect to Redis")
+				logger.Fatal("Could not connect to Redis")
 			}
 
 		default:
 			// Применение миграций PostgreSQL (по умолчанию)
 			if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-				log.Fatalf("Error applying migrations: %v", err)
+				logger.WithError(err).Fatal("Error applying migrations")
 			}
-			log.Println("Migrations applied successfully.")
+			logger.Info("Migrations applied successfully.")
 		}
 	} else {
 		// Применение миграций PostgreSQL (по умолчанию)
 		if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-			log.Fatalf("Error applying migrations: %v", err)
+			logger.WithError(err).Fatal("Error applying migrations")
 		}
-		log.Println("Migrations applied successfully.")
+		logger.Info("Migrations applied successfully.")
 	}
 }
 

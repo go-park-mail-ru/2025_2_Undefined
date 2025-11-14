@@ -1,12 +1,13 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	"github.com/google/uuid"
@@ -33,18 +34,21 @@ func NewSessionUtils(uc SessionUsecase, sessionConfig *config.SessionConfig) *Se
 func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
 	const op = "SessionUtils.GetUserIDFromSession"
 
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	// Получаем сессию из куки
 	sessionCookie, err := r.Cookie(s.sessionConfig.Signature)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session cookie not found")
 		return uuid.Nil, errors.New("session required")
 	}
 
 	sessionID, err := uuid.Parse(sessionCookie.Value)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session ID"))
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("invalid session ID format")
 		return uuid.Nil, errors.New("invalid session ID")
 	}
 
@@ -52,7 +56,7 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 	sessionInfo, err := s.uc.GetSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to get session info")
 		return uuid.Nil, errors.New("invalid session")
 	}
 
@@ -63,17 +67,20 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
 	const op = "SessionUtils.GetSessionsByUserID"
 
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	if userID == uuid.Nil {
 		err := errors.New("user ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("user ID is required")
 		return nil, wrappedErr
 	}
 
 	sessions, err := s.uc.GetSessionsByUserID(userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to get sessions by user ID")
 		return nil, wrappedErr
 	}
 
@@ -83,17 +90,20 @@ func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, er
 func (s *SessionUtils) GetSessionFromCookie(r *http.Request) (uuid.UUID, error) {
 	const op = "SessionUtils.GetSessionFromCookie"
 
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	sessionCookie, err := r.Cookie(s.sessionConfig.Signature)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session cookie not found")
 		return uuid.Nil, errors.New("session required")
 	}
 
 	sessionID, err := uuid.Parse(sessionCookie.Value)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("invalid session ID"))
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("invalid session ID format")
 		return uuid.Nil, errors.New("invalid session ID")
 	}
 

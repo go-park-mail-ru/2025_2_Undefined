@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	ContactDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/contact"
@@ -31,17 +30,19 @@ func New(contactrepo InterfaceContactRepository.ContactRepository, userrepo Inte
 func (uc *ContactUsecase) CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error {
 	const op = "ContactUsecase.CreateContact"
 
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	_, err := uc.userrepo.GetUserByID(ctx, userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to get user by ID")
 		return wrappedErr
 	}
 
 	err = uc.contactrepo.CreateContact(ctx, userID, req.ContactUserID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to create contact")
 		return wrappedErr
 	}
 

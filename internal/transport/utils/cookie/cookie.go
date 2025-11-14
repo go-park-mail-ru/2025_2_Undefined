@@ -1,14 +1,18 @@
 package cookie
 
 import (
-	"log"
+	"context"
 	"net/http"
 	"time"
+
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 )
 
 func Set(w http.ResponseWriter, token, name string) {
 	if token == "" {
-		log.Println("Warning: empty token for cookie", name)
+		ctx := context.Background()
+		logger := domains.GetLogger(ctx).WithField("operation", "cookie.Set")
+		logger.Warnf("Warning: empty token for cookie %s", name)
 		return
 	}
 

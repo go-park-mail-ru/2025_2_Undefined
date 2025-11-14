@@ -1,9 +1,9 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
@@ -165,15 +165,19 @@ func NewApp(conf *config.Config) (*App, error) {
 }
 
 func (a *App) Run() {
+	const op = "App.Run"
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	server := &http.Server{
 		Addr:    ":" + a.conf.ServerConfig.Port,
 		Handler: a.router,
 	}
 
-	log.Printf("Server starting on port %s", a.conf.ServerConfig.Port)
-	log.Printf("Swagger UI available at: http://localhost:%s/swagger/", a.conf.ServerConfig.Port)
+	logger.Infof("Server starting on port %s", a.conf.ServerConfig.Port)
+	logger.Infof("Swagger UI available at: http://localhost:%s/swagger/", a.conf.ServerConfig.Port)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server failed to start: %v", err)
+		logger.WithError(err).Fatal("Server failed to start")
 	}
 }

@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
+	"context"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/app"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 )
 
 // @title           Undefined team API documentation of project Telegram
@@ -22,14 +23,18 @@ import (
 // @host      localhost:8080
 // @BasePath  /api/v1
 func main() {
+	const op = "main"
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	conf, err := config.NewConfig()
 	if err != nil {
-		log.Fatalf("config error: %v", err)
+		logger.WithError(err).Fatal("config error")
 	}
 
 	application, err := app.NewApp(conf)
 	if err != nil {
-		log.Fatalf("failed to create app: %v", err)
+		logger.WithError(err).Fatal("failed to create app")
 	}
 
 	application.Run()

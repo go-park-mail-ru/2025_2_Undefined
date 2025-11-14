@@ -1,10 +1,11 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/session"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
@@ -32,17 +33,21 @@ func New(sessionrepo SessionRepository) *SessionUsecase {
 
 func (uc *SessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) {
 	const op = "SessionUseCase.GetSession"
+
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	if sessionID == uuid.Nil {
 		err := errors.New("session required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session ID is required")
 		return nil, wrappedErr
 	}
 
 	sess, err := uc.sessionrepo.GetSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to get session")
 		return nil, wrappedErr
 	}
 
@@ -60,17 +65,20 @@ func (uc *SessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) 
 func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
 	const op = "SessionUseCase.GetSessionsByUserID"
 
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	if userID == uuid.Nil {
 		err := errors.New("user ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("user ID is required")
 		return nil, wrappedErr
 	}
 
 	sessions, err := uc.sessionrepo.GetSessionsByUserID(userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to get sessions by user ID")
 		return nil, wrappedErr
 	}
 
@@ -92,17 +100,20 @@ func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session,
 func (uc *SessionUsecase) UpdateSession(sessionID uuid.UUID) error {
 	const op = "SessionUsecase.UpdateSession"
 
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	if sessionID == uuid.Nil {
 		err := errors.New("session ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session ID is required")
 		return wrappedErr
 	}
 
 	err := uc.sessionrepo.UpdateSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to update session")
 		return wrappedErr
 	}
 
@@ -112,17 +123,20 @@ func (uc *SessionUsecase) UpdateSession(sessionID uuid.UUID) error {
 func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) error {
 	const op = "SessionUsecase.DeleteSession"
 
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
 	if userID == uuid.Nil {
 		err := errors.New("user ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("user ID is required")
 		return err
 	}
 
 	if sessionID == uuid.Nil {
 		err := errors.New("session ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session ID is required")
 		return err
 	}
 
@@ -130,25 +144,25 @@ func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) e
 	if err != nil {
 		if errors.Is(err, errs.ErrSessionNotFound) {
 			wrappedErr := fmt.Errorf("%s: session not found: %w", op, err)
-			log.Printf("Error: %v", wrappedErr)
+			logger.WithError(wrappedErr).Error("session not found")
 			return errs.ErrSessionNotFound
 		}
 		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to get session")
 		return wrappedErr
 	}
 
 	if session.UserID != userID {
 		err := errors.New("session does not belong to user")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session does not belong to user")
 		return err
 	}
 
 	err = uc.sessionrepo.DeleteSession(sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to delete session")
 		return err
 	}
 
@@ -156,26 +170,29 @@ func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) e
 }
 
 func (uc *SessionUsecase) DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error {
-	const op = "SessionUsecase.DeleteSession"
+	const op = "SessionUsecase.DeleteAllSessionWithoutCurrent"
+
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	if currentSessionID == uuid.Nil {
 		err := errors.New("session ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("session ID is required")
 		return err
 	}
 
 	if userID == uuid.Nil {
 		err := errors.New("user ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("user ID is required")
 		return err
 	}
 
 	err := uc.sessionrepo.DeleteAllSessionWithoutCurrent(userID, currentSessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to delete all sessions without current")
 		return wrappedErr
 	}
 
