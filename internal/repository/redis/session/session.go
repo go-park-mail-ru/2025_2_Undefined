@@ -37,10 +37,9 @@ type sessionData struct {
 	LastSeen  time.Time `json:"last_seen"`
 }
 
-func (r *SessionRepository) AddSession(userID uuid.UUID, device string) (uuid.UUID, error) {
+func (r *SessionRepository) AddSession(ctx context.Context, userID uuid.UUID, device string) (uuid.UUID, error) {
 	const op = "SessionRepository.AddSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	sessionID := uuid.New()
@@ -79,10 +78,9 @@ func (r *SessionRepository) AddSession(userID uuid.UUID, device string) (uuid.UU
 	return sessionID, nil
 }
 
-func (r *SessionRepository) DeleteSession(sessionID uuid.UUID) error {
+func (r *SessionRepository) DeleteSession(ctx context.Context, sessionID uuid.UUID) error {
 	const op = "SessionRepository.DeleteSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
@@ -121,10 +119,9 @@ func (r *SessionRepository) DeleteSession(sessionID uuid.UUID) error {
 	return nil
 }
 
-func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
+func (r *SessionRepository) UpdateSession(ctx context.Context, sessionID uuid.UUID) error {
 	const op = "SessionRepository.UpdateSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
@@ -173,10 +170,9 @@ func (r *SessionRepository) UpdateSession(sessionID uuid.UUID) error {
 	return nil
 }
 
-func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*models.Session, error) {
+func (r *SessionRepository) GetSession(ctx context.Context, sessionID uuid.UUID) (*models.Session, error) {
 	const op = "SessionRepository.GetSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
@@ -208,10 +204,9 @@ func (r *SessionRepository) GetSession(sessionID uuid.UUID) (*models.Session, er
 	return sess, nil
 }
 
-func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Session, error) {
+func (r *SessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Session, error) {
 	const op = "SessionRepository.GetSessionsByUserID"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
@@ -236,7 +231,7 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Ses
 			continue
 		}
 
-		sess, err := r.GetSession(sessionID)
+		sess, err := r.GetSession(ctx, sessionID)
 		if err != nil {
 			logger.WithError(err).Warnf("failed to get session %s for user %s", sessionID, userID)
 			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
@@ -249,10 +244,9 @@ func (r *SessionRepository) GetSessionsByUserID(userID uuid.UUID) ([]*models.Ses
 	return sessions, nil
 }
 
-func (r *SessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error {
+func (r *SessionRepository) DeleteAllSessionWithoutCurrent(ctx context.Context, userID uuid.UUID, currentSessionID uuid.UUID) error {
 	const op = "SessionRepository.DeleteAllSessionWithoutCurrent"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
@@ -272,7 +266,7 @@ func (r *SessionRepository) DeleteAllSessionWithoutCurrent(userID uuid.UUID, cur
 		}
 
 		if currentSessionID != sessionID {
-			err = r.DeleteSession(sessionID)
+			err = r.DeleteSession(ctx, sessionID)
 			if err != nil {
 				logger.WithError(err).Warnf("failed to delete session %s for user %s", sessionID, userID)
 			}

@@ -124,7 +124,7 @@ func TestUserHandler_GetSessionsByUser_Success(t *testing.T) {
 	}
 
 	mockSessionUtils.EXPECT().GetUserIDFromSession(gomock.Any()).Return(userID, nil)
-	mockSessionUsecase.EXPECT().GetSessionsByUserID(userID).Return(sessions, nil)
+	mockSessionUsecase.EXPECT().GetSessionsByUserID(gomock.Any(), userID).Return(sessions, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/sessions", nil)
 	recorder := httptest.NewRecorder()
@@ -174,7 +174,7 @@ func TestUserHandler_GetSessionsByUser_Error(t *testing.T) {
 	userID := uuid.New()
 
 	mockSessionUtils.EXPECT().GetUserIDFromSession(gomock.Any()).Return(userID, nil)
-	mockSessionUsecase.EXPECT().GetSessionsByUserID(userID).Return(nil, errors.New("session error"))
+	mockSessionUsecase.EXPECT().GetSessionsByUserID(gomock.Any(), userID).Return(nil, errors.New("session error"))
 
 	request := httptest.NewRequest(http.MethodGet, "/sessions", nil)
 	recorder := httptest.NewRecorder()

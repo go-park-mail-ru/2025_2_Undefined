@@ -25,8 +25,8 @@ type UserRepository interface {
 }
 
 type SessionRepository interface {
-	AddSession(UserID uuid.UUID, device string) (uuid.UUID, error)
-	DeleteSession(SessionID uuid.UUID) error
+	AddSession(ctx context.Context, UserID uuid.UUID, device string) (uuid.UUID, error)
+	DeleteSession(ctx context.Context, SessionID uuid.UUID) error
 }
 
 type AuthUsecase struct {
@@ -92,7 +92,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 		}
 	}
 
-	newsSession, err := uc.sessionrepo.AddSession(user.ID, device)
+	newsSession, err := uc.sessionrepo.AddSession(ctx, user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to create session")
@@ -121,7 +121,7 @@ func (uc *AuthUsecase) Login(ctx context.Context, req *AuthDTO.LoginRequest, dev
 		return uuid.Nil, errs.ErrInvalidCredentials
 	}
 
-	newSession, err := uc.sessionrepo.AddSession(user.ID, device)
+	newSession, err := uc.sessionrepo.AddSession(ctx, user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to create session")
@@ -137,7 +137,7 @@ func (uc *AuthUsecase) Logout(ctx context.Context, SessionID uuid.UUID) error {
 	logger := domains.GetLogger(ctx)
 	logger.WithField("session_id", SessionID).Debug("Starting session logout")
 
-	err := uc.sessionrepo.DeleteSession(SessionID)
+	err := uc.sessionrepo.DeleteSession(ctx, SessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("Failed to delete session")

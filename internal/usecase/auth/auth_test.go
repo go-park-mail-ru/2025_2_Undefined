@@ -50,13 +50,13 @@ type MockSessionRepository struct {
 	mock.Mock
 }
 
-func (m *MockSessionRepository) AddSession(userID uuid.UUID, device string) (uuid.UUID, error) {
-	args := m.Called(userID, device)
+func (m *MockSessionRepository) AddSession(ctx context.Context, userID uuid.UUID, device string) (uuid.UUID, error) {
+	args := m.Called(ctx, userID, device)
 	return args.Get(0).(uuid.UUID), args.Error(1)
 }
 
-func (m *MockSessionRepository) DeleteSession(sessionID uuid.UUID) error {
-	args := m.Called(sessionID)
+func (m *MockSessionRepository) DeleteSession(ctx context.Context, sessionID uuid.UUID) error {
+	args := m.Called(ctx, sessionID)
 	return args.Error(0)
 }
 
@@ -88,7 +88,7 @@ func TestAuthUsecase_Register_Success(t *testing.T) {
 			AccountType:  UserModels.UserAccount,
 		}, nil)
 
-	mockSessionRepo.On("AddSession", userID, device).Return(sessionID, nil)
+	mockSessionRepo.On("AddSession", ctx, userID, device).Return(sessionID, nil)
 
 	result, validationErr := uc.Register(ctx, req, device)
 
@@ -214,7 +214,7 @@ func TestAuthUsecase_Register_SessionCreationError(t *testing.T) {
 			AccountType:  UserModels.UserAccount,
 		}, nil)
 
-	mockSessionRepo.On("AddSession", userID, device).Return(uuid.Nil, errors.New("session creation failed"))
+	mockSessionRepo.On("AddSession", ctx, userID, device).Return(uuid.Nil, errors.New("session creation failed"))
 
 	result, validationErr := uc.Register(ctx, req, device)
 
@@ -251,7 +251,7 @@ func TestAuthUsecase_Login_Success(t *testing.T) {
 	}
 
 	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(user, nil)
-	mockSessionRepo.On("AddSession", userID, device).Return(sessionID, nil)
+	mockSessionRepo.On("AddSession", ctx, userID, device).Return(sessionID, nil)
 
 	result, err := uc.Login(ctx, req, device)
 
@@ -366,7 +366,7 @@ func TestAuthUsecase_Login_SessionCreationError(t *testing.T) {
 	}
 
 	mockUserRepo.On("GetUserByPhone", ctx, req.PhoneNumber).Return(user, nil)
-	mockSessionRepo.On("AddSession", userID, device).Return(uuid.Nil, errors.New("session creation failed"))
+	mockSessionRepo.On("AddSession", ctx, userID, device).Return(uuid.Nil, errors.New("session creation failed"))
 
 	result, err := uc.Login(ctx, req, device)
 
@@ -387,7 +387,7 @@ func TestAuthUsecase_Logout_Success(t *testing.T) {
 
 	sessionID := uuid.New()
 
-	mockSessionRepo.On("DeleteSession", sessionID).Return(nil)
+	mockSessionRepo.On("DeleteSession", ctx, sessionID).Return(nil)
 
 	err := uc.Logout(ctx, sessionID)
 
@@ -405,7 +405,7 @@ func TestAuthUsecase_Logout_SessionDeleteError(t *testing.T) {
 
 	sessionID := uuid.New()
 
-	mockSessionRepo.On("DeleteSession", sessionID).Return(errors.New("delete session failed"))
+	mockSessionRepo.On("DeleteSession", ctx, sessionID).Return(errors.New("delete session failed"))
 
 	err := uc.Logout(ctx, sessionID)
 

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"net/http"
 
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
@@ -8,11 +9,11 @@ import (
 )
 
 type SessionUsecase interface {
-	GetSession(sessionID uuid.UUID) (*dto.Session, error)
-	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
-	UpdateSession(sessionID uuid.UUID) error
-	DeleteSession(userID uuid.UUID, sessionID uuid.UUID) error
-	DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error
+	GetSession(ctx context.Context, sessionID uuid.UUID) (*dto.Session, error)
+	GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*dto.Session, error)
+	UpdateSession(ctx context.Context, sessionID uuid.UUID) error
+	DeleteSession(ctx context.Context, userID uuid.UUID, sessionID uuid.UUID) error
+	DeleteAllSessionWithoutCurrent(ctx context.Context, userID uuid.UUID, currentSessionID uuid.UUID) error
 }
 
 type SessionUtils interface {

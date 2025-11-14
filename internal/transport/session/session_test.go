@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -18,22 +19,21 @@ type MockSessionUsecase struct {
 	mock.Mock
 }
 
-func (m *MockSessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) {
-	args := m.Called(sessionID)
+func (m *MockSessionUsecase) GetSession(ctx context.Context, sessionID uuid.UUID) (*dto.Session, error) {
+	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*dto.Session), args.Error(1)
 }
 
-func (m *MockSessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
-	args := m.Called(userID)
+func (m *MockSessionUsecase) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*dto.Session, error) {
+	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*dto.Session), args.Error(1)
 }
-
 func TestSessionUtils_GetUserIDFromSession_Success(t *testing.T) {
 	mockUsecase := new(MockSessionUsecase)
 	sessionConfig := &config.SessionConfig{

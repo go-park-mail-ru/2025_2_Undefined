@@ -76,7 +76,7 @@ func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sessions, err := h.sessionUsecase.GetSessionsByUserID(userID)
+	sessions, err := h.sessionUsecase.GetSessionsByUserID(r.Context(), userID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -112,7 +112,7 @@ func (h *UserHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.sessionUsecase.DeleteSession(userID, req.ID)
+	err = h.sessionUsecase.DeleteSession(r.Context(), userID, req.ID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusNotFound, err.Error())
 		return
@@ -148,7 +148,7 @@ func (h *UserHandler) DeleteAllSessionWithoutCurrent(w http.ResponseWriter, r *h
 		return
 	}
 
-	err = h.sessionUsecase.DeleteAllSessionWithoutCurrent(userID, sessionID)
+	err = h.sessionUsecase.DeleteAllSessionWithoutCurrent(r.Context(), userID, sessionID)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusNotFound, err.Error())
 		return
