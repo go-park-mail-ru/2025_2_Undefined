@@ -1,13 +1,14 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/joho/godotenv"
 )
 
@@ -274,7 +275,9 @@ func newMinioConfig() (*MinioConfig, error) {
 		UseSSL:       useSSL,
 	}
 
-	log.Printf("minio config is %v", cfg)
+	ctx := context.Background()
+	logger := domains.GetLogger(ctx).WithField("operation", "getMinioConfig")
+	logger.Debugf("minio config is %v", cfg)
 
 	return cfg, nil
 }

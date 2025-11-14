@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
@@ -46,6 +45,8 @@ func New(authrepo AuthRepository, userrepo UserRepository, sessionrepo SessionRe
 
 func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
 	const op = "AuthUsecase.Register"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
 	errorsValidation := make([]errs.ValidationError, 0)
 
 	existing, _ := uc.userrepo.GetUserByPhone(ctx, req.PhoneNumber)
@@ -58,7 +59,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 
 	if len(errorsValidation) > 0 {
 		wrappedErr := fmt.Errorf("%s: %w", op, errors.New("in validation.ConvertToValidationErrorsDTO"))
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("validation errors found")
 		err := validation.ConvertToValidationErrorsDTO(errorsValidation)
 
 		return uuid.Nil, &err
@@ -67,7 +68,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to hash password")
 		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
@@ -76,7 +77,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 	user, err := uc.authrepo.CreateUser(ctx, req.Name, req.PhoneNumber, string(hashedPassword))
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to create user")
 		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
@@ -85,7 +86,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 	if user == nil {
 		err = errors.New("user not created")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("user not created")
 		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
@@ -94,7 +95,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 	newsSession, err := uc.sessionrepo.AddSession(user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to create session")
 		return uuid.Nil, &dto.ValidationErrorsDTO{
 			Message: err.Error(),
 		}
@@ -105,23 +106,25 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 
 func (uc *AuthUsecase) Login(ctx context.Context, req *AuthDTO.LoginRequest, device string) (uuid.UUID, error) {
 	const op = "AuthUsecase.Login"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
 	user, err := uc.userrepo.GetUserByPhone(ctx, req.PhoneNumber)
 	if err != nil || user == nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("user not found or database error")
 		return uuid.Nil, errs.ErrInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidCredentials)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("invalid password")
 		return uuid.Nil, errs.ErrInvalidCredentials
 	}
 
 	newSession, err := uc.sessionrepo.AddSession(user.ID, device)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		log.Printf("Error: %v", wrappedErr)
+		logger.WithError(wrappedErr).Error("failed to create session")
 		return uuid.Nil, wrappedErr
 	}
 
