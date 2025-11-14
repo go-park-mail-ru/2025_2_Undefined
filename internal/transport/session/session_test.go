@@ -34,6 +34,7 @@ func (m *MockSessionUsecase) GetSessionsByUserID(ctx context.Context, userID uui
 	}
 	return args.Get(0).([]*dto.Session), args.Error(1)
 }
+
 func TestSessionUtils_GetUserIDFromSession_Success(t *testing.T) {
 	mockUsecase := new(MockSessionUsecase)
 	sessionConfig := &config.SessionConfig{
@@ -53,7 +54,7 @@ func TestSessionUtils_GetUserIDFromSession_Success(t *testing.T) {
 		Last_seen:  time.Now(),
 	}
 
-	mockUsecase.On("GetSession", sessionID).Return(session, nil)
+	mockUsecase.On("GetSession", mock.Anything, sessionID).Return(session, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	cookie := &http.Cookie{
@@ -115,7 +116,7 @@ func TestSessionUtils_GetUserIDFromSession_SessionNotFound(t *testing.T) {
 
 	sessionID := uuid.New()
 
-	mockUsecase.On("GetSession", sessionID).Return(nil, errors.New("session not found"))
+	mockUsecase.On("GetSession", mock.Anything, sessionID).Return(nil, errors.New("session not found"))
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	cookie := &http.Cookie{
@@ -160,7 +161,7 @@ func TestSessionUtils_GetSessionsByUserID_Success(t *testing.T) {
 		},
 	}
 
-	mockUsecase.On("GetSessionsByUserID", userID).Return(sessions, nil)
+	mockUsecase.On("GetSessionsByUserID", mock.Anything, userID).Return(sessions, nil)
 
 	result, err := utils.GetSessionsByUserID(userID)
 
@@ -194,7 +195,7 @@ func TestSessionUtils_GetSessionsByUserID_UsecaseError(t *testing.T) {
 
 	userID := uuid.New()
 
-	mockUsecase.On("GetSessionsByUserID", userID).Return(nil, errors.New("redis error"))
+	mockUsecase.On("GetSessionsByUserID", mock.Anything, userID).Return(nil, errors.New("redis error"))
 
 	result, err := utils.GetSessionsByUserID(userID)
 
@@ -213,7 +214,7 @@ func TestSessionUtils_GetSessionsByUserID_EmptyResult(t *testing.T) {
 
 	userID := uuid.New()
 
-	mockUsecase.On("GetSessionsByUserID", userID).Return([]*dto.Session{}, nil)
+	mockUsecase.On("GetSessionsByUserID", mock.Anything, userID).Return([]*dto.Session{}, nil)
 
 	result, err := utils.GetSessionsByUserID(userID)
 
