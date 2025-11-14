@@ -11,11 +11,12 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const (
 	getUserByPhoneQuery = `
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -26,7 +27,7 @@ const (
         WHERE u.phone_number = $1`
 
 	getUserByUsernameQuery = `
-        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -37,7 +38,7 @@ const (
         WHERE u.username = $1`
 
 	getUserByIDQuery = `
-        SELECT u.id, u.username, u.name, u.phone_number, u.user_type, 
+        SELECT u.id, u.username, u.name, u.phone_number, u.password_hash, u.description, u.user_type, 
                latest_avatar.attachment_id, u.created_at, u.updated_at
         FROM "user" u
         LEFT JOIN (
@@ -73,8 +74,13 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*mod
 	logger.Debug("Starting database operation: get user by phone")
 
 	var user models.User
+	var bio sql.NullString
 	err := r.db.QueryRow(getUserByPhoneQuery, phone).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+
+	if bio.Valid {
+		user.Bio = &bio.String
+	}
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -97,8 +103,13 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 	logger.Debug("Starting database operation: get user by username")
 
 	var user models.User
+	var bio sql.NullString
 	err := r.db.QueryRow(getUserByUsernameQuery, username).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+
+	if bio.Valid {
+		user.Bio = &bio.String
+	}
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -121,8 +132,13 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 	logger.Debug("Starting database operation: get user by ID")
 
 	var user models.User
+	var bio sql.NullString
 	err := r.db.QueryRow(getUserByIDQuery, id).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+
+	if bio.Valid {
+		user.Bio = &bio.String
+	}
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -212,5 +228,73 @@ func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID uuid.UUID,
 	}
 
 	logger.Info("Database operation completed successfully: user avatar updated")
+	return nil
+}
+
+func (r *UserRepository) UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error {
+	const op = "UserRepository.UpdateUserInfo"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+	logger.Debug("Starting database operation: update user info")
+
+	var setParts []string
+	var args []interface{}
+	argIndex := 1
+
+	if name != nil {
+		setParts = append(setParts, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, *name)
+		argIndex++
+	}
+
+	if username != nil {
+		setParts = append(setParts, fmt.Sprintf("username = $%d", argIndex))
+		args = append(args, *username)
+		argIndex++
+	}
+
+	if bio != nil {
+		setParts = append(setParts, fmt.Sprintf("description = $%d", argIndex))
+		args = append(args, *bio)
+		argIndex++
+	}
+
+	if len(setParts) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+
+	args = append(args, userID)
+
+	query := fmt.Sprintf("UPDATE \"user\" SET %s WHERE id = $%d", strings.Join(setParts, ", "), argIndex)
+
+	result, err := r.db.Exec(query, args...)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: update user info")
+
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code {
+			case "23505": // unique_violation
+				if pqErr.Constraint == "user_username_key" {
+					return errs.ErrIsDuplicateKey
+				}
+			}
+		}
+
+		return errors.New("error update user")
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: check rows affected")
+		return err
+	}
+
+	if rowsAffected == 0 {
+		err := errors.New("user not updated")
+		logger.WithError(err).Error("Database operation failed: user not updated")
+		return err
+	}
+
+	logger.Info("Database operation completed successfully: user into update")
 	return nil
 }

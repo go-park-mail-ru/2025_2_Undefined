@@ -29,12 +29,13 @@ func TestUserHandler_GetCurrentUser_Success(t *testing.T) {
 	handler := New(mockUsecase, mockSessionUsecase, mockSessionUtils)
 
 	userID := uuid.New()
+	testBio := "Test bio"
 	user := &UserDTO.User{
 		ID:          userID,
 		PhoneNumber: "+79998887766",
 		Name:        "Test User",
 		Username:    "test_user",
-		Bio:         "Test bio",
+		Bio:         &testBio,
 		AccountType: "user",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

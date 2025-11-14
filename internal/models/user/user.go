@@ -18,7 +18,7 @@ type User struct {
 	PasswordHash string
 	Name         string
 	Username     string
-	Bio          string
+	Bio          *string
 	AvatarID     *uuid.UUID
 	AccountType  string
 	CreatedAt    time.Time

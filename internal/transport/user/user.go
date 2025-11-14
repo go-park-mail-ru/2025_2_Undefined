@@ -298,3 +298,60 @@ func (h *UserHandler) UploadUserAvatar(w http.ResponseWriter, r *http.Request) {
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, map[string]string{"avatar_url": avatarURL})
 }
+
+// UpdateUserInfo обновляет информацию о пользователе
+// @Summary      Обновить информацию пользователя
+// @Description  Частичное обновление информации пользователя. Можно обновить только нужные поля.
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
+// @Param        request body dto.UpdateUserInfo true "Данные для обновления"
+// @Success      200  "Информация пользователя обновилось"
+// @Failure      400  {object}  dto.ErrorDTO
+// @Failure      401  {object}  dto.ErrorDTO
+// @Failure      403  {object}  dto.ErrorDTO
+// @Failure      500  {object}  dto.ErrorDTO
+// @Router       /me [patch]
+func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
+	const op = "UserHandler.UpdateUserInfo"
+
+	var req UserDto.UpdateUserInfo
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.Name == nil && req.Username == nil && req.Bio == nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "At least one field must be provided for update")
+		return
+	}
+
+	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	if req.Username != nil {
+		if !validation.ValidateUsername(*req.Username) {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid username format")
+			return
+		}
+	}
+
+	if req.Name != nil {
+		if !validation.ValidateName(*req.Name) {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid name format")
+			return
+		}
+	}
+
+	err = h.uc.UpdateUserInfo(r.Context(), userID, req.Name, req.Username, req.Bio)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
+}

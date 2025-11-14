@@ -13,4 +13,5 @@ type UserRepository interface {
 	GetUserByPhone(ctx context.Context, phone string) (*UserModels.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*UserModels.User, error)
 	UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, file_size int64) error
+	UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error
 }

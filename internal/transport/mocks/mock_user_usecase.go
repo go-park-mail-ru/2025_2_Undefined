@@ -81,6 +81,20 @@ func (mr *MockUserUsecaseMockRecorder) GetUserByUsername(ctx, username interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByUsername", reflect.TypeOf((*MockUserUsecase)(nil).GetUserByUsername), ctx, username)
 }
 
+// UpdateUserInfo mocks base method.
+func (m *MockUserUsecase) UpdateUserInfo(ctx context.Context, userID uuid.UUID, name, username, bio *string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUserInfo", ctx, userID, name, username, bio)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateUserInfo indicates an expected call of UpdateUserInfo.
+func (mr *MockUserUsecaseMockRecorder) UpdateUserInfo(ctx, userID, name, username, bio interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserInfo", reflect.TypeOf((*MockUserUsecase)(nil).UpdateUserInfo), ctx, userID, name, username, bio)
+}
+
 // UploadUserAvatar mocks base method.
 func (m *MockUserUsecase) UploadUserAvatar(ctx context.Context, userID uuid.UUID, data []byte, filename, contentType string) (string, error) {
 	m.ctrl.T.Helper()
