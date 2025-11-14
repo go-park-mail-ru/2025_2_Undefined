@@ -39,8 +39,16 @@ type sessionData struct {
 
 func (r *SessionRepository) AddSession(ctx context.Context, userID uuid.UUID, device string) (uuid.UUID, error) {
 	const op = "SessionRepository.AddSession"
+	const query = "ADD session"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("redis query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	sessionID := uuid.New()
 	now := time.Now()
@@ -54,9 +62,9 @@ func (r *SessionRepository) AddSession(ctx context.Context, userID uuid.UUID, de
 
 	sessionJSON, err := json.Marshal(sessionData)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to marshal session data: %w", op, err)
-		logger.WithError(wrappedErr).Error("failed to marshal session data")
-		return uuid.Nil, wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: marshal error: status: %s", query, queryStatus)
+		return uuid.Nil, fmt.Errorf("%s: failed to marshal session data: %w", op, err)
 	}
 
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
@@ -70,9 +78,9 @@ func (r *SessionRepository) AddSession(ctx context.Context, userID uuid.UUID, de
 
 	_, err = pipe.Exec(ctx)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
-		logger.WithError(wrappedErr).Error("failed to execute redis pipeline")
-		return uuid.Nil, wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: pipeline execution error: status: %s", query, queryStatus)
+		return uuid.Nil, fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
 	}
 
 	return sessionID, nil
@@ -80,26 +88,37 @@ func (r *SessionRepository) AddSession(ctx context.Context, userID uuid.UUID, de
 
 func (r *SessionRepository) DeleteSession(ctx context.Context, sessionID uuid.UUID) error {
 	const op = "SessionRepository.DeleteSession"
+	const query = "DELETE session"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("session_id", sessionID.String())
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("redis query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	// Сначала получаем данные сессии, чтобы узнать user_id
 	sessionJSON, err := r.client.Get(ctx, sessionKey).Result()
 	if err != nil {
 		if err == redis.Nil {
+			queryStatus = "not found"
+			logger.Debugf("redis query: %s: session not found: status: %s", query, queryStatus)
 			return fmt.Errorf("%s: session not found", op)
 		}
-		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: get session error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to get session: %w", op, err)
 	}
 
 	var data sessionData
 	if err := json.Unmarshal([]byte(sessionJSON), &data); err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to unmarshal session data: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: unmarshal error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to unmarshal session data: %w", op, err)
 	}
 
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, data.UserID.String())
@@ -111,9 +130,9 @@ func (r *SessionRepository) DeleteSession(ctx context.Context, sessionID uuid.UU
 
 	_, err = pipe.Exec(ctx)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: pipeline execution error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
 	}
 
 	return nil
@@ -121,25 +140,36 @@ func (r *SessionRepository) DeleteSession(ctx context.Context, sessionID uuid.UU
 
 func (r *SessionRepository) UpdateSession(ctx context.Context, sessionID uuid.UUID) error {
 	const op = "SessionRepository.UpdateSession"
+	const query = "UPDATE session"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("session_id", sessionID.String())
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("redis query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	sessionJSON, err := r.client.Get(ctx, sessionKey).Result()
 	if err != nil {
 		if err == redis.Nil {
+			queryStatus = "not found"
+			logger.Debugf("redis query: %s: session not found: status: %s", query, queryStatus)
 			return fmt.Errorf("%s: session not found", op)
 		}
-		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: get session error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to get session: %w", op, err)
 	}
 
 	var data sessionData
 	if err := json.Unmarshal([]byte(sessionJSON), &data); err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to unmarshal session data: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: unmarshal error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to unmarshal session data: %w", op, err)
 	}
 
 	// Обновляем last_seen
@@ -147,9 +177,9 @@ func (r *SessionRepository) UpdateSession(ctx context.Context, sessionID uuid.UU
 
 	updatedJSON, err := json.Marshal(data)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to marshal updated session data: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: marshal error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to marshal updated session data: %w", op, err)
 	}
 
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, data.UserID.String())
@@ -162,9 +192,9 @@ func (r *SessionRepository) UpdateSession(ctx context.Context, sessionID uuid.UU
 
 	_, err = pipe.Exec(ctx)
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: pipeline execution error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to execute redis pipeline: %w", op, err)
 	}
 
 	return nil
@@ -172,25 +202,36 @@ func (r *SessionRepository) UpdateSession(ctx context.Context, sessionID uuid.UU
 
 func (r *SessionRepository) GetSession(ctx context.Context, sessionID uuid.UUID) (*models.Session, error) {
 	const op = "SessionRepository.GetSession"
+	const query = "GET session"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("session_id", sessionID.String())
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("redis query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	sessionJSON, err := r.client.Get(ctx, sessionKey).Result()
 	if err != nil {
 		if err == redis.Nil {
+			queryStatus = "not found"
+			logger.Debugf("redis query: %s: session not found: status: %s", query, queryStatus)
 			return nil, fmt.Errorf("%s: session not found", op)
 		}
-		wrappedErr := fmt.Errorf("%s: failed to get session: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return nil, wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: get session error: status: %s", query, queryStatus)
+		return nil, fmt.Errorf("%s: failed to get session: %w", op, err)
 	}
 
 	var data sessionData
 	if err := json.Unmarshal([]byte(sessionJSON), &data); err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to unmarshal session data: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return nil, wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: unmarshal error: status: %s", query, queryStatus)
+		return nil, fmt.Errorf("%s: failed to unmarshal session data: %w", op, err)
 	}
 
 	sess := &models.Session{
@@ -206,19 +247,29 @@ func (r *SessionRepository) GetSession(ctx context.Context, sessionID uuid.UUID)
 
 func (r *SessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Session, error) {
 	const op = "SessionRepository.GetSessionsByUserID"
+	const query = "GET sessions by user"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("redis query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
 	// Получаем все ID сессий пользователя
 	sessionIDs, err := r.client.SMembers(ctx, userSessionsKey).Result()
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return nil, wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: get session IDs error: status: %s", query, queryStatus)
+		return nil, fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
 	}
 
 	if len(sessionIDs) == 0 {
+		logger.Debugf("redis query: %s: no sessions found: status: %s", query, queryStatus)
 		return []*models.Session{}, nil
 	}
 
@@ -226,14 +277,14 @@ func (r *SessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid
 	for _, sessionIDStr := range sessionIDs {
 		sessionID, err := uuid.Parse(sessionIDStr)
 		if err != nil {
-			logger.WithError(err).Warnf("invalid session ID %s for user %s", sessionIDStr, userID)
+			logger.WithError(err).Warnf("redis query: %s: invalid session ID %s: removing from set", query, sessionIDStr)
 			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
 			continue
 		}
 
 		sess, err := r.GetSession(ctx, sessionID)
 		if err != nil {
-			logger.WithError(err).Warnf("failed to get session %s for user %s", sessionID, userID)
+			logger.WithError(err).Warnf("redis query: %s: failed to get session %s: removing from set", query, sessionID)
 			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
 			continue
 		}
@@ -246,21 +297,32 @@ func (r *SessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid
 
 func (r *SessionRepository) DeleteAllSessionWithoutCurrent(ctx context.Context, userID uuid.UUID, currentSessionID uuid.UUID) error {
 	const op = "SessionRepository.DeleteAllSessionWithoutCurrent"
+	const query = "DELETE sessions except current"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(ctx).WithField("operation", op).
+		WithField("user_id", userID.String()).
+		WithField("current_session_id", currentSessionID.String())
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("redis query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
 	sessionIDs, err := r.client.SMembers(ctx, userSessionsKey).Result()
 	if err != nil {
-		wrappedErr := fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
-		logger.WithError(wrappedErr).Error("Redis operation failed")
-		return wrappedErr
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("redis query: %s: get session IDs error: status: %s", query, queryStatus)
+		return fmt.Errorf("%s: failed to get user session IDs: %w", op, err)
 	}
 
 	for _, sessionIDStr := range sessionIDs {
 		sessionID, err := uuid.Parse(sessionIDStr)
 		if err != nil {
-			logger.WithError(err).Warnf("invalid session ID %s for user %s", sessionIDStr, userID)
+			logger.WithError(err).Warnf("redis query: %s: invalid session ID %s: removing from set", query, sessionIDStr)
 			r.client.SRem(ctx, userSessionsKey, sessionIDStr)
 			continue
 		}
@@ -268,9 +330,10 @@ func (r *SessionRepository) DeleteAllSessionWithoutCurrent(ctx context.Context, 
 		if currentSessionID != sessionID {
 			err = r.DeleteSession(ctx, sessionID)
 			if err != nil {
-				logger.WithError(err).Warnf("failed to delete session %s for user %s", sessionID, userID)
+				logger.WithError(err).Warnf("redis query: %s: failed to delete session %s", query, sessionID)
 			}
 		}
 	}
+
 	return nil
 }

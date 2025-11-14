@@ -61,31 +61,48 @@ func NewMessageRepository(db *sql.DB) *MessageRepository {
 
 func (r *MessageRepository) InsertMessage(ctx context.Context, msg modelsMessage.CreateMessage) (uuid.UUID, error) {
 	const op = "MessageRepository.InsertMessage"
+	const query = "INSERT message"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", msg.ChatID.String()).WithField("user_id", msg.UserID.String())
-	logger.Debug("Starting database operation: insert message")
+	logger := domains.GetLogger(ctx).WithField("operation", op).
+		WithField("chat_id", msg.ChatID.String()).
+		WithField("user_id", msg.UserID.String())
+	
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	var id uuid.UUID
 	err := r.db.QueryRow(insertMessageQuery, msg.ChatID, msg.UserID, msg.Text, msg.CreatedAt, msg.Type).
 		Scan(&id)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: insert message query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return uuid.Nil, err
 	}
 
-	logger.WithField("message_id", id.String()).Info("Database operation completed successfully: message inserted")
 	return id, nil
 }
 
 func (r *MessageRepository) GetLastMessagesOfChats(ctx context.Context, userId uuid.UUID) ([]modelsMessage.Message, error) {
 	const op = "MessageRepository.GetLastMessagesOfChats"
+	const query = "SELECT last messages"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String())
-	logger.Debug("Starting database operation: get last messages of user chats")
+	
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	rows, err := r.db.Query(getLastMessagesOfChatsQuery, userId)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: get last messages query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 	defer rows.Close()
@@ -96,26 +113,37 @@ func (r *MessageRepository) GetLastMessagesOfChats(ctx context.Context, userId u
 		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
 			&message.UserAvatarID, &message.Text, &message.CreatedAt,
 			&message.Type); err != nil {
-			logger.WithError(err).Error("Database operation failed: scan message row")
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
 			return nil, err
 		}
 
 		result = append(result, message)
 	}
 
-	logger.WithField("messages_count", len(result)).Info("Database operation completed successfully: last messages retrieved")
 	return result, nil
 }
 
 func (r *MessageRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.UUID, offset, limit int) ([]modelsMessage.Message, error) {
-	const op = "MessageRepository.GetMessagesOfChats"
+	const op = "MessageRepository.GetMessagesOfChat"
+	const query = "SELECT chat messages"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatId.String()).WithField("offset", offset).WithField("limit", limit)
-	logger.Debug("Starting database operation: get chat messages")
+	logger := domains.GetLogger(ctx).WithField("operation", op).
+		WithField("chat_id", chatId.String()).
+		WithField("offset", offset).
+		WithField("limit", limit)
+	
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	rows, err := r.db.Query(getMessagesOfChatQuery, chatId, offset, limit)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: get chat messages query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 	defer rows.Close()
@@ -126,7 +154,8 @@ func (r *MessageRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.U
 		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
 			&message.UserAvatarID, &message.Text, &message.CreatedAt,
 			&message.Type); err != nil {
-			logger.WithError(err).Error("Database operation failed: scan message row")
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
 			return nil, err
 		}
 
@@ -134,6 +163,5 @@ func (r *MessageRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.U
 		result = append(result, message)
 	}
 
-	logger.WithField("messages_count", len(result)).Info("Database operation completed successfully: chat messages retrieved")
 	return result, nil
 }
