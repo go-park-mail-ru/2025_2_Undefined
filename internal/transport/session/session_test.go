@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -18,16 +19,16 @@ type MockSessionUsecase struct {
 	mock.Mock
 }
 
-func (m *MockSessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) {
-	args := m.Called(sessionID)
+func (m *MockSessionUsecase) GetSession(ctx context.Context, sessionID uuid.UUID) (*dto.Session, error) {
+	args := m.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*dto.Session), args.Error(1)
 }
 
-func (m *MockSessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
-	args := m.Called(userID)
+func (m *MockSessionUsecase) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*dto.Session, error) {
+	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -53,7 +54,7 @@ func TestSessionUtils_GetUserIDFromSession_Success(t *testing.T) {
 		Last_seen:  time.Now(),
 	}
 
-	mockUsecase.On("GetSession", sessionID).Return(session, nil)
+	mockUsecase.On("GetSession", mock.Anything, sessionID).Return(session, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	cookie := &http.Cookie{
@@ -115,7 +116,7 @@ func TestSessionUtils_GetUserIDFromSession_SessionNotFound(t *testing.T) {
 
 	sessionID := uuid.New()
 
-	mockUsecase.On("GetSession", sessionID).Return(nil, errors.New("session not found"))
+	mockUsecase.On("GetSession", mock.Anything, sessionID).Return(nil, errors.New("session not found"))
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	cookie := &http.Cookie{
@@ -160,7 +161,7 @@ func TestSessionUtils_GetSessionsByUserID_Success(t *testing.T) {
 		},
 	}
 
-	mockUsecase.On("GetSessionsByUserID", userID).Return(sessions, nil)
+	mockUsecase.On("GetSessionsByUserID", mock.Anything, userID).Return(sessions, nil)
 
 	result, err := utils.GetSessionsByUserID(userID)
 
@@ -194,7 +195,7 @@ func TestSessionUtils_GetSessionsByUserID_UsecaseError(t *testing.T) {
 
 	userID := uuid.New()
 
-	mockUsecase.On("GetSessionsByUserID", userID).Return(nil, errors.New("redis error"))
+	mockUsecase.On("GetSessionsByUserID", mock.Anything, userID).Return(nil, errors.New("redis error"))
 
 	result, err := utils.GetSessionsByUserID(userID)
 
@@ -213,7 +214,7 @@ func TestSessionUtils_GetSessionsByUserID_EmptyResult(t *testing.T) {
 
 	userID := uuid.New()
 
-	mockUsecase.On("GetSessionsByUserID", userID).Return([]*dto.Session{}, nil)
+	mockUsecase.On("GetSessionsByUserID", mock.Anything, userID).Return([]*dto.Session{}, nil)
 
 	result, err := utils.GetSessionsByUserID(userID)
 

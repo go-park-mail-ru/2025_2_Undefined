@@ -14,8 +14,8 @@ import (
 )
 
 type SessionUsecase interface {
-	GetSession(sessionID uuid.UUID) (*dto.Session, error)
-	GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error)
+	GetSession(ctx context.Context, sessionID uuid.UUID) (*dto.Session, error)
+	GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*dto.Session, error)
 }
 
 type SessionUtils struct {
@@ -34,10 +34,8 @@ func NewSessionUtils(uc SessionUsecase, sessionConfig *config.SessionConfig) *Se
 func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
 	const op = "SessionUtils.GetUserIDFromSession"
 
-	ctx := context.Background()
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(r.Context()).WithField("operation", op)
 
-	// Получаем сессию из куки
 	sessionCookie, err := r.Cookie(s.sessionConfig.Signature)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrJWTIsRequired)
@@ -52,8 +50,7 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 		return uuid.Nil, errors.New("invalid session ID")
 	}
 
-	// Получаем информацию о сессии
-	sessionInfo, err := s.uc.GetSession(sessionID)
+	sessionInfo, err := s.uc.GetSession(r.Context(), sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, errs.ErrInvalidToken)
 		logger.WithError(wrappedErr).Error("failed to get session info")
@@ -67,20 +64,15 @@ func (s *SessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) 
 func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
 	const op = "SessionUtils.GetSessionsByUserID"
 
-	ctx := context.Background()
-	logger := domains.GetLogger(ctx).WithField("operation", op)
-
 	if userID == uuid.Nil {
 		err := errors.New("user ID is required")
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		logger.WithError(wrappedErr).Error("user ID is required")
 		return nil, wrappedErr
 	}
 
-	sessions, err := s.uc.GetSessionsByUserID(userID)
+	sessions, err := s.uc.GetSessionsByUserID(context.Background(), userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
-		logger.WithError(wrappedErr).Error("failed to get sessions by user ID")
 		return nil, wrappedErr
 	}
 
@@ -90,8 +82,7 @@ func (s *SessionUtils) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, er
 func (s *SessionUtils) GetSessionFromCookie(r *http.Request) (uuid.UUID, error) {
 	const op = "SessionUtils.GetSessionFromCookie"
 
-	ctx := context.Background()
-	logger := domains.GetLogger(ctx).WithField("operation", op)
+	logger := domains.GetLogger(r.Context()).WithField("operation", op)
 
 	sessionCookie, err := r.Cookie(s.sessionConfig.Signature)
 	if err != nil {

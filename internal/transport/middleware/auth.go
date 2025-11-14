@@ -18,7 +18,6 @@ func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.Sess
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			const op = "AuthMiddleware"
-			// Получаем сессию из куки
 			cookie, err := r.Cookie(sessionConf.Signature)
 			if err != nil {
 				cookieUtils.Unset(w, sessionConf.Signature)
@@ -26,14 +25,14 @@ func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.Sess
 				return
 			}
 
-			// Парсим UUID сессии
 			sessionID, err := uuid.Parse(cookie.Value)
 			if err != nil {
 				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "Invalid session ID")
 				return
 			}
-			sess, err := sessionUC.GetSession(sessionID)
+
+			sess, err := sessionUC.GetSession(r.Context(), sessionID)
 			if err != nil {
 				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
@@ -46,15 +45,14 @@ func AuthMiddleware(sessionConf *config.SessionConfig, sessionUC *SessionUC.Sess
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, "session expired")
 				return
 			}
-			// Обновляем сессию
-			err = sessionUC.UpdateSession(sessionID)
+
+			err = sessionUC.UpdateSession(r.Context(), sessionID)
 			if err != nil {
 				cookieUtils.Unset(w, sessionConf.Signature)
 				utils.SendError(r.Context(), op, w, http.StatusUnauthorized, errs.ErrInvalidToken.Error())
 				return
 			}
 
-			// Передаем запрос дальше
 			next.ServeHTTP(w, r)
 		})
 	}

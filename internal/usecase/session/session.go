@@ -13,12 +13,12 @@ import (
 )
 
 type SessionRepository interface {
-	AddSession(userID uuid.UUID, device string) (uuid.UUID, error)
-	DeleteSession(sessionID uuid.UUID) error
-	DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error
-	GetSession(sessionID uuid.UUID) (*models.Session, error)
-	GetSessionsByUserID(userID uuid.UUID) ([]*models.Session, error)
-	UpdateSession(sessionID uuid.UUID) error
+	AddSession(ctx context.Context, userID uuid.UUID, device string) (uuid.UUID, error)
+	DeleteSession(ctx context.Context, sessionID uuid.UUID) error
+	DeleteAllSessionWithoutCurrent(ctx context.Context, userID uuid.UUID, currentSessionID uuid.UUID) error
+	GetSession(ctx context.Context, sessionID uuid.UUID) (*models.Session, error)
+	GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Session, error)
+	UpdateSession(ctx context.Context, sessionID uuid.UUID) error
 }
 
 type SessionUsecase struct {
@@ -31,10 +31,9 @@ func New(sessionrepo SessionRepository) *SessionUsecase {
 	}
 }
 
-func (uc *SessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) {
+func (uc *SessionUsecase) GetSession(ctx context.Context, sessionID uuid.UUID) (*dto.Session, error) {
 	const op = "SessionUseCase.GetSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	if sessionID == uuid.Nil {
@@ -44,7 +43,7 @@ func (uc *SessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) 
 		return nil, wrappedErr
 	}
 
-	sess, err := uc.sessionrepo.GetSession(sessionID)
+	sess, err := uc.sessionrepo.GetSession(ctx, sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to get session")
@@ -62,10 +61,9 @@ func (uc *SessionUsecase) GetSession(sessionID uuid.UUID) (*dto.Session, error) 
 	return sessDTO, nil
 }
 
-func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session, error) {
+func (uc *SessionUsecase) GetSessionsByUserID(ctx context.Context, userID uuid.UUID) ([]*dto.Session, error) {
 	const op = "SessionUseCase.GetSessionsByUserID"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	if userID == uuid.Nil {
@@ -75,7 +73,7 @@ func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session,
 		return nil, wrappedErr
 	}
 
-	sessions, err := uc.sessionrepo.GetSessionsByUserID(userID)
+	sessions, err := uc.sessionrepo.GetSessionsByUserID(ctx, userID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to get sessions by user ID")
@@ -97,10 +95,9 @@ func (uc *SessionUsecase) GetSessionsByUserID(userID uuid.UUID) ([]*dto.Session,
 	return sessionsDTO, nil
 }
 
-func (uc *SessionUsecase) UpdateSession(sessionID uuid.UUID) error {
+func (uc *SessionUsecase) UpdateSession(ctx context.Context, sessionID uuid.UUID) error {
 	const op = "SessionUsecase.UpdateSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	if sessionID == uuid.Nil {
@@ -110,7 +107,7 @@ func (uc *SessionUsecase) UpdateSession(sessionID uuid.UUID) error {
 		return wrappedErr
 	}
 
-	err := uc.sessionrepo.UpdateSession(sessionID)
+	err := uc.sessionrepo.UpdateSession(ctx, sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to update session")
@@ -120,10 +117,9 @@ func (uc *SessionUsecase) UpdateSession(sessionID uuid.UUID) error {
 	return nil
 }
 
-func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) error {
+func (uc *SessionUsecase) DeleteSession(ctx context.Context, userID uuid.UUID, sessionID uuid.UUID) error {
 	const op = "SessionUsecase.DeleteSession"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	if userID == uuid.Nil {
@@ -140,7 +136,7 @@ func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) e
 		return err
 	}
 
-	session, err := uc.sessionrepo.GetSession(sessionID)
+	session, err := uc.sessionrepo.GetSession(ctx, sessionID)
 	if err != nil {
 		if errors.Is(err, errs.ErrSessionNotFound) {
 			wrappedErr := fmt.Errorf("%s: session not found: %w", op, err)
@@ -159,7 +155,7 @@ func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) e
 		return err
 	}
 
-	err = uc.sessionrepo.DeleteSession(sessionID)
+	err = uc.sessionrepo.DeleteSession(ctx, sessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to delete session")
@@ -169,10 +165,9 @@ func (uc *SessionUsecase) DeleteSession(userID uuid.UUID, sessionID uuid.UUID) e
 	return nil
 }
 
-func (uc *SessionUsecase) DeleteAllSessionWithoutCurrent(userID uuid.UUID, currentSessionID uuid.UUID) error {
+func (uc *SessionUsecase) DeleteAllSessionWithoutCurrent(ctx context.Context, userID uuid.UUID, currentSessionID uuid.UUID) error {
 	const op = "SessionUsecase.DeleteAllSessionWithoutCurrent"
 
-	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
 	if currentSessionID == uuid.Nil {
@@ -189,7 +184,7 @@ func (uc *SessionUsecase) DeleteAllSessionWithoutCurrent(userID uuid.UUID, curre
 		return err
 	}
 
-	err := uc.sessionrepo.DeleteAllSessionWithoutCurrent(userID, currentSessionID)
+	err := uc.sessionrepo.DeleteAllSessionWithoutCurrent(ctx, userID, currentSessionID)
 	if err != nil {
 		wrappedErr := fmt.Errorf("%s: %w", op, err)
 		logger.WithError(wrappedErr).Error("failed to delete all sessions without current")

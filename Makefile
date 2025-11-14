@@ -76,6 +76,9 @@ start-background:
 	make swagger
 	docker compose up --build -d
 
+stop:
+	docker compose stop
+
 clear: 
 	@echo "Остановка приложения и очистка БД..."
 	docker compose down

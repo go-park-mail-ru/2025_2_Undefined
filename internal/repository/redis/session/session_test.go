@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -16,10 +17,11 @@ func TestSessionRepository_AddSession_Success(t *testing.T) {
 	client, _ := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	userID := uuid.New()
 	device := "Chrome on Windows"
 
-	sessionID, err := repo.AddSession(userID, device)
+	sessionID, err := repo.AddSession(ctx, userID, device)
 
 	if err != nil {
 		assert.Contains(t, err.Error(), "was not expected")
@@ -33,10 +35,11 @@ func TestSessionRepository_AddSession_PipelineError(t *testing.T) {
 	client, _ := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	userID := uuid.New()
 	device := "Chrome on Windows"
 
-	_, err := repo.AddSession(userID, device)
+	_, err := repo.AddSession(ctx, userID, device)
 
 	assert.Error(t, err)
 }
@@ -45,6 +48,7 @@ func TestSessionRepository_GetSession_Success(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	userID := uuid.New()
 	device := "Chrome on Windows"
@@ -62,7 +66,7 @@ func TestSessionRepository_GetSession_Success(t *testing.T) {
 
 	mock.ExpectGet(sessionKey).SetVal(string(sessionJSON))
 
-	session, err := repo.GetSession(sessionID)
+	session, err := repo.GetSession(ctx, sessionID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, session)
@@ -78,12 +82,13 @@ func TestSessionRepository_GetSession_NotFound(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	mock.ExpectGet(sessionKey).RedisNil()
 
-	session, err := repo.GetSession(sessionID)
+	session, err := repo.GetSession(ctx, sessionID)
 
 	assert.Error(t, err)
 	assert.Nil(t, session)
@@ -95,12 +100,13 @@ func TestSessionRepository_GetSession_RedisError(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	mock.ExpectGet(sessionKey).SetErr(redis.ErrClosed)
 
-	session, err := repo.GetSession(sessionID)
+	session, err := repo.GetSession(ctx, sessionID)
 
 	assert.Error(t, err)
 	assert.Nil(t, session)
@@ -112,12 +118,13 @@ func TestSessionRepository_GetSession_InvalidJSON(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	mock.ExpectGet(sessionKey).SetVal("invalid json")
 
-	session, err := repo.GetSession(sessionID)
+	session, err := repo.GetSession(ctx, sessionID)
 
 	assert.Error(t, err)
 	assert.Nil(t, session)
@@ -129,6 +136,7 @@ func TestSessionRepository_DeleteSession_Success(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	userID := uuid.New()
 	device := "Chrome on Windows"
@@ -146,7 +154,7 @@ func TestSessionRepository_DeleteSession_Success(t *testing.T) {
 	mock.ExpectDel(sessionKey).SetVal(1)
 	mock.ExpectSRem(userSessionsKey, sessionID.String()).SetVal(1)
 
-	err := repo.DeleteSession(sessionID)
+	err := repo.DeleteSession(ctx, sessionID)
 
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -156,12 +164,13 @@ func TestSessionRepository_DeleteSession_NotFound(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	mock.ExpectGet(sessionKey).RedisNil()
 
-	err := repo.DeleteSession(sessionID)
+	err := repo.DeleteSession(ctx, sessionID)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "session not found")
@@ -172,6 +181,7 @@ func TestSessionRepository_UpdateSession_Success(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	userID := uuid.New()
 	device := "Chrome on Windows"
@@ -189,7 +199,7 @@ func TestSessionRepository_UpdateSession_Success(t *testing.T) {
 
 	mock.ExpectGet(sessionKey).SetVal(string(sessionJSON))
 
-	err := repo.UpdateSession(sessionID)
+	err := repo.UpdateSession(ctx, sessionID)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "was not expected")
@@ -199,12 +209,13 @@ func TestSessionRepository_UpdateSession_NotFound(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	sessionID := uuid.New()
 	sessionKey := fmt.Sprintf("%s:%s", sessionPrefix, sessionID.String())
 
 	mock.ExpectGet(sessionKey).RedisNil()
 
-	err := repo.UpdateSession(sessionID)
+	err := repo.UpdateSession(ctx, sessionID)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "session not found")
@@ -215,6 +226,7 @@ func TestSessionRepository_GetSessionsByUserID_Success(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	userID := uuid.New()
 	sessionID1 := uuid.New()
 	sessionID2 := uuid.New()
@@ -247,7 +259,7 @@ func TestSessionRepository_GetSessionsByUserID_Success(t *testing.T) {
 	mock.ExpectGet(sessionKey1).SetVal(string(sessionJSON1))
 	mock.ExpectGet(sessionKey2).SetVal(string(sessionJSON2))
 
-	sessions, err := repo.GetSessionsByUserID(userID)
+	sessions, err := repo.GetSessionsByUserID(ctx, userID)
 
 	assert.NoError(t, err)
 	assert.Len(t, sessions, 2)
@@ -258,12 +270,13 @@ func TestSessionRepository_GetSessionsByUserID_EmptyResult(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	userID := uuid.New()
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
 	mock.ExpectSMembers(userSessionsKey).SetVal([]string{})
 
-	sessions, err := repo.GetSessionsByUserID(userID)
+	sessions, err := repo.GetSessionsByUserID(ctx, userID)
 
 	assert.NoError(t, err)
 	assert.Empty(t, sessions)
@@ -274,12 +287,13 @@ func TestSessionRepository_GetSessionsByUserID_RedisError(t *testing.T) {
 	client, mock := redismock.NewClientMock()
 	repo := New(client, time.Hour)
 
+	ctx := context.Background()
 	userID := uuid.New()
 	userSessionsKey := fmt.Sprintf("%s:%s", userSessionsPrefix, userID.String())
 
 	mock.ExpectSMembers(userSessionsKey).SetErr(redis.ErrClosed)
 
-	sessions, err := repo.GetSessionsByUserID(userID)
+	sessions, err := repo.GetSessionsByUserID(ctx, userID)
 
 	assert.Error(t, err)
 	assert.Nil(t, sessions)
