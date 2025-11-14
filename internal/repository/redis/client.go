@@ -18,6 +18,17 @@ func NewClient(cfg *config.RedisConfig) (*Client, error) {
 		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
 		Password: cfg.Password,
 		DB:       cfg.DB,
+
+		Protocol:   2, 
+		ClientName: "",
+
+		MaxRetries:      3,
+		MinRetryBackoff: 8 * time.Millisecond,
+		MaxRetryBackoff: 512 * time.Millisecond,
+
+		PoolSize:        10,
+		PoolTimeout:     30 * time.Second,
+		ConnMaxIdleTime: 5 * time.Minute,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

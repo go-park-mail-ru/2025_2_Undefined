@@ -114,6 +114,9 @@ func (uc *UserUsecase) GetUserByUsername(ctx context.Context, username string) (
 		Username:    user.Username,
 		Bio:         user.Bio,
 		AvatarURL:   avatar_url,
+		AccountType: user.AccountType,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
 	}
 
 	return userdto, nil

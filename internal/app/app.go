@@ -174,8 +174,10 @@ func (a *App) Run() {
 		Handler: a.router,
 	}
 
+	logger.Logger.SetLevel(logrus.InfoLevel)
 	logger.Infof("Server starting on port %s", a.conf.ServerConfig.Port)
 	logger.Infof("Swagger UI available at: http://localhost:%s/swagger/", a.conf.ServerConfig.Port)
+	logger.Logger.SetLevel(domains.LoggingLevel)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.WithError(err).Fatal("Server failed to start")

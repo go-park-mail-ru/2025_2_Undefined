@@ -75,11 +75,18 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*mod
 
 	var user models.User
 	var bio sql.NullString
+	var avatarID sql.NullString
 	err := r.db.QueryRow(getUserByPhoneQuery, phone).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &avatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if bio.Valid {
 		user.Bio = &bio.String
+	}
+
+	if avatarID.Valid {
+		if parsedUUID, parseErr := uuid.Parse(avatarID.String); parseErr == nil {
+			user.AvatarID = &parsedUUID
+		}
 	}
 
 	if err != nil {
@@ -104,11 +111,18 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 
 	var user models.User
 	var bio sql.NullString
+	var avatarID sql.NullString
 	err := r.db.QueryRow(getUserByUsernameQuery, username).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &avatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if bio.Valid {
 		user.Bio = &bio.String
+	}
+
+	if avatarID.Valid {
+		if parsedUUID, parseErr := uuid.Parse(avatarID.String); parseErr == nil {
+			user.AvatarID = &parsedUUID
+		}
 	}
 
 	if err != nil {
@@ -133,11 +147,18 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 
 	var user models.User
 	var bio sql.NullString
+	var avatarID sql.NullString
 	err := r.db.QueryRow(getUserByIDQuery, id).
-		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &user.AvatarID, &user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Name, &user.PhoneNumber, &user.PasswordHash, &bio, &user.AccountType, &avatarID, &user.CreatedAt, &user.UpdatedAt)
 
 	if bio.Valid {
 		user.Bio = &bio.String
+	}
+
+	if avatarID.Valid {
+		if parsedUUID, parseErr := uuid.Parse(avatarID.String); parseErr == nil {
+			user.AvatarID = &parsedUUID
+		}
 	}
 
 	if err != nil {
