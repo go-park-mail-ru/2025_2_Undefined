@@ -45,7 +45,7 @@ CREATE TABLE chat_member (
 CREATE TABLE message (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     chat_id UUID NOT NULL REFERENCES chat(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id UUID REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
     text TEXT NOT NULL,
     message_type message_type_enum NOT NULL DEFAULT 'user',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

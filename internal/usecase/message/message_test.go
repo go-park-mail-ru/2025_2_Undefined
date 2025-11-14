@@ -199,7 +199,7 @@ func TestMessageUsecase_SubscribeUsersOnChat_Success(t *testing.T) {
 		{
 			ID:           messageID,
 			ChatID:       chatID,
-			UserID:       userID,
+			UserID:       &userID,
 			UserName:     "Test User",
 			UserAvatarID: &avatarID,
 			Text:         "Last message",

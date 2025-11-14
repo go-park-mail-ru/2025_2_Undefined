@@ -22,9 +22,11 @@ func TestMessageRepository_InsertMessage_Success(t *testing.T) {
 
 	repo := NewMessageRepository(db)
 
+	userID := uuid.New()
+
 	msg := modelsMessage.CreateMessage{
 		ChatID:    uuid.New(),
-		UserID:    uuid.New(),
+		UserID:    &userID,
 		Text:      "hello",
 		CreatedAt: time.Now(),
 		Type:      "text",
@@ -56,9 +58,11 @@ func TestMessageRepository_InsertMessage_DBError(t *testing.T) {
 
 	repo := NewMessageRepository(db)
 
+	userID := uuid.New()
+
 	msg := modelsMessage.CreateMessage{
 		ChatID:    uuid.New(),
-		UserID:    uuid.New(),
+		UserID:    &userID,
 		Text:      "hello",
 		CreatedAt: time.Now(),
 		Type:      "text",
@@ -106,7 +110,7 @@ func TestMessageRepository_GetLastMessagesOfChats_Success(t *testing.T) {
 	assert.Len(t, messages, 1)
 	assert.Equal(t, messageID, messages[0].ID)
 	assert.Equal(t, chatID, messages[0].ChatID)
-	assert.Equal(t, senderID, messages[0].UserID)
+	assert.Equal(t, senderID, *messages[0].UserID)
 	assert.Equal(t, "John Doe", messages[0].UserName)
 	assert.Equal(t, "Hello world", messages[0].Text)
 	assert.Equal(t, "text", messages[0].Type)
@@ -143,7 +147,7 @@ func TestMessageRepository_GetMessagesOfChat_Success(t *testing.T) {
 	assert.Len(t, messages, 1)
 	assert.Equal(t, messageID, messages[0].ID)
 	assert.Equal(t, chatID, messages[0].ChatID)
-	assert.Equal(t, userID, messages[0].UserID)
+	assert.Equal(t, userID, *messages[0].UserID)
 	assert.Equal(t, "John", messages[0].UserName)
 	assert.Equal(t, "Test message", messages[0].Text)
 	assert.Equal(t, "text", messages[0].Type)

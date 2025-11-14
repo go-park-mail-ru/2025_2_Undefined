@@ -7,13 +7,13 @@ import (
 )
 
 type MessageDTO struct {
-	SenderID        uuid.UUID `json:"sender_id"`
-	SenderName      string    `json:"sender_name" swaggertype:"string"`
-	SenderAvatarURL string    `json:"sender_avatar_url,omitempty" swaggertype:"string"`
-	Text            string    `json:"text"`
-	CreatedAt       time.Time `json:"created_at"`
-	ChatId          uuid.UUID `json:"chat_id"`
-	Type            string    `json:"type"` // Тип сообщения - системное или пользовательское
+	SenderID        *uuid.UUID `json:"sender_id" swaggertype:"string" format:"uuid"`
+	SenderName      string     `json:"sender_name" swaggertype:"string"`
+	SenderAvatarURL string     `json:"sender_avatar_url,omitempty" swaggertype:"string"`
+	Text            string     `json:"text"`
+	CreatedAt       time.Time  `json:"created_at" swaggertype:"string" format:"date-time"`
+	ChatId          uuid.UUID  `json:"chat_id" swaggertype:"string" format:"uuid"`
+	Type            string     `json:"type" swaggertype:"string"` // Тип сообщения - системное или пользовательское
 }
 
 type CreateMessageDTO struct {

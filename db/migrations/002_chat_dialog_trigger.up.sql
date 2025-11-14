@@ -86,7 +86,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Триггер на INSERT/UPDATE/DELETE в таблице chat_member
+-- Триггер на INSERT/UPDATE в таблице chat_member
 CREATE TRIGGER check_dialog_members_trigger
     AFTER INSERT OR UPDATE ON chat_member
     FOR EACH ROW

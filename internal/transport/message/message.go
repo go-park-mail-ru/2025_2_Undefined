@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -19,21 +20,27 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Для разработки
-		// Раскомментить :)
-		/* 		origin := r.Header.Get("Origin")
-		   		// Разрешенные origins для разработки
-		   		allowedOrigins := []string{
-		   			"http://localhost:3000",
-		   			"http://localhost:8080",
-		   		}
+		origin := r.Header.Get("Origin")
 
-		   		for _, allowed := range allowedOrigins {
-		   			if origin == allowed {
-		   				return true
-		   			}
-		   		}
-		   		return false */
+		// Если это режим разработки, разрешаем любой источник
+		if isDevelopment := os.Getenv("ENVIRONMENT"); isDevelopment == "development" || isDevelopment == "dev" {
+			return true
+		}
+
+		// В продакшене разрешаем только определенные origins
+		allowedOrigins := []string{
+			"https://100gramm.online",
+			"https://www.100gramm.online",
+			"http://localhost:3000", // для локальной разработки
+			"http://localhost:8080", // для локальной разработки
+		}
+
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				return true
+			}
+		}
+		return false
 	},
 }
 

@@ -1,30 +1,30 @@
 package dto
 
 import (
-	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
+	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	"github.com/google/uuid"
 )
 
 type ChatViewInformationDTO struct {
-	ID          uuid.UUID             `json:"id" swaggertype:"string" format:"uuid"`
-	Name        string                `json:"name"`
-	LastMessage dtoMessage.MessageDTO `json:"last_message" swaggertype:"object"`
-	Type        string                `json:"type"`
-	AvatarURL   string                `json:"avatar_url,omitempty"`
+	ID          uuid.UUID      `json:"id" swaggertype:"string" format:"uuid"`
+	Name        string         `json:"name"`
+	LastMessage dto.MessageDTO `json:"last_message" swaggertype:"object"`
+	Type        string         `json:"type"`
+	AvatarURL   string         `json:"avatar_url,omitempty"`
 }
 
 type ChatDetailedInformationDTO struct {
-	ID          uuid.UUID               `json:"id" swaggertype:"string" format:"uuid"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description"`
-	IsAdmin     bool                    `json:"is_admin"`
-	CanChat     bool                    `json:"can_chat"`
-	IsMember    bool                    `json:"is_member"`
-	IsPrivate   bool                    `json:"is_private"`
-	Type        string                  `json:"type"`
-	Messages    []dtoMessage.MessageDTO `json:"messages" swaggertype:"array,object"`
-	Members     []UserInfoChatDTO       `json:"members"`
-	AvatarURL   string                  `json:"avatar_url,omitempty"`
+	ID          uuid.UUID         `json:"id" swaggertype:"string" format:"uuid"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	IsAdmin     bool              `json:"is_admin"`
+	CanChat     bool              `json:"can_chat"`
+	IsMember    bool              `json:"is_member"`
+	IsPrivate   bool              `json:"is_private"`
+	Type        string            `json:"type"`
+	Messages    []dto.MessageDTO  `json:"messages"`
+	Members     []UserInfoChatDTO `json:"members"`
+	AvatarURL   string            `json:"avatar_url,omitempty"`
 }
 
 type ChatCreateInformationDTO struct {
