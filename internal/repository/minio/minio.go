@@ -72,9 +72,18 @@ func NewMinioProvider(cfg config.MinioConfig) (*MinioProvider, error) {
 
 func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID uuid.UUID) (string, error) {
 	const op = "MinioProvider.CreateOne"
+	const query = "PUT object"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
-	logger.Debug("Start operation")
+	logger := domains.GetLogger(ctx).WithField("operation", op).
+		WithField("object_id", objectID.String()).
+		WithField("file_name", file.Name)
+	
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	reader := bytes.NewReader(file.Data)
 
@@ -88,7 +97,8 @@ func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID u
 
 	_, err := m.mc.PutObject(ctx, m.bucketName, objectID.String(), reader, int64(len(file.Data)), options)
 	if err != nil {
-		logger.WithError(err).Error("error put object")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("minio query: %s: put object error: status: %s", query, queryStatus)
 		return "", fmt.Errorf("error create object in minio %s: %v", file.Name, err)
 	}
 
@@ -110,8 +120,6 @@ func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID u
 		m.bucketName,
 		objectID.String())
 
-	logger.Info("Complete succesfully")
-
 	return publicURL, nil
 }
 
@@ -121,9 +129,16 @@ func (m *MinioProvider) GetOne(ctx context.Context, objectID *uuid.UUID) (string
 	}
 
 	const op = "MinioProvider.GetOne"
+	const query = "GET object URL"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
-	logger.Debug("Start operation")
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("object_id", objectID.String())
+	
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	// Возвращаем прямую публичную URL для объекта
 	protocol := "http"
@@ -143,24 +158,28 @@ func (m *MinioProvider) GetOne(ctx context.Context, objectID *uuid.UUID) (string
 		m.bucketName,
 		objectID.String())
 
-	logger.Info("Complete succesfully")
-
 	return publicURL, nil
 }
 
 func (m *MinioProvider) DeleteOne(ctx context.Context, objectID uuid.UUID) error {
 	const op = "MinioProvider.DeleteOne"
+	const query = "DELETE object"
 
-	logger := domains.GetLogger(ctx).WithField("operation", op)
-	logger.Debug("Start operation")
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("object_id", objectID.String())
+	
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	err := m.mc.RemoveObject(ctx, m.bucketName, objectID.String(), minio.RemoveObjectOptions{})
 	if err != nil {
-		logger.WithError(err).Errorf("error deleting object %s", objectID.String())
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("minio query: %s: remove object error: status: %s", query, queryStatus)
 		return fmt.Errorf("error deleting object in minio: %v", err)
 	}
-
-	logger.Info("Complete succesfully")
 
 	return nil
 }

@@ -69,9 +69,16 @@ func New(db *sql.DB) *UserRepository {
 
 func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*models.User, error) {
 	const op = "UserRepository.GetUserByPhone"
+	const query = "SELECT user by phone"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("phone", phone)
-	logger.Debug("Starting database operation: get user by phone")
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	var user models.User
 	var bio sql.NullString
@@ -91,23 +98,30 @@ func (r *UserRepository) GetUserByPhone(ctx context.Context, phone string) (*mod
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			logger.Debug("Database operation completed: user not found")
-			err = errors.New("user not found")
-			return nil, err
+			queryStatus = "not found"
+			logger.Debugf("db query: %s: user not found: status: %s", query, queryStatus)
+			return nil, errors.New("user not found")
 		}
-		logger.WithError(err).Error("Database operation failed: get user by phone query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 
-	logger.WithField("user_id", user.ID.String()).Info("Database operation completed successfully: user found by phone")
 	return &user, nil
 }
 
 func (r *UserRepository) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	const op = "UserRepository.GetUserByUsername"
+	const query = "SELECT user by username"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("username", username)
-	logger.Debug("Starting database operation: get user by username")
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	var user models.User
 	var bio sql.NullString
@@ -127,23 +141,30 @@ func (r *UserRepository) GetUserByUsername(ctx context.Context, username string)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			logger.Debug("Database operation completed: user not found")
-			err = errors.New("user not found")
-			return nil, err
+			queryStatus = "not found"
+			logger.Debugf("db query: %s: user not found: status: %s", query, queryStatus)
+			return nil, errors.New("user not found")
 		}
-		logger.WithError(err).Error("Database operation failed: get user by username query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 
-	logger.WithField("user_id", user.ID.String()).Info("Database operation completed successfully: user found by username")
 	return &user, nil
 }
 
 func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	const op = "UserRepository.GetUserByID"
+	const query = "SELECT user by ID"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", id.String())
-	logger.Debug("Starting database operation: get user by ID")
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	var user models.User
 	var bio sql.NullString
@@ -163,30 +184,37 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			logger.Debug("Database operation completed: user not found")
-			err = errs.ErrUserNotFound
-			return nil, err
+			queryStatus = "not found"
+			logger.Debugf("db query: %s: user not found: status: %s", query, queryStatus)
+			return nil, errs.ErrUserNotFound
 		}
-		logger.WithError(err).Error("Database operation failed: get user by ID query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 
-	logger.Info("Database operation completed successfully: user found by ID")
 	return &user, nil
 }
 
 func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error) {
 	const op = "UserRepository.GetUsersNames"
+	const query = "SELECT users names"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("users_count", len(usersIds))
-	logger.Debug("Starting database operation: get users names by IDs")
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	if len(usersIds) == 0 {
-		logger.Debug("Database operation completed: empty users list provided")
+		logger.Debugf("db query: %s: empty list: status: %s", query, queryStatus)
 		return []string{}, nil
 	}
 
-	query := `SELECT name FROM "user" WHERE id IN (`
+	querySQL := `SELECT name FROM "user" WHERE id IN (`
 	placeholders := []string{}
 	args := make([]interface{}, len(usersIds))
 
@@ -195,12 +223,13 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 		args[i] = userID
 	}
 
-	query += strings.Join(placeholders, ", ")
-	query += ")"
+	querySQL += strings.Join(placeholders, ", ")
+	querySQL += ")"
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.Query(querySQL, args...)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: get users names query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 	defer rows.Close()
@@ -209,54 +238,71 @@ func (r *UserRepository) GetUsersNames(ctx context.Context, usersIds []uuid.UUID
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
-			logger.WithError(err).Error("Database operation failed: scan user name row")
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
 			return nil, err
 		}
 		result = append(result, name)
 	}
 
-	logger.WithField("names_count", len(result)).Info("Database operation completed successfully: users names retrieved")
 	return result, nil
 }
 
 func (r *UserRepository) UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, file_size int64) error {
 	const op = "UserRepository.UpdateUserAvatar"
+	const query = "UPDATE user avatar"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
-	logger.Debug("Starting database operation: update user avatar")
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: begin transaction")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: begin transaction: status: %s", query, queryStatus)
 		return err
 	}
 
 	_, err = tx.Exec(insertUserAvatarInAttachmentTableQuery, avatarID, "avatar_"+avatarID.String(), file_size, "inline")
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: insert user avatar in attachment table")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: insert attachment: status: %s", query, queryStatus)
 		return err
 	}
 
 	_, err = tx.Exec(insertUserAvatarInUserAvatarTableQuery, userID, avatarID)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: insert user avatar in user_avatar table")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: insert user avatar: status: %s", query, queryStatus)
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		logger.WithError(err).Error("Database operation failed: commit transaction")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: commit transaction: status: %s", query, queryStatus)
 		return err
 	}
 
-	logger.Info("Database operation completed successfully: user avatar updated")
 	return nil
 }
 
 func (r *UserRepository) UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error {
 	const op = "UserRepository.UpdateUserInfo"
+	const query = "UPDATE user info"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
-	logger.Debug("Starting database operation: update user info")
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
 
 	var setParts []string
 	var args []interface{}
@@ -281,41 +327,41 @@ func (r *UserRepository) UpdateUserInfo(ctx context.Context, userID uuid.UUID, n
 	}
 
 	if len(setParts) == 0 {
+		queryStatus = "fail"
+		logger.Errorf("db query: %s: no fields to update: status: %s", query, queryStatus)
 		return fmt.Errorf("no fields to update")
 	}
 
 	args = append(args, userID)
 
-	query := fmt.Sprintf("UPDATE \"user\" SET %s WHERE id = $%d", strings.Join(setParts, ", "), argIndex)
+	querySQL := fmt.Sprintf("UPDATE \"user\" SET %s WHERE id = $%d", strings.Join(setParts, ", "), argIndex)
 
-	result, err := r.db.Exec(query, args...)
+	result, err := r.db.Exec(querySQL, args...)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: update user info")
+		queryStatus = "fail"
 
-		if pqErr, ok := err.(*pq.Error); ok {
-			switch pqErr.Code {
-			case "23505": // unique_violation
-				if pqErr.Constraint == "user_username_key" {
-					return errs.ErrIsDuplicateKey
-				}
-			}
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == errs.PostgresErrorUniqueViolationCode {
+			logger.WithError(err).Errorf("db query: %s: duplicate key violation: status: %s", query, queryStatus)
+			return errs.ErrIsDuplicateKey
 		}
 
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return errors.New("error update user")
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: check rows affected")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: check rows affected: status: %s", query, queryStatus)
 		return err
 	}
 
 	if rowsAffected == 0 {
-		err := errors.New("user not updated")
-		logger.WithError(err).Error("Database operation failed: user not updated")
-		return err
+		queryStatus = "fail"
+		logger.Errorf("db query: %s: user not updated: status: %s", query, queryStatus)
+		return errors.New("user not updated")
 	}
 
-	logger.Info("Database operation completed successfully: user into update")
 	return nil
 }

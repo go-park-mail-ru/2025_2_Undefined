@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -21,6 +21,13 @@ const (
 		RETURNING id, username, phone_number, user_type`
 )
 
+const (
+	maxUsernameRetries = 5
+	usernamePrefix     = "user_"
+	maxUsernameLength  = 20
+	uuidPartLength     = 15
+)
+
 type AuthRepository struct {
 	db *sql.DB
 }
@@ -33,15 +40,32 @@ func New(db *sql.DB) *AuthRepository {
 
 func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone string, password_hash string) (*models.User, error) {
 	const op = "AuthRepository.CreateUser"
+	const query = "INSERT user"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
-	logger.Debug("Starting database operation: create user")
+	queryStatus := "success"
 
-	newUsername, err := r.generateUsername(ctx)
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: generate username")
-		return nil, err
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: begin transaction: status: %s", query, queryStatus)
+		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
+	defer tx.Rollback()
+
+	newUsername, err := r.generateUniqueUsername(ctx, tx)
+	if err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: generate username: status: %s", query, queryStatus)
+		return nil, fmt.Errorf("generate username: %w", err)
+	}
+
 	user := &models.User{
 		ID:           uuid.New(),
 		PhoneNumber:  phone,
@@ -53,67 +77,102 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 		UpdatedAt:    time.Now(),
 	}
 
-	logger.Debug("Executing database query: INSERT user")
-	err = r.db.QueryRow(createUserQuery,
+	logger.Debugf("executing: %s with username: %s (length: %d)", query, newUsername, len(newUsername))
+	err = tx.QueryRowContext(ctx, createUserQuery,
 		user.ID, user.Username, user.Name, user.PhoneNumber, user.PasswordHash, user.AccountType, user.CreatedAt, user.UpdatedAt).
 		Scan(&user.ID, &user.Username, &user.PhoneNumber, &user.AccountType)
 
 	if err != nil {
-		// Проверяем является ли ошибка наруением уникального ограничения
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			err = errs.ErrIsDuplicateKey
-			logger.WithError(err).Error("Database operation failed: duplicate key constraint violation")
-			return nil, err
+		queryStatus = "fail"
+
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			switch pqErr.Code {
+			case errs.PostgresErrorUniqueViolationCode:
+				logger.WithError(err).Errorf("db query: %s: duplicate key violation: status: %s", query, queryStatus)
+				return nil, errs.ErrIsDuplicateKey
+			case errs.PostgresErrorForeignKeyViolationCode:
+				logger.WithError(err).Errorf("db query: %s: foreign key violation: status: %s", query, queryStatus)
+				return nil, errs.ErrUserNotFound
+			}
 		}
-		logger.WithError(err).Error("Database operation failed: create user query")
+
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return nil, err
 	}
 
-	logger.Info("Database operation completed successfully: user created")
+	if err := tx.Commit(); err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: commit transaction: status: %s", query, queryStatus)
+		return nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
 	return user, nil
 }
 
-func (r *AuthRepository) generateUsername(ctx context.Context) (string, error) {
-	const op = "AuthRepository.generateUsername"
+func (r *AuthRepository) generateUniqueUsername(ctx context.Context, tx *sql.Tx) (string, error) {
+	const op = "AuthRepository.generateUniqueUsername"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
-	logger.Debug("Starting database operation: count users")
 
-	var count int
-	err := r.db.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&count)
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: count users query")
-		return "", err
+	for i := 0; i < maxUsernameRetries; i++ {
+		var username string
+
+		username = r.generateTimestampUsername()
+
+		if len(username) > maxUsernameLength {
+			username = username[:maxUsernameLength]
+		}
+
+		exists, err := r.checkUsernameExists(ctx, tx, username)
+		if err != nil {
+			return "", fmt.Errorf("check username exists: %w", err)
+		}
+
+		if !exists {
+			logger.Debugf("generated unique username: %s (length: %d, attempt %d)", username, len(username), i+1)
+			return username, nil
+		}
+
+		logger.Debugf("username collision detected: %s (attempt %d)", username, i+1)
+
+		time.Sleep(time.Millisecond * time.Duration(i*5))
 	}
 
-	username := fmt.Sprintf("user_%d", count)
-
-	exists, err := r.checkUsernameExists(ctx, username)
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: check username exists")
-		return "", err
-	}
-	if !exists {
-		logger.Debug("Database operation completed: username generated successfully")
-		return username, nil
-	}
-
-	//если не получилось создать юзернейм по умолчанию, то создаем через uuid
-	logger.Debug("Database operation completed: fallback to UUID-based username")
-	return "user_" + uuid.New().String()[:8], nil
+	return "", fmt.Errorf("failed to generate unique username after %d attempts", maxUsernameRetries)
 }
 
-func (r *AuthRepository) checkUsernameExists(ctx context.Context, username string) (bool, error) {
-	logger := domains.GetLogger(ctx).WithField("operation", "AuthRepository.checkUsernameExists")
-	logger.Debug("Starting database operation: check username exists")
+func (r *AuthRepository) generateTimestampUsername() string {
+	timestamp := time.Now().UnixNano()
+	timestampStr := fmt.Sprintf("%d", timestamp)
+
+	if len(timestampStr) > uuidPartLength {
+		timestampStr = timestampStr[len(timestampStr)-uuidPartLength:]
+	} else {
+		timestampStr = fmt.Sprintf("%015s", timestampStr)
+	}
+
+	return usernamePrefix + timestampStr
+}
+
+func (r *AuthRepository) checkUsernameExists(ctx context.Context, tx *sql.Tx, username string) (bool, error) {
+	const op = "AuthRepository.checkUsernameExists"
+	const query = "CHECK username exists"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+	queryStatus := "success"
+
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
 
 	var exists bool
-	err := r.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM "user" WHERE username = $1)`, username).Scan(&exists)
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM "user" WHERE username = $1)`, username).Scan(&exists)
 	if err != nil {
-		logger.WithError(err).Error("Database operation failed: check username exists query")
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution: status: %s", query, queryStatus)
 		return false, err
 	}
 
-	logger.Debug("Database operation completed: username existence checked")
-	return exists, err
+	return exists, nil
 }
