@@ -2,18 +2,29 @@ package errs
 
 import "errors"
 
+// PostgreSQL коды ошибок
+const (
+	PostgresErrorUniqueViolationCode     = "23505"
+	PostgresErrorForeignKeyViolationCode = "23503"
+)
+
 var (
-	ErrInvalidToken          = errors.New("неверный токен")
-	ErrNotFound              = errors.New("не найдено")
-	ErrBadRequest            = errors.New("неверный запрос")
-	ErrInvalidCredentials    = errors.New("неверные учетные данные")
-	ErrRequiredFieldsMissing = errors.New("отсутствуют обязательные поля")
-	ErrUserNotFound          = errors.New("пользователь не найден")
-	ErrJWTIsRequired         = errors.New("требуется JWT токен")
+	ErrInvalidToken          = errors.New("invalid token")
+	ErrNotFound              = errors.New("not found")
+	ErrBadRequest            = errors.New("bad request")
+	ErrInvalidCredentials    = errors.New("invalid credentials")
+	ErrRequiredFieldsMissing = errors.New("required fields missing")
+	ErrUserNotFound          = errors.New("user not found")
+	ErrJWTIsRequired         = errors.New("JWT token required")
+	ErrIsDuplicateKey        = errors.New("duplicate key")
+	ErrServiceIsOverloaded   = errors.New("service is overloaded, try again later")
+	ErrNoRights              = errors.New("no rights to perform this action")
+	ErrSessionNotFound       = errors.New("session not found")
+	ErrInternalServerError   = errors.New("internal server error")
 )
 
 // ValidationError представляет ошибку валидации поля
 type ValidationError struct {
-	Field   string
-	Message string
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }

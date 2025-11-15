@@ -1,0 +1,74 @@
+services:
+  app:
+    build: .
+    container_name: gramm_app
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - gramm-network
+    image: lzimin05/100gramm_backend_app
+    volumes:
+      - ./.env:/app/.env
+    command: sh -c "./migrate && ./main"
+
+  db:
+    image: postgres:15
+    container_name: gramm_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:${POSTGRES_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gramm-network
+  
+  auth_redis:
+    image: redis:alpine
+    command: redis-server --bind 0.0.0.0 --port ${AUTH_REDIS_PORT} --requirepass ${AUTH_REDIS_PASSWORD}
+    ports:
+      - "${AUTH_REDIS_PORT}:${AUTH_REDIS_PORT}"
+    volumes:
+      - auth_redis_data:/data
+    environment:
+      REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -h localhost -p ${AUTH_REDIS_PORT} -a ${AUTH_REDIS_PASSWORD} ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gramm-network
+  
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":${MINIO_COMMAND_PORT}" --address ":${MINIO_PORT}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "${MINIO_PORT}:${MINIO_PORT}"
+      - "${MINIO_COMMAND_PORT}:${MINIO_COMMAND_PORT}"
+    volumes:
+      - minio_data:/data
+    networks:
+      - gramm-network
+
+networks:
+  gramm-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  auth_redis_data:
+  minio_data:
