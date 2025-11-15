@@ -29,6 +29,7 @@ type AppealMessageDTO struct {
 	AppealID uuid.UUID  `json:"appeal_id" swaggertype:"string" format:"uuid"`
 	Text     string     `json:"text"`
 	SenderID *uuid.UUID `json:"sender_id" swaggertype:"string" format:"uuid"`
+	AnonymID *uuid.UUID `json:"anonym_id" swaggertype:"string" format:"uuid"`
 	IsUser   bool       `json:"is_user"`
 }
 

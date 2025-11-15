@@ -106,10 +106,11 @@ const (
 		WHERE user_id = $1`
 
 	getAppealsByRoleQuery = `
-		SELECT id, user_id, anonym_id, anonym_email, anonym_contact, title, status, category, created_at, updated_at 
+		SELECT id, user_id, anonym_id, anonym_email, anonym_contact, title, status, category, assigned_to, created_at, updated_at 
 		FROM appeal 
+		WHERE assigned_to = $1 
 		ORDER BY created_at DESC 
-		LIMIT $1 OFFSET $2`
+		LIMIT $2 OFFSET $3`
 
 	assignAppealToSupportQuery = `
 		UPDATE appeal 
@@ -502,7 +503,7 @@ func (r *AppealRepository) GetAppealsByRole(ctx context.Context, role string, li
 		WithField("role", role).WithField("limit", limit).WithField("offset", offset)
 	logger.Debug("Starting database operation: get appeals by role")
 
-	rows, err := r.db.QueryContext(ctx, getAppealsByRoleQuery, limit, offset)
+	rows, err := r.db.QueryContext(ctx, getAppealsByRoleQuery, role, limit, offset)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get appeals by role query")
 		return nil, err
@@ -513,7 +514,7 @@ func (r *AppealRepository) GetAppealsByRole(ctx context.Context, role string, li
 	for rows.Next() {
 		var appeal appealModels.Appeal
 		err := rows.Scan(&appeal.ID, &appeal.UserID, &appeal.AnonymID, &appeal.AnonymEmail, &appeal.AnonymContact,
-			&appeal.Title, &appeal.Status, &appeal.Category, &appeal.CreatedAt, &appeal.UpdatedAt)
+			&appeal.Title, &appeal.Status, &appeal.Category, &appeal.AssignedTo, &appeal.CreatedAt, &appeal.UpdatedAt)
 		if err != nil {
 			logger.WithError(err).Error("Database operation failed: scan appeal row")
 			return nil, err

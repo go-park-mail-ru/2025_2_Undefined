@@ -66,7 +66,7 @@ func (r *MessageRepository) InsertMessage(ctx context.Context, msg modelsMessage
 	logger := domains.GetLogger(ctx).WithField("operation", op).
 		WithField("chat_id", msg.ChatID.String()).
 		WithField("user_id", msg.UserID.String())
-	
+
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("db query: %s: status: %s", query, queryStatus)
@@ -91,7 +91,7 @@ func (r *MessageRepository) GetLastMessagesOfChats(ctx context.Context, userId u
 	const query = "SELECT last messages"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String())
-	
+
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("db query: %s: status: %s", query, queryStatus)
@@ -132,7 +132,7 @@ func (r *MessageRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.U
 		WithField("chat_id", chatId.String()).
 		WithField("offset", offset).
 		WithField("limit", limit)
-	
+
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("db query: %s: status: %s", query, queryStatus)

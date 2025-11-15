@@ -45,6 +45,7 @@ func (uc *AppealUsecase) buildAppealsDTO(ctx context.Context, appeals []*appealM
 				AppealID: m.AppealID,
 				Text:     m.Text,
 				SenderID: m.SenderID,
+				AnonymID: m.SenderAnonymID,
 				IsUser:   isUser,
 			})
 		}
@@ -79,6 +80,15 @@ func (uc *AppealUsecase) GetAppealByID(ctx context.Context, userID, appealID uui
 		return nil, err
 	}
 
+	role, err := uc.repo.GetUserRole(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if appeal.UserID == nil || *appeal.UserID != userID && role == appealModels.RoleUser {
+		return nil, errs.ErrNoRights
+	}
+
 	msgs, err := uc.repo.GetAppealMessages(ctx, appeal.ID)
 	if err != nil {
 		return nil, err
@@ -86,14 +96,11 @@ func (uc *AppealUsecase) GetAppealByID(ctx context.Context, userID, appealID uui
 
 	messagesDTO := make([]dtoAppeal.AppealMessageDTO, 0, len(msgs))
 	for _, m := range msgs {
-		var senderID uuid.UUID
-		if m.SenderID != nil {
-			senderID = *m.SenderID
-		}
 		messagesDTO = append(messagesDTO, dtoAppeal.AppealMessageDTO{
 			AppealID: m.AppealID,
 			Text:     m.Text,
-			SenderID: &senderID,
+			SenderID: m.SenderID,
+			AnonymID: m.SenderAnonymID,
 		})
 	}
 
@@ -281,6 +288,11 @@ func (uc *AppealUsecase) GetAppealsForSupport(ctx context.Context, userID uuid.U
 	}
 
 	var appeals []*appealModels.Appeal
+	// Блокируем доступ пользователям с ролью по умолчанию (user) — ручка доступна только для support/admin/developer
+	if role == appealModels.RoleUser {
+		return nil, errs.ErrNoRights
+	}
+
 	if role == appealModels.RoleAdmin {
 		// admin получает все обращения
 		appeals, err = uc.repo.GetAppealsWithFilters(ctx, "", "", limit, offset)
@@ -309,7 +321,16 @@ func (uc *AppealUsecase) ChangeUserRole(ctx context.Context, adminID, userID uui
 		return errs.ErrNoRights
 	}
 
-	return uc.repo.UpdateUserRole(ctx, userID, role)
+	if role == appealModels.RoleUser {
+		return uc.repo.DeleteUserRole(ctx, userID)
+	}
+
+	switch role {
+	case appealModels.RoleAdmin, appealModels.RoleDeveloper, appealModels.RoleSupportV1, appealModels.RoleSupportV2:
+		return uc.repo.UpdateUserRole(ctx, userID, role)
+	default:
+		return errs.ErrBadRequest
+	}
 }
 
 // DeleteUserRole позволяет админу удалить роль пользователя (вернуть к роли по умолчанию)

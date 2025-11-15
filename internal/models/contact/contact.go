@@ -7,7 +7,7 @@ import (
 )
 
 type Contact struct {
-	UserID      uuid.UUID
+	UserID        uuid.UUID
 	ContactUserID uuid.UUID
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
