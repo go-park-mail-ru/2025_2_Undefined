@@ -5,6 +5,7 @@ DB_URL=postgres://user:password@localhost:5433/gramm?sslmode=disable
 MIGRATIONS_PATH=db/migrations
 CONFIG_SOURCE=config.yml
 ENV_FILE=.env
+VERSION=3
 
 # Миграции базы данных (через CLI migrate)
 db-up:

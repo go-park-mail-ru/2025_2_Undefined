@@ -23,6 +23,543 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/appeal": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Создаёт новое обращение для текущего пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Создать обращение",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные обращения",
+                        "name": "appeal",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateAppealDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.IdDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет изменить статус, категорию или заголовок обращения",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Редактировать обращение",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные для редактирования",
+                        "name": "appeal",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.EditAppealDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные данные",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/appeal/all": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает обращения вместе с их сообщениями",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Получить список обращений текущего пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AppealDTO"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/appeal/message": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Добавляет новое сообщение в указанное обращение",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Добавить сообщение к обращению",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные сообщения",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AppealCreateMessageDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/appeal/role/{user_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору удалить роль пользователя (возврат к роли по умолчанию)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Удалить роль пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные данные",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет администратору изменить роль указанного пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Изменить роль пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новая роль",
+                        "name": "role",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ChangeRoleDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные данные",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/appeal/stats": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает агрегированную статистику по обращениям (по статусам, категориям, итоги). Доступно только админу.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Получить статистику обращений",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AppealStatsDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверные параметры",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/appeal/support": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает обращения для роли поддержки текущего пользователя; админ видит все обращения",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Получить обращения для поддержки",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AppealDTO"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/appeal/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает обращение и его сообщения",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Получить обращение по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Appeal ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AppealDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный id",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Обращение не найдено",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/chats": {
             "get": {
                 "security": [
@@ -759,6 +1296,150 @@ const docTemplate = `{
                 }
             }
         },
+        "/public/appeal": {
+            "get": {
+                "description": "Возвращает обращения анонимного пользователя по anonym_id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Получить анонимные обращения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Anonym ID",
+                        "name": "anonym_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AnonymousAppealDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Создаёт новое анонимное обращение",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Создать анонимное обращение",
+                "parameters": [
+                    {
+                        "description": "Данные обращения",
+                        "name": "appeal",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateAnonymousAppealDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.IdDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/appeal/message": {
+            "post": {
+                "description": "Добавляет новое сообщение от анонимного пользователя в указанное обращение",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appeals"
+                ],
+                "summary": "Добавить анонимное сообщение к обращению",
+                "parameters": [
+                    {
+                        "description": "Данные сообщения",
+                        "name": "message",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateAnonymousMessageDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/register": {
             "post": {
                 "description": "Регистрирует нового пользователя в системе и создает сессию",
@@ -1160,10 +1841,180 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.AnonymousAppealDTO": {
+            "type": "object",
+            "properties": {
+                "anonym_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "assigned_to": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AppealMessageDTO"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AppealCreateMessageDTO": {
+            "type": "object",
+            "properties": {
+                "appeal_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AppealDTO": {
+            "type": "object",
+            "properties": {
+                "assigned_to": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AppealMessageDTO"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "dto.AppealMessageDTO": {
+            "type": "object",
+            "properties": {
+                "appeal_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "is_user": {
+                    "type": "boolean"
+                },
+                "sender_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AppealStatsByDateDTO": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AppealStatsDTO": {
+            "type": "object",
+            "properties": {
+                "by_category": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "by_date_range": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.AppealStatsByDateDTO"
+                    }
+                },
+                "by_status": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total": {
+                    "$ref": "#/definitions/dto.AppealStatsTotalDTO"
+                }
+            }
+        },
+        "dto.AppealStatsTotalDTO": {
+            "type": "object",
+            "properties": {
+                "bug_reports": {
+                    "type": "integer"
+                },
+                "claims": {
+                    "type": "integer"
+                },
+                "closed_appeals": {
+                    "type": "integer"
+                },
+                "feature_requests": {
+                    "type": "integer"
+                },
+                "in_work_appeals": {
+                    "type": "integer"
+                },
+                "open_appeals": {
+                    "type": "integer"
+                },
+                "others": {
+                    "type": "integer"
+                },
+                "total_appeals": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.AuthResponse": {
             "type": "object",
             "properties": {
                 "csrf_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ChangeRoleDTO": {
+            "type": "object",
+            "properties": {
+                "role": {
                     "type": "string"
                 }
             }
@@ -1263,10 +2114,79 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreateAnonymousAppealDTO": {
+            "type": "object",
+            "properties": {
+                "anonym_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "contact": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateAnonymousMessageDTO": {
+            "type": "object",
+            "properties": {
+                "anonym_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "appeal_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateAppealDTO": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.DeleteSession": {
             "type": "object",
             "properties": {
                 "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.EditAppealDTO": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

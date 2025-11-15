@@ -1,7 +1,9 @@
 name: CI
 on:
-  push
-
+  push:
+    branches:
+      - main
+      - develop
 jobs:
   tests:
     name: tests
