@@ -40,6 +40,10 @@ import (
 	contactRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/contact"
 	contactTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/contact"
 	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
+
+	appealRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/appeal"
+	appealTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/appeal"
+	appealUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/appeal"
 )
 
 type App struct {
@@ -94,6 +98,10 @@ func NewApp(conf *config.Config) (*App, error) {
 	contactRepo := contactRepository.New(db)
 	contactUC := contactUsecase.New(contactRepo, userRepo, minioClient)
 	contactHandler := contactTransport.New(contactUC, sessionUtils)
+
+	appealRepo := appealRepository.New(db)
+	appealUC := appealUsecase.NewAppealUsecase(appealRepo)
+	appealHandler := appealTransport.NewAppealHandler(appealUC, sessionUtils)
 
 	// Настройка логгера
 	logger := logrus.New()
@@ -152,6 +160,28 @@ func NewApp(conf *config.Config) (*App, error) {
 	{
 		contactRouter.HandleFunc("", contactHandler.CreateContact).Methods(http.MethodPost)
 		contactRouter.HandleFunc("", contactHandler.GetContacts).Methods(http.MethodGet)
+	}
+
+	appealRouter := protectedRouter.PathPrefix("/appeal").Subrouter()
+	{
+		appealRouter.HandleFunc("/all", appealHandler.GetAppeals).Methods(http.MethodGet)
+		appealRouter.HandleFunc("/support", appealHandler.GetAppealsForSupport).Methods(http.MethodGet)
+		appealRouter.HandleFunc("/stats", appealHandler.GetAppealsStats).Methods(http.MethodGet)
+		appealRouter.HandleFunc("", appealHandler.PostAppeal).Methods(http.MethodPost)
+		appealRouter.HandleFunc("", appealHandler.PatchAppeal).Methods(http.MethodPatch)
+		// Управление ролями пользователей (доступно только админу)
+		appealRouter.HandleFunc("/role/{user_id}", appealHandler.ChangeUserRole).Methods(http.MethodPatch)
+		appealRouter.HandleFunc("/role/{user_id}", appealHandler.DeleteUserRole).Methods(http.MethodDelete)
+		appealRouter.HandleFunc("/message", appealHandler.PostAppealMessage).Methods(http.MethodPost)
+		appealRouter.HandleFunc("/{id}", appealHandler.GetAppealByID).Methods(http.MethodGet)
+	}
+
+	// Публичные роуты для анонимных пользователей
+	publicRouter := apiRouter.PathPrefix("/public").Subrouter()
+	{
+		publicRouter.HandleFunc("/appeal", appealHandler.CreateAnonymousAppeal).Methods(http.MethodPost)
+		publicRouter.HandleFunc("/appeal", appealHandler.GetAnonymousAppeals).Methods(http.MethodGet)
+		publicRouter.HandleFunc("/appeal/message", appealHandler.PostAnonymousMessage).Methods(http.MethodPost)
 	}
 
 	// Swagger

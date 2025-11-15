@@ -2,6 +2,7 @@ CREATE TYPE message_type_enum AS ENUM ('user', 'system');
 CREATE TYPE chat_member_role_enum AS ENUM ('admin', 'writer', 'viewer');
 CREATE TYPE user_type_enum AS ENUM ('user', 'premium', 'verified');
 CREATE TYPE chat_type_enum AS ENUM ('channel', 'dialog', 'group');
+CREATE TYPE appeal_role_enum AS ENUM ('admin', 'developer', 'support-l1', 'support-l2');
 
 CREATE TABLE "user" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -102,6 +103,52 @@ CREATE TABLE contact (
     CONSTRAINT check_not_self_contact CHECK (user_id != contact_user_id)
 );
 
+CREATE TYPE appeal_status_enum AS ENUM ('open', 'in_work', 'closed');
+CREATE TYPE appeal_category_enum AS ENUM ('bug', 'feature', 'claim', 'other');
+
+CREATE TABLE appeal (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    status appeal_status_enum NOT NULL DEFAULT 'open',
+    category appeal_category_enum NOT NULL,
+    user_id UUID REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    anonym_id UUID,
+    anonym_email TEXT,
+    anonym_contact TEXT,
+    assigned_to appeal_role_enum NOT NULL DEFAULT 'support-l1',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    CONSTRAINT check_user_or_anonym CHECK (
+        (user_id IS NOT NULL AND anonym_id IS NULL) OR 
+        (user_id IS NULL AND anonym_id IS NOT NULL)
+    )
+);
+
+CREATE TABLE message_appeal (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    appeal_id UUID NOT NULL REFERENCES appeal(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    text TEXT NOT NULL,
+    sender_id UUID REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    sender_anonym_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT check_message_length CHECK (LENGTH(text) >= 1 AND LENGTH(text) <= 4000),
+    CONSTRAINT check_sender_user_or_anonym CHECK (
+        (sender_id IS NOT NULL AND sender_anonym_id IS NULL) OR 
+        (sender_id IS NULL AND sender_anonym_id IS NOT NULL)
+    )
+);
+
+CREATE TABLE appeal_roles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    role appeal_role_enum NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()     
+);
+
 -- Триггеры
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -111,6 +158,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+CREATE TRIGGER update_appeal_roles_updated_at BEFORE UPDATE ON appeal_roles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_user_updated_at BEFORE UPDATE ON "user" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_chat_updated_at BEFORE UPDATE ON chat FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_message_updated_at BEFORE UPDATE ON message FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -119,3 +167,5 @@ CREATE TRIGGER update_avatar_chat_updated_at BEFORE UPDATE ON avatar_chat FOR EA
 CREATE TRIGGER update_avatar_user_updated_at BEFORE UPDATE ON avatar_user FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_message_attachment_updated_at BEFORE UPDATE ON message_attachment FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_contact_updated_at BEFORE UPDATE ON contact FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_appeal_updated_at BEFORE UPDATE ON appeal FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_message_appeal_updated_at BEFORE UPDATE ON message_appeal FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

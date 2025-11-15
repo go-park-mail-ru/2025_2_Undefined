@@ -17,9 +17,122 @@ definitions:
           $ref: '#/definitions/dto.AddChatMemberDTO'
         type: array
     type: object
+  dto.AnonymousAppealDTO:
+    properties:
+      anonym_id:
+        format: uuid
+        type: string
+      assigned_to:
+        type: string
+      category:
+        type: string
+      email:
+        type: string
+      id:
+        format: uuid
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/dto.AppealMessageDTO'
+        type: array
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.AppealCreateMessageDTO:
+    properties:
+      appeal_id:
+        format: uuid
+        type: string
+      text:
+        type: string
+    type: object
+  dto.AppealDTO:
+    properties:
+      assigned_to:
+        type: string
+      category:
+        type: string
+      id:
+        format: uuid
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/dto.AppealMessageDTO'
+        type: array
+      status:
+        type: string
+      title:
+        type: string
+      user_id:
+        format: uuid
+        type: string
+    type: object
+  dto.AppealMessageDTO:
+    properties:
+      appeal_id:
+        format: uuid
+        type: string
+      is_user:
+        type: boolean
+      sender_id:
+        format: uuid
+        type: string
+      text:
+        type: string
+    type: object
+  dto.AppealStatsByDateDTO:
+    properties:
+      count:
+        type: integer
+      date:
+        type: string
+    type: object
+  dto.AppealStatsDTO:
+    properties:
+      by_category:
+        additionalProperties:
+          type: integer
+        type: object
+      by_date_range:
+        items:
+          $ref: '#/definitions/dto.AppealStatsByDateDTO'
+        type: array
+      by_status:
+        additionalProperties:
+          type: integer
+        type: object
+      total:
+        $ref: '#/definitions/dto.AppealStatsTotalDTO'
+    type: object
+  dto.AppealStatsTotalDTO:
+    properties:
+      bug_reports:
+        type: integer
+      claims:
+        type: integer
+      closed_appeals:
+        type: integer
+      feature_requests:
+        type: integer
+      in_work_appeals:
+        type: integer
+      open_appeals:
+        type: integer
+      others:
+        type: integer
+      total_appeals:
+        type: integer
+    type: object
   dto.AuthResponse:
     properties:
       csrf_token:
+        type: string
+    type: object
+  dto.ChangeRoleDTO:
+    properties:
+      role:
         type: string
     type: object
   dto.ChatCreateInformationDTO:
@@ -85,9 +198,55 @@ definitions:
       type:
         type: string
     type: object
+  dto.CreateAnonymousAppealDTO:
+    properties:
+      anonym_id:
+        format: uuid
+        type: string
+      category:
+        type: string
+      contact:
+        type: string
+      email:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.CreateAnonymousMessageDTO:
+    properties:
+      anonym_id:
+        format: uuid
+        type: string
+      appeal_id:
+        format: uuid
+        type: string
+      text:
+        type: string
+    type: object
+  dto.CreateAppealDTO:
+    properties:
+      category:
+        type: string
+      title:
+        type: string
+      userID:
+        type: string
+    type: object
   dto.DeleteSession:
     properties:
       id:
+        type: string
+    type: object
+  dto.EditAppealDTO:
+    properties:
+      category:
+        type: string
+      id:
+        format: uuid
+        type: string
+      status:
+        type: string
+      title:
         type: string
     type: object
   dto.ErrorDTO:
@@ -258,6 +417,353 @@ info:
   title: Undefined team API documentation of project Telegram
   version: "1.0"
 paths:
+  /appeal:
+    patch:
+      consumes:
+      - application/json
+      description: Позволяет изменить статус, категорию или заголовок обращения
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Данные для редактирования
+        in: body
+        name: appeal
+        required: true
+        schema:
+          $ref: '#/definitions/dto.EditAppealDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "400":
+          description: Неверные данные
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Редактировать обращение
+      tags:
+      - appeals
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новое обращение для текущего пользователя
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Данные обращения
+        in: body
+        name: appeal
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAppealDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.IdDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Создать обращение
+      tags:
+      - appeals
+  /appeal/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает обращение и его сообщения
+      parameters:
+      - description: Appeal ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AppealDTO'
+        "400":
+          description: Неверный id
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Обращение не найдено
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить обращение по ID
+      tags:
+      - appeals
+  /appeal/all:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает обращения вместе с их сообщениями
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.AppealDTO'
+            type: array
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить список обращений текущего пользователя
+      tags:
+      - appeals
+  /appeal/message:
+    post:
+      consumes:
+      - application/json
+      description: Добавляет новое сообщение в указанное обращение
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: Данные сообщения
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AppealCreateMessageDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Добавить сообщение к обращению
+      tags:
+      - appeals
+  /appeal/role/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Позволяет администратору удалить роль пользователя (возврат к роли
+        по умолчанию)
+      parameters:
+      - description: User ID
+        format: uuid
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "400":
+          description: Неверные данные
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Удалить роль пользователя
+      tags:
+      - appeals
+    patch:
+      consumes:
+      - application/json
+      description: Позволяет администратору изменить роль указанного пользователя
+      parameters:
+      - description: User ID
+        format: uuid
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Новая роль
+        in: body
+        name: role
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangeRoleDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "400":
+          description: Неверные данные
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Изменить роль пользователя
+      tags:
+      - appeals
+  /appeal/stats:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает агрегированную статистику по обращениям (по статусам,
+        категориям, итоги). Доступно только админу.
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AppealStatsDTO'
+        "400":
+          description: Неверные параметры
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить статистику обращений
+      tags:
+      - appeals
+  /appeal/support:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает обращения для роли поддержки текущего пользователя;
+        админ видит все обращения
+      parameters:
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.AppealDTO'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить обращения для поддержки
+      tags:
+      - appeals
   /chats:
     get:
       consumes:
@@ -771,6 +1277,102 @@ paths:
       summary: Установить WebSocket соединение для сообщений
       tags:
       - messages
+  /public/appeal:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает обращения анонимного пользователя по anonym_id
+      parameters:
+      - description: Anonym ID
+        format: uuid
+        in: query
+        name: anonym_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.AnonymousAppealDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Получить анонимные обращения
+      tags:
+      - appeals
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новое анонимное обращение
+      parameters:
+      - description: Данные обращения
+        in: body
+        name: appeal
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAnonymousAppealDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.IdDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Создать анонимное обращение
+      tags:
+      - appeals
+  /public/appeal/message:
+    post:
+      consumes:
+      - application/json
+      description: Добавляет новое сообщение от анонимного пользователя в указанное
+        обращение
+      parameters:
+      - description: Данные сообщения
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateAnonymousMessageDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      summary: Добавить анонимное сообщение к обращению
+      tags:
+      - appeals
   /register:
     post:
       consumes:
