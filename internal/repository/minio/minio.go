@@ -77,7 +77,7 @@ func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID u
 	logger := domains.GetLogger(ctx).WithField("operation", op).
 		WithField("object_id", objectID.String()).
 		WithField("file_name", file.Name)
-
+	
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
@@ -132,7 +132,7 @@ func (m *MinioProvider) GetOne(ctx context.Context, objectID *uuid.UUID) (string
 	const query = "GET object URL"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("object_id", objectID.String())
-
+	
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
@@ -166,7 +166,7 @@ func (m *MinioProvider) DeleteOne(ctx context.Context, objectID uuid.UUID) error
 	const query = "DELETE object"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("object_id", objectID.String())
-
+	
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("minio query: %s: status: %s", query, queryStatus)

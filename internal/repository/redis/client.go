@@ -19,7 +19,7 @@ func NewClient(cfg *config.RedisConfig) (*Client, error) {
 		Password: cfg.Password,
 		DB:       cfg.DB,
 
-		Protocol:   2,
+		Protocol:   2, 
 		ClientName: "",
 
 		MaxRetries:      3,

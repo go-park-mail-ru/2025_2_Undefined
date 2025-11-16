@@ -33,6 +33,7 @@ func TestAuthRepository_CreateUser_Success(t *testing.T) {
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
+
 	mock.ExpectQuery(`INSERT INTO "user"`).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), name, phone, passwordHash, models.UserAccount, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "phone_number", "user_type"}).
@@ -189,7 +190,7 @@ func TestAuthRepository_CreateUser_UsernameCollision(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), name, phone, passwordHash, models.UserAccount, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "username", "phone_number", "user_type"}).
 			AddRow(userID, "user_123456789012346", phone, models.UserAccount))
-
+			
 	mock.ExpectCommit()
 
 	user, err := repo.CreateUser(ctx, name, phone, passwordHash)
