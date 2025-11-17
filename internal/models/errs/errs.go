@@ -21,6 +21,8 @@ var (
 	ErrNoRights              = errors.New("no rights to perform this action")
 	ErrSessionNotFound       = errors.New("session not found")
 	ErrInternalServerError   = errors.New("internal server error")
+	ErrContactAlreadyExists  = errors.New("contact already exists")
+	ErrContactNotFound       = errors.New("contact not found")
 )
 
 var (

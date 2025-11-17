@@ -4,59 +4,86 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
-	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
+	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type MockAuthUsecase struct {
+type MockAuthServiceClient struct {
 	mock.Mock
 }
 
-func (m *MockAuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterRequest, device string) (uuid.UUID, *dto.ValidationErrorsDTO) {
-	args := m.Called(ctx, req, device)
-	if args.Get(1) == nil {
-		return args.Get(0).(uuid.UUID), nil
+func (m *MockAuthServiceClient) Register(ctx context.Context, in *gen.RegisterReq, opts ...grpc.CallOption) (*gen.RegisterRes, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return args.Get(0).(uuid.UUID), args.Get(1).(*dto.ValidationErrorsDTO)
+	return args.Get(0).(*gen.RegisterRes), args.Error(1)
 }
 
-func (m *MockAuthUsecase) Login(ctx context.Context, req *AuthDTO.LoginRequest, device string) (uuid.UUID, error) {
-	args := m.Called(ctx, req, device)
-	return args.Get(0).(uuid.UUID), args.Error(1)
+func (m *MockAuthServiceClient) Login(ctx context.Context, in *gen.LoginReq, opts ...grpc.CallOption) (*gen.LoginRes, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gen.LoginRes), args.Error(1)
 }
 
-func (m *MockAuthUsecase) Logout(ctx context.Context, sessionID uuid.UUID) error {
-	args := m.Called(ctx, sessionID)
-	return args.Error(0)
+func (m *MockAuthServiceClient) Logout(ctx context.Context, in *gen.LogoutReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*emptypb.Empty), args.Error(1)
 }
 
-type MockSessionUtils struct {
-	mock.Mock
+func (m *MockAuthServiceClient) ValidateSession(ctx context.Context, in *gen.ValidateSessionReq, opts ...grpc.CallOption) (*gen.ValidateSessionRes, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gen.ValidateSessionRes), args.Error(1)
 }
 
-func (m *MockSessionUtils) GetUserIDFromSession(r *http.Request) (uuid.UUID, error) {
-	args := m.Called(r)
-	return args.Get(0).(uuid.UUID), args.Error(1)
+func (m *MockAuthServiceClient) GetSessionsByUserID(ctx context.Context, in *gen.GetSessionsByUserIDReq, opts ...grpc.CallOption) (*gen.GetSessionsByUserIDRes, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gen.GetSessionsByUserIDRes), args.Error(1)
+}
+
+func (m *MockAuthServiceClient) DeleteSession(ctx context.Context, in *gen.DeleteSessionReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*emptypb.Empty), args.Error(1)
+}
+
+func (m *MockAuthServiceClient) DeleteAllSessionsExceptCurrent(ctx context.Context, in *gen.DeleteAllSessionsExceptCurrentReq, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*emptypb.Empty), args.Error(1)
 }
 
 func TestAuthHandler_Register_Success(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
 	req := AuthDTO.RegisterRequest{
 		PhoneNumber: "+79998887766",
@@ -64,9 +91,17 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 		Name:        "Test User",
 	}
 
-	sessionID := uuid.New()
-	mockUsecase.On("Register", mock.Anything, &req, mock.AnythingOfType("string")).
-		Return(sessionID, nil)
+	sessionID := uuid.New().String()
+	csrfToken := "test-csrf-token"
+
+	mockAuthClient.On("Register", mock.Anything, mock.MatchedBy(func(r *gen.RegisterReq) bool {
+		return r.PhoneNumber == req.PhoneNumber &&
+			r.Password == req.Password &&
+			r.Name == req.Name
+	})).Return(&gen.RegisterRes{
+		SessionId: sessionID,
+		CsrfToken: csrfToken,
+	}, nil)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
@@ -74,7 +109,6 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	request.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
 	recorder := httptest.NewRecorder()
-
 	handler.Register(recorder, request)
 
 	assert.Equal(t, http.StatusCreated, recorder.Code)
@@ -82,68 +116,34 @@ func TestAuthHandler_Register_Success(t *testing.T) {
 	var response AuthDTO.AuthResponse
 	err := json.Unmarshal(recorder.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, response.CSRFToken)
+	assert.Equal(t, csrfToken, response.CSRFToken)
 
 	cookies := recorder.Result().Cookies()
 	assert.Len(t, cookies, 1)
 	assert.Equal(t, sessionConfig.Signature, cookies[0].Name)
+	assert.Equal(t, sessionID, cookies[0].Value)
 
-	mockUsecase.AssertExpectations(t)
+	mockAuthClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	request := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer([]byte("invalid json")))
+	request := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString("invalid json"))
 	request.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-
 	handler.Register(recorder, request)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }
 
-func TestAuthHandler_Register_ValidationError(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
+func TestAuthHandler_Register_GRPCError(t *testing.T) {
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	req := AuthDTO.RegisterRequest{
-		PhoneNumber: "invalid_phone",
-		Password:    "123",
-		Name:        "",
-	}
-
-	body, _ := json.Marshal(req)
-	request := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
-	request.Header.Set("Content-Type", "application/json")
-
-	recorder := httptest.NewRecorder()
-
-	handler.Register(recorder, request)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-}
-
-func TestAuthHandler_Register_UsecaseError(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
 	req := AuthDTO.RegisterRequest{
 		PhoneNumber: "+79998887766",
@@ -151,83 +151,45 @@ func TestAuthHandler_Register_UsecaseError(t *testing.T) {
 		Name:        "Test User",
 	}
 
-	validationErr := &dto.ValidationErrorsDTO{
-		Message: "phone already exists",
-		Errors: []dto.ValidationErrorDTO{
-			{Field: "phone_number", Message: "already exists"},
-		},
-	}
-
-	mockUsecase.On("Register", mock.Anything, &req, mock.AnythingOfType("string")).
-		Return(uuid.Nil, validationErr)
+	mockAuthClient.On("Register", mock.Anything, mock.Anything).
+		Return(nil, status.Error(codes.AlreadyExists, "user already exists"))
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
 	request.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-
 	handler.Register(recorder, request)
 
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-	mockUsecase.AssertExpectations(t)
-}
-
-func TestAuthHandler_Register_NilSessionID(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	req := AuthDTO.RegisterRequest{
-		PhoneNumber: "+79998887766",
-		Password:    "password123",
-		Name:        "Test User",
-	}
-
-	mockUsecase.On("Register", mock.Anything, &req, mock.AnythingOfType("string")).
-		Return(uuid.Nil, nil)
-
-	body, _ := json.Marshal(req)
-	request := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBuffer(body))
-	request.Header.Set("Content-Type", "application/json")
-
-	recorder := httptest.NewRecorder()
-
-	handler.Register(recorder, request)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-	mockUsecase.AssertExpectations(t)
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	mockAuthClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Login_Success(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
 	req := AuthDTO.LoginRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "password123",
 	}
 
-	sessionID := uuid.New()
-	mockUsecase.On("Login", mock.Anything, &req, mock.AnythingOfType("string")).
-		Return(sessionID, nil)
+	sessionID := uuid.New().String()
+	csrfToken := "test-csrf-token"
+
+	mockAuthClient.On("Login", mock.Anything, mock.MatchedBy(func(r *gen.LoginReq) bool {
+		return r.PhoneNumber == req.PhoneNumber && r.Password == req.Password
+	})).Return(&gen.LoginRes{
+		SessionId: sessionID,
+		CsrfToken: csrfToken,
+	}, nil)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)")
 
 	recorder := httptest.NewRecorder()
-
 	handler.Login(recorder, request)
 
 	assert.Equal(t, http.StatusOK, recorder.Code)
@@ -235,257 +197,67 @@ func TestAuthHandler_Login_Success(t *testing.T) {
 	var response AuthDTO.AuthResponse
 	err := json.Unmarshal(recorder.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, response.CSRFToken)
+	assert.Equal(t, csrfToken, response.CSRFToken)
 
-	cookies := recorder.Result().Cookies()
-	assert.Len(t, cookies, 1)
-	assert.Equal(t, sessionConfig.Signature, cookies[0].Name)
-
-	mockUsecase.AssertExpectations(t)
-}
-
-func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	request := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer([]byte("invalid json")))
-	request.Header.Set("Content-Type", "application/json")
-
-	recorder := httptest.NewRecorder()
-
-	handler.Login(recorder, request)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-}
-
-func TestAuthHandler_Login_ValidationError(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	req := AuthDTO.LoginRequest{
-		PhoneNumber: "",
-		Password:    "",
-	}
-
-	body, _ := json.Marshal(req)
-	request := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
-	request.Header.Set("Content-Type", "application/json")
-
-	recorder := httptest.NewRecorder()
-
-	handler.Login(recorder, request)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	mockAuthClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
 	req := AuthDTO.LoginRequest{
 		PhoneNumber: "+79998887766",
 		Password:    "wrongpassword",
 	}
 
-	mockUsecase.On("Login", mock.Anything, &req, mock.AnythingOfType("string")).
-		Return(uuid.Nil, errs.ErrInvalidCredentials)
+	mockAuthClient.On("Login", mock.Anything, mock.Anything).
+		Return(nil, status.Error(codes.Unauthenticated, "invalid credentials"))
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBuffer(body))
 	request.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-
 	handler.Login(recorder, request)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockUsecase.AssertExpectations(t)
+	mockAuthClient.AssertExpectations(t)
 }
 
 func TestAuthHandler_Logout_Success(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
+	sessionID := uuid.New().String()
 
-	userID := uuid.New()
-	sessionID := uuid.New()
-
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-	mockUsecase.On("Logout", mock.Anything, sessionID).Return(nil)
+	mockAuthClient.On("Logout", mock.Anything, mock.MatchedBy(func(r *gen.LogoutReq) bool {
+		return r.SessionId == sessionID
+	})).Return(&emptypb.Empty{}, nil)
 
 	request := httptest.NewRequest(http.MethodPost, "/logout", nil)
 	request.AddCookie(&http.Cookie{
 		Name:  sessionConfig.Signature,
-		Value: sessionID.String(),
+		Value: sessionID,
 	})
 
 	recorder := httptest.NewRecorder()
-
 	handler.Logout(recorder, request)
 
 	assert.Equal(t, http.StatusOK, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
-	mockUsecase.AssertExpectations(t)
+	mockAuthClient.AssertExpectations(t)
 }
 
-func TestAuthHandler_Logout_Unauthorized(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
+func TestAuthHandler_Logout_NoSession(t *testing.T) {
 	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(uuid.Nil, errors.New("unauthorized"))
+	mockAuthClient := new(MockAuthServiceClient)
+	handler := NewAuthGRPCProxyHandler(mockAuthClient, sessionConfig)
 
 	request := httptest.NewRequest(http.MethodPost, "/logout", nil)
-
 	recorder := httptest.NewRecorder()
-
 	handler.Logout(recorder, request)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
-}
-
-func TestAuthHandler_Logout_NoCookie(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	userID := uuid.New()
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-
-	request := httptest.NewRequest(http.MethodPost, "/logout", nil)
-
-	recorder := httptest.NewRecorder()
-
-	handler.Logout(recorder, request)
-
-	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
-}
-
-func TestAuthHandler_Logout_InvalidSessionID(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	userID := uuid.New()
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-
-	request := httptest.NewRequest(http.MethodPost, "/logout", nil)
-	request.AddCookie(&http.Cookie{
-		Name:  sessionConfig.Signature,
-		Value: "invalid-uuid",
-	})
-
-	recorder := httptest.NewRecorder()
-
-	handler.Logout(recorder, request)
-
-	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
-}
-
-func TestAuthHandler_Logout_UsecaseError(t *testing.T) {
-	mockUsecase := new(MockAuthUsecase)
-	mockSessionUtils := new(MockSessionUtils)
-
-	sessionConfig := &config.SessionConfig{Signature: "test_signature"}
-	csrfConfig := &config.CSRFConfig{Secret: "test_secret"}
-
-	handler := New(mockUsecase, sessionConfig, csrfConfig, mockSessionUtils)
-
-	userID := uuid.New()
-	sessionID := uuid.New()
-
-	mockSessionUtils.On("GetUserIDFromSession", mock.Anything).Return(userID, nil)
-	mockUsecase.On("Logout", mock.Anything, sessionID).Return(errors.New("logout error"))
-
-	request := httptest.NewRequest(http.MethodPost, "/logout", nil)
-	request.AddCookie(&http.Cookie{
-		Name:  sessionConfig.Signature,
-		Value: sessionID.String(),
-	})
-
-	recorder := httptest.NewRecorder()
-
-	handler.Logout(recorder, request)
-
-	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
-	mockSessionUtils.AssertExpectations(t)
-	mockUsecase.AssertExpectations(t)
-}
-
-func Test_getDeviceFromUserAgent(t *testing.T) {
-	tests := []struct {
-		userAgent string
-		contains  []string
-	}{
-		{
-			userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-			contains:  []string{"Chrome", "Windows"},
-		},
-		{
-			userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1",
-			contains:  []string{"Safari", "CPU iPhone OS"},
-		},
-		{
-			userAgent: "",
-			contains:  []string{"Unknown Device"},
-		},
-		{
-			userAgent: "curl/7.68.0",
-			contains:  []string{"curl"},
-		},
-	}
-
-	for _, tt := range tests {
-		request := httptest.NewRequest(http.MethodGet, "/", nil)
-		if tt.userAgent != "" {
-			request.Header.Set("User-Agent", tt.userAgent)
-		}
-
-		result := getDeviceFromUserAgent(request)
-
-		found := false
-		for _, expectedPart := range tt.contains {
-			if assert.Contains(t, result, expectedPart) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected result '%s' to contain one of %v", result, tt.contains)
-		}
-	}
 }

@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,10 +10,9 @@ import (
 	AuthDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/auth"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/cookie"
+	grpcUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/grpc"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/mssola/user_agent"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type AuthGRPCProxyHandler struct {
@@ -71,10 +69,8 @@ func (h *AuthGRPCProxyHandler) Register(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Получаем информацию об устройстве из User-Agent
 	device := getDeviceFromUserAgent(r)
 
-	// Вызываем gRPC сервис
 	res, err := h.authClient.Register(r.Context(), &gen.RegisterReq{
 		PhoneNumber: req.PhoneNumber,
 		Password:    req.Password,
@@ -83,14 +79,12 @@ func (h *AuthGRPCProxyHandler) Register(w http.ResponseWriter, r *http.Request) 
 	})
 	if err != nil {
 		logger.WithError(err).Error("grpc register failed")
-		handleGRPCError(r.Context(), op, w, err)
+		grpcUtils.HandleGRPCError(r.Context(), op, w, err)
 		return
 	}
 
-	// Устанавливаем cookie с session_id
 	cookie.Set(w, res.SessionId, h.sessionConfig.Signature)
 
-	// Возвращаем CSRF токен
 	response := AuthDTO.AuthResponse{
 		CSRFToken: res.CsrfToken,
 	}
@@ -120,10 +114,8 @@ func (h *AuthGRPCProxyHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем информацию об устройстве из User-Agent
 	device := getDeviceFromUserAgent(r)
 
-	// Вызываем gRPC сервис
 	res, err := h.authClient.Login(r.Context(), &gen.LoginReq{
 		PhoneNumber: req.PhoneNumber,
 		Password:    req.Password,
@@ -131,14 +123,12 @@ func (h *AuthGRPCProxyHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.WithError(err).Error("grpc login failed")
-		handleGRPCError(r.Context(), op, w, err)
+		grpcUtils.HandleGRPCError(r.Context(), op, w, err)
 		return
 	}
 
-	// Устанавливаем cookie с session_id
 	cookie.Set(w, res.SessionId, h.sessionConfig.Signature)
 
-	// Возвращаем CSRF токен
 	response := AuthDTO.AuthResponse{
 		CSRFToken: res.CsrfToken,
 	}
@@ -161,7 +151,6 @@ func (h *AuthGRPCProxyHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthGRPCProxyHandler.Logout"
 	logger := domains.GetLogger(r.Context()).WithField("op", op)
 
-	// Получаем ID сессии из cookie
 	sessionCookie, err := r.Cookie(h.sessionConfig.Signature)
 	if err != nil {
 		logger.WithError(err).Error("session cookie not found")
@@ -169,49 +158,16 @@ func (h *AuthGRPCProxyHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Вызываем gRPC сервис
 	_, err = h.authClient.Logout(r.Context(), &gen.LogoutReq{
 		SessionId: sessionCookie.Value,
 	})
 	if err != nil {
 		logger.WithError(err).Error("grpc logout failed")
-		handleGRPCError(r.Context(), op, w, err)
+		grpcUtils.HandleGRPCError(r.Context(), op, w, err)
 		return
 	}
 
-	// Удаляем cookie
 	cookie.Unset(w, h.sessionConfig.Signature)
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
-}
-
-// handleGRPCError обрабатывает ошибки gRPC и преобразует их в HTTP статусы
-func handleGRPCError(ctx context.Context, op string, w http.ResponseWriter, err error) {
-	logger := domains.GetLogger(ctx).WithField("op", op)
-	logger.WithError(err).Error("gRPC error occurred")
-
-	if st, ok := status.FromError(err); ok {
-		switch st.Code() {
-		case codes.InvalidArgument:
-			utils.SendError(ctx, op, w, http.StatusBadRequest, st.Message())
-			return
-		case codes.Unauthenticated:
-			utils.SendError(ctx, op, w, http.StatusUnauthorized, st.Message())
-			return
-		case codes.NotFound:
-			utils.SendError(ctx, op, w, http.StatusNotFound, st.Message())
-			return
-		case codes.AlreadyExists:
-			utils.SendError(ctx, op, w, http.StatusConflict, st.Message())
-			return
-		case codes.PermissionDenied:
-			utils.SendError(ctx, op, w, http.StatusForbidden, st.Message())
-			return
-		case codes.Internal:
-			utils.SendError(ctx, op, w, http.StatusInternalServerError, st.Message())
-			return
-		}
-	}
-
-	utils.SendError(ctx, op, w, http.StatusBadRequest, err.Error())
 }

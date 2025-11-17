@@ -1,34 +1,18 @@
 package transport
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
+	"time"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	ContactDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/contact"
+	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
-	"github.com/google/uuid"
+	grpcUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/grpc"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 )
 
-type ContactUsecase interface {
-	CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error
-	GetContacts(ctx context.Context, userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error)
-}
-
-type ContactHandler struct {
-	uc ContactUsecase
-}
-
-func New(uc ContactUsecase) *ContactHandler {
-	return &ContactHandler{
-		uc: uc,
-	}
-}
-
-// CreateContact создает новый контакт
+// CreateContact создает новый контакт через gRPC
 // @Summary      Добавление контакта
 // @Description  Добавляет нового пользователя в список контактов текущего пользователя
 // @Tags         contacts
@@ -43,42 +27,39 @@ func New(uc ContactUsecase) *ContactHandler {
 // @Failure      500   {object}  dto.ErrorDTO          	  "Внутренняя ошибка сервера"
 // @Security     ApiKeyAuth
 // @Router       /contacts [post]
-func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
-	const op = "ContactHandler.CreateContact"
+func (h *UserGRPCProxyHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
+	const op = "UserGRPCProxyHandler.CreateContact"
+
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusUnauthorized, "Unauthorized")
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	var req ContactDTO.PostContactDTO
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid JSON")
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Invalid JSON")
 		return
 	}
 
 	if userID == req.ContactUserID {
-		response.SendError(r.Context(), op, w, http.StatusBadRequest, "Cannot add yourself as contact")
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "Cannot add yourself as contact")
 		return
 	}
 
-	if err := h.uc.CreateContact(r.Context(), &req, userID); err != nil {
-		if errors.Is(err, errs.ErrIsDuplicateKey) {
-			response.SendError(r.Context(), op, w, http.StatusConflict, "contact already exists")
-			return
-		}
-		if errors.Is(err, errs.ErrUserNotFound) {
-			response.SendError(r.Context(), op, w, http.StatusNotFound, errs.ErrUserNotFound.Error())
-			return
-		}
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
+	_, err = h.userClient.CreateContact(r.Context(), &gen.CreateContactReq{
+		UserId:        userID.String(),
+		ContactUserId: req.ContactUserID.String(),
+	})
+	if err != nil {
+		grpcUtils.HandleGRPCError(r.Context(), op, w, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 }
 
-// GetContacts получает список контактов пользователя
+// GetContacts получает список контактов через gRPC
 // @Summary      Получение списка контактов
 // @Description  Возвращает список всех контактов текущего пользователя с полной информацией о пользователях
 // @Tags         contacts
@@ -89,19 +70,49 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 // @Failure      500   {object}  dto.ErrorDTO 			 "Внутренняя ошибка сервера"
 // @Security     ApiKeyAuth
 // @Router       /contacts [get]
-func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
-	const op = "ContactHandler.GetContacts"
+func (h *UserGRPCProxyHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
+	const op = "UserGRPCProxyHandler.GetContacts"
+
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusUnauthorized, "Unauthorized")
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	contacts, err := h.uc.GetContacts(r.Context(), userID)
+	res, err := h.userClient.GetContacts(r.Context(), &gen.GetContactsReq{
+		UserId: userID.String(),
+	})
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "Failed to get contacts")
+		grpcUtils.HandleGRPCError(r.Context(), op, w, err)
 		return
 	}
 
-	response.SendJSONResponse(r.Context(), op, w, http.StatusOK, contacts)
+	var contacts []*ContactDTO.GetContactsDTO
+	for _, c := range res.Contacts {
+		createdAt, _ := time.Parse(time.RFC3339, c.CreatedAt)
+		updatedAt, _ := time.Parse(time.RFC3339, c.UpdatedAt)
+
+		contacts = append(contacts, &ContactDTO.GetContactsDTO{
+			UserID:      userID,
+			ContactUser: mapProtoUserToDTO(convertContactToUser(c)),
+			CreatedAt:   createdAt,
+			UpdatedAt:   updatedAt,
+		})
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, contacts)
+}
+
+func convertContactToUser(contact *gen.Contact) *gen.User {
+	return &gen.User{
+		Id:          contact.Id,
+		PhoneNumber: contact.PhoneNumber,
+		Name:        contact.Name,
+		Username:    contact.Username,
+		Bio:         contact.Bio,
+		AvatarUrl:   contact.AvatarUrl,
+		AccountType: contact.AccountType,
+		CreatedAt:   contact.CreatedAt,
+		UpdatedAt:   contact.UpdatedAt,
+	}
 }

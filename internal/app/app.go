@@ -18,11 +18,11 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 
 	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
-	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
-	useruc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
+	userHttpProxy "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/http"
 
 	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth/http"
-	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
+	authGen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
+	userGen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -33,10 +33,6 @@ import (
 	messageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
 	messageTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/message"
 	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
-
-	contactRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/contact"
-	contactTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/contact"
-	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
 )
 
 type App struct {
@@ -62,10 +58,9 @@ func NewApp(conf *config.Config) (*App, error) {
 	}
 
 	userRepo := userrepo.New(db)
-	userUC := useruc.New(userRepo, minioClient)
 
 	// Подключение к gRPC серверу авторизации
-	grpcConn, err := grpc.NewClient(
+	authGrpcConn, err := grpc.NewClient(
 		conf.GRPCConfig.AuthServiceAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -73,9 +68,20 @@ func NewApp(conf *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to auth gRPC service: %v", err)
 	}
 
-	authClient := gen.NewAuthServiceClient(grpcConn)
+	// Подключение к gRPC серверу user+contacts
+	userGrpcConn, err := grpc.NewClient(
+		conf.GRPCConfig.UserServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to user gRPC service: %v", err)
+	}
+
+	authClient := authGen.NewAuthServiceClient(authGrpcConn)
 	authHandler := autht.NewAuthGRPCProxyHandler(authClient, conf.SessionConfig)
-	userHandler := usert.New(userUC, authClient, conf.SessionConfig)
+
+	userClient := userGen.NewUserServiceClient(userGrpcConn)
+	userHandler := userHttpProxy.NewUserGRPCProxyHandler(userClient)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	messageRepo := messageRepository.NewMessageRepository(db)
@@ -86,10 +92,6 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC)
 	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC)
-
-	contactRepo := contactRepository.New(db)
-	contactUC := contactUsecase.New(contactRepo, userRepo, minioClient)
-	contactHandler := contactTransport.New(contactUC)
 
 	// Настройка логгера
 	logger := logrus.New()
@@ -131,12 +133,16 @@ func NewApp(conf *config.Config) (*App, error) {
 	{
 		userRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/me", userHandler.UpdateUserInfo).Methods(http.MethodPatch)
-		userRouter.HandleFunc("/sessions", userHandler.GetSessionsByUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/user/by-phone", userHandler.GetUserByPhone).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/by-username", userHandler.GetUserByUsername).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/avatar", userHandler.UploadUserAvatar)
-		userRouter.HandleFunc("/session", userHandler.DeleteSession).Methods(http.MethodDelete)
-		userRouter.HandleFunc("/sessions", userHandler.DeleteAllSessionWithoutCurrent).Methods(http.MethodDelete)
+	}
+
+	sessionRouter := protectedRouter.PathPrefix("").Subrouter()
+	{
+		sessionRouter.HandleFunc("/sessions", authHandler.GetSessionsByUser).Methods(http.MethodGet)
+		sessionRouter.HandleFunc("/session", authHandler.DeleteSession).Methods(http.MethodDelete)
+		sessionRouter.HandleFunc("/sessions", authHandler.DeleteAllSessionsExceptCurrent).Methods(http.MethodDelete)
 	}
 
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
@@ -146,8 +152,8 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	contactRouter := protectedRouter.PathPrefix("/contacts").Subrouter()
 	{
-		contactRouter.HandleFunc("", contactHandler.CreateContact).Methods(http.MethodPost)
-		contactRouter.HandleFunc("", contactHandler.GetContacts).Methods(http.MethodGet)
+		contactRouter.HandleFunc("", userHandler.CreateContact).Methods(http.MethodPost)
+		contactRouter.HandleFunc("", userHandler.GetContacts).Methods(http.MethodGet)
 	}
 
 	// Swagger

@@ -72,6 +72,8 @@ type MigrationsConfig struct {
 type GRPCConfig struct {
 	AuthServiceAddr string
 	AuthServicePort string
+	UserServiceAddr string
+	UserServicePort string
 }
 
 func NewConfig() (*Config, error) {
@@ -204,6 +206,7 @@ func parseDurationWithDays(s string) (time.Duration, error) {
 
 	return time.ParseDuration(s)
 }
+
 func newCSRFConfig() (*CSRFConfig, error) {
 	secret, secretExists := os.LookupEnv("CSRF_SECRET")
 	if !secretExists {
@@ -297,7 +300,7 @@ func newMinioConfig() (*MinioConfig, error) {
 func newGRPCConfig() (*GRPCConfig, error) {
 	authServiceAddr := os.Getenv("AUTH_SERVICE_ADDR")
 	if authServiceAddr == "" {
-		authServiceAddr = "localhost:50051" // default для локальной разработки
+		authServiceAddr = "localhost:50051" // default
 	}
 
 	authServicePort := os.Getenv("AUTH_GRPC_PORT")
@@ -305,8 +308,20 @@ func newGRPCConfig() (*GRPCConfig, error) {
 		authServicePort = "50051" // default порт
 	}
 
+	userServiceAddr := os.Getenv("USER_SERVICE_ADDR")
+	if userServiceAddr == "" {
+		userServiceAddr = "localhost:50052" // default
+	}
+
+	userServicePort := os.Getenv("USER_GRPC_PORT")
+	if userServicePort == "" {
+		userServicePort = "50052" // default порт
+	}
+
 	return &GRPCConfig{
 		AuthServiceAddr: authServiceAddr,
 		AuthServicePort: authServicePort,
+		UserServiceAddr: userServiceAddr,
+		UserServicePort: userServicePort,
 	}, nil
 }

@@ -662,7 +662,12 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Частичное обновление информации пользователя. Можно обновить только нужные поля.",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Обновляет имя, username или bio текущего пользователя",
                 "consumes": [
                     "application/json"
                 ],
@@ -672,7 +677,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Обновить информацию пользователя",
+                "summary": "Обновить информацию о пользователе",
                 "parameters": [
                     {
                         "type": "string",
@@ -683,7 +688,7 @@ const docTemplate = `{
                     },
                     {
                         "description": "Данные для обновления",
-                        "name": "request",
+                        "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -693,28 +698,16 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Информация пользователя обновилось"
+                        "description": "Информация успешно обновлена"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверный формат запроса",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -814,7 +807,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "удалить сессию пользователя",
                 "parameters": [
@@ -869,7 +862,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "Получить список сессий пользователя",
                 "responses": {
@@ -910,7 +903,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "удалить сессии пользователя, кроме текущей",
                 "parameters": [
@@ -948,7 +941,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Позволяет текущему авторизованному пользователю загрузить или обновить свой аватар",
+                "description": "Загружает новый аватар для текущего пользователя",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -986,19 +979,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Ошибка загрузки файла",
+                        "description": "Неверный формат запроса",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "401": {
                         "description": "Неавторизованный доступ",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1033,7 +1020,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Запрос с номером телефона",
+                        "description": "Номер телефона",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1050,19 +1037,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверный формат номера телефона",
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "404": {
                         "description": "Пользователь не найден",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1077,7 +1064,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает полные данные о пользователе по указанному имени пользователя",
+                "description": "Возвращает полные данные о пользователе по указанному username",
                 "consumes": [
                     "application/json"
                 ],
@@ -1087,7 +1074,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Получить информацию о пользователе по имени пользователя",
+                "summary": "Получить информацию о пользователе по username",
                 "parameters": [
                     {
                         "type": "string",
@@ -1097,7 +1084,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Запрос с именем пользователя",
+                        "description": "Username пользователя",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1114,19 +1101,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверный формат имени пользователя",
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "404": {
                         "description": "Пользователь не найден",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }

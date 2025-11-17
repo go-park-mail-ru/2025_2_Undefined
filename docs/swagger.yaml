@@ -678,8 +678,7 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Частичное обновление информации пользователя. Можно обновить только
-        нужные поля.
+      description: Обновляет имя, username или bio текущего пользователя
       parameters:
       - description: CSRF Token
         in: header
@@ -688,7 +687,7 @@ paths:
         type: string
       - description: Данные для обновления
         in: body
-        name: request
+        name: user
         required: true
         schema:
           $ref: '#/definitions/dto.UpdateUserInfo'
@@ -696,24 +695,18 @@ paths:
       - application/json
       responses:
         "200":
-          description: Информация пользователя обновилось
+          description: Информация успешно обновлена
         "400":
-          description: Bad Request
+          description: Неверный формат запроса
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "401":
-          description: Unauthorized
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-      summary: Обновить информацию пользователя
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить информацию о пользователе
       tags:
       - user
   /message/ws:
@@ -832,7 +825,7 @@ paths:
       - ApiKeyAuth: []
       summary: удалить сессию пользователя
       tags:
-      - user
+      - auth
   /sessions:
     delete:
       consumes:
@@ -861,7 +854,7 @@ paths:
       - ApiKeyAuth: []
       summary: удалить сессии пользователя, кроме текущей
       tags:
-      - user
+      - auth
     get:
       consumes:
       - application/json
@@ -887,13 +880,12 @@ paths:
       - ApiKeyAuth: []
       summary: Получить список сессий пользователя
       tags:
-      - user
+      - auth
   /user/avatar:
     post:
       consumes:
       - multipart/form-data
-      description: Позволяет текущему авторизованному пользователю загрузить или обновить
-        свой аватар
+      description: Загружает новый аватар для текущего пользователя
       parameters:
       - description: CSRF Token
         in: header
@@ -915,15 +907,11 @@ paths:
               type: string
             type: object
         "400":
-          description: Ошибка загрузки файла
+          description: Неверный формат запроса
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "401":
           description: Неавторизованный доступ
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
       security:
@@ -942,7 +930,7 @@ paths:
         name: X-CSRF-Token
         required: true
         type: string
-      - description: Запрос с номером телефона
+      - description: Номер телефона
         in: body
         name: request
         required: true
@@ -956,15 +944,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.User'
         "400":
-          description: Неверный формат номера телефона
+          description: Неверный формат запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "404":
           description: Пользователь не найден
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
       security:
@@ -976,14 +964,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Возвращает полные данные о пользователе по указанному имени пользователя
+      description: Возвращает полные данные о пользователе по указанному username
       parameters:
       - description: CSRF Token
         in: header
         name: X-CSRF-Token
         required: true
         type: string
-      - description: Запрос с именем пользователя
+      - description: Username пользователя
         in: body
         name: request
         required: true
@@ -997,20 +985,20 @@ paths:
           schema:
             $ref: '#/definitions/dto.User'
         "400":
-          description: Неверный формат имени пользователя
+          description: Неверный формат запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "404":
           description: Пользователь не найден
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
       security:
       - ApiKeyAuth: []
-      summary: Получить информацию о пользователе по имени пользователя
+      summary: Получить информацию о пользователе по username
       tags:
       - user
 swagger: "2.0"
