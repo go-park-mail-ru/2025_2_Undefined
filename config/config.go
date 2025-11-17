@@ -20,6 +20,7 @@ type Config struct {
 	MigrationsConfig *MigrationsConfig
 	RedisConfig      *RedisConfig
 	MinioConfig      *MinioConfig
+	GRPCConfig       *GRPCConfig
 }
 
 type DBConfig struct {
@@ -68,6 +69,11 @@ type MigrationsConfig struct {
 	Path string
 }
 
+type GRPCConfig struct {
+	AuthServiceAddr string
+	AuthServicePort string
+}
+
 func NewConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("error loading .env file: %v", err)
@@ -108,6 +114,11 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	grpcConfig, err := newGRPCConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		DBConfig:         dbConfig,
 		ServerConfig:     serverConfig,
@@ -116,6 +127,7 @@ func NewConfig() (*Config, error) {
 		MigrationsConfig: migrationsConfig,
 		RedisConfig:      redisConfig,
 		MinioConfig:      minioConfig,
+		GRPCConfig:       grpcConfig,
 	}, nil
 }
 
@@ -280,4 +292,21 @@ func newMinioConfig() (*MinioConfig, error) {
 	logger.Debugf("minio config is %v", cfg)
 
 	return cfg, nil
+}
+
+func newGRPCConfig() (*GRPCConfig, error) {
+	authServiceAddr := os.Getenv("AUTH_SERVICE_ADDR")
+	if authServiceAddr == "" {
+		authServiceAddr = "localhost:50051" // default для локальной разработки
+	}
+
+	authServicePort := os.Getenv("AUTH_GRPC_PORT")
+	if authServicePort == "" {
+		authServicePort = "50051" // default порт
+	}
+
+	return &GRPCConfig{
+		AuthServiceAddr: authServiceAddr,
+		AuthServicePort: authServicePort,
+	}, nil
 }

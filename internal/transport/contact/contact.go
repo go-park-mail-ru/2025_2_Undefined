@@ -8,13 +8,10 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	ContactDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/contact"
+	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
-
-type SessionUtilsI interface {
-	GetUserIDFromSession(r *http.Request) (uuid.UUID, error)
-}
 
 type ContactUsecase interface {
 	CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error
@@ -22,14 +19,12 @@ type ContactUsecase interface {
 }
 
 type ContactHandler struct {
-	uc           ContactUsecase
-	sessionUtils SessionUtilsI
+	uc ContactUsecase
 }
 
-func New(uc ContactUsecase, sessionUtils SessionUtilsI) *ContactHandler {
+func New(uc ContactUsecase) *ContactHandler {
 	return &ContactHandler{
-		uc:           uc,
-		sessionUtils: sessionUtils,
+		uc: uc,
 	}
 }
 
@@ -50,7 +45,7 @@ func New(uc ContactUsecase, sessionUtils SessionUtilsI) *ContactHandler {
 // @Router       /contacts [post]
 func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 	const op = "ContactHandler.CreateContact"
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		response.SendError(r.Context(), op, w, http.StatusUnauthorized, "Unauthorized")
 		return
@@ -96,7 +91,7 @@ func (h *ContactHandler) CreateContact(w http.ResponseWriter, r *http.Request) {
 // @Router       /contacts [get]
 func (h *ContactHandler) GetContacts(w http.ResponseWriter, r *http.Request) {
 	const op = "ContactHandler.GetContacts"
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		response.SendError(r.Context(), op, w, http.StatusUnauthorized, "Unauthorized")
 		return

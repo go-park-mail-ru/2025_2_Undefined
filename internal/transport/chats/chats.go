@@ -12,7 +12,7 @@ import (
 	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	chatsInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
 	messageInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/message"
-	sessionInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
+	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
@@ -20,14 +20,12 @@ import (
 type ChatsHandler struct {
 	chatUsecase    chatsInterface.ChatsUsecase
 	messageUsecase messageInterface.MessageUsecase
-	sessionUtils   sessionInterface.SessionUtils
 }
 
-func NewChatsHandler(messageUsecase messageInterface.MessageUsecase, chatUsecase chatsInterface.ChatsUsecase, sessionUtils sessionInterface.SessionUtils) *ChatsHandler {
+func NewChatsHandler(messageUsecase messageInterface.MessageUsecase, chatUsecase chatsInterface.ChatsUsecase) *ChatsHandler {
 	return &ChatsHandler{
 		chatUsecase:    chatUsecase,
 		messageUsecase: messageUsecase,
-		sessionUtils:   sessionUtils,
 	}
 }
 
@@ -45,7 +43,7 @@ func NewChatsHandler(messageUsecase messageInterface.MessageUsecase, chatUsecase
 func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 	const op = "ChatsHandler.GetChats"
 	// Получаем id пользователя из сессии
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -134,7 +132,7 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 	}
 
 	// Получаем id пользователя из сессии
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -180,7 +178,7 @@ func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя из сессии
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -227,7 +225,7 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя из сессии
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -291,7 +289,7 @@ func (h *ChatsHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -350,7 +348,7 @@ func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем id пользователя из сессии
-	userUUID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userUUID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return

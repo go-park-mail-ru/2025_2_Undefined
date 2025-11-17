@@ -1,12 +1,48 @@
 services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: deploy/auth/Dockerfile
+    container_name: gramm_auth_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
+      AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
+      AUTH_REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
+      AUTH_REDIS_DB: ${AUTH_REDIS_DB:-0}
+      SESSION_TOKEN_LIFESPAN: ${SESSION_TOKEN_LIFESPAN}
+      CSRF_SECRET: ${CSRF_SECRET}
+      CSRF_TIMEOUT: ${CSRF_TIMEOUT}
+    ports:
+      - "${AUTH_GRPC_PORT}:50051"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      auth_redis:
+        condition: service_healthy
+    networks:
+      gramm-network:
+        aliases:
+          - auth-service
+
   app:
     build: .
     container_name: gramm_app
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      AUTH_SERVICE_ADDR: auth-service:50051
     depends_on:
       db:
         condition: service_healthy
+      auth-service:
+        condition: service_started
     networks:
       - gramm-network
     image: lzimin05/100gramm_backend_app

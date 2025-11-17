@@ -23,6 +23,10 @@ var (
 	ErrInternalServerError   = errors.New("internal server error")
 )
 
+var (
+	ValidateUserAlreadyExists = "a user with such a phone already exists"
+)
+
 // ValidationError представляет ошибку валидации поля
 type ValidationError struct {
 	Field   string `json:"field"`

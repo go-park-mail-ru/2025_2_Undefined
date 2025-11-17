@@ -76,6 +76,9 @@ start-background:
 	make swagger
 	docker compose up --build -d
 
+logs:
+	docker-compose logs -f auth-service app
+
 stop:
 	docker compose stop
 
@@ -112,3 +115,12 @@ create-env:
 	else \
 		echo "$(ENV_FILE) already exists. Skipping..."; \
 	fi
+
+auth_proto:
+	@mkdir -p internal/transport/generated/auth && \
+	protoc --proto_path=proto \
+		--go_out=internal/transport/generated/auth \
+		--go-grpc_out=internal/transport/generated/auth \
+		--go-grpc_opt=paths=source_relative \
+		--go_opt=paths=source_relative \
+		proto/auth.proto

@@ -4,28 +4,32 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	SessionDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/session"
 	UserDto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
-	interfaceSession "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/session"
+	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
 	interfaceUser "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/user"
+	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
+	"github.com/google/uuid"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
 )
 
 type UserHandler struct {
-	uc             interfaceUser.UserUsecase
-	sessionUtils   interfaceSession.SessionUtils
-	sessionUsecase interfaceSession.SessionUsecase
+	uc            interfaceUser.UserUsecase
+	authClient    gen.AuthServiceClient
+	sessionConfig *config.SessionConfig
 }
 
-func New(uc interfaceUser.UserUsecase, sessionUsecase interfaceSession.SessionUsecase, sessionUtils interfaceSession.SessionUtils) *UserHandler {
+func New(uc interfaceUser.UserUsecase, authClient gen.AuthServiceClient, sessionConfig *config.SessionConfig) *UserHandler {
 	return &UserHandler{
-		uc:             uc,
-		sessionUsecase: sessionUsecase,
-		sessionUtils:   sessionUtils,
+		uc:            uc,
+		authClient:    authClient,
+		sessionConfig: sessionConfig,
 	}
 }
 
@@ -42,7 +46,7 @@ func New(uc interfaceUser.UserUsecase, sessionUsecase interfaceSession.SessionUs
 func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetCurrentUser"
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -70,17 +74,38 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) GetSessionsByUser(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.GetSessionsByUser"
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	sessions, err := h.sessionUsecase.GetSessionsByUserID(r.Context(), userID)
+	// Вызываем gRPC для получения сессий
+	res, err := h.authClient.GetSessionsByUserID(r.Context(), &gen.GetSessionsByUserIDReq{
+		UserId: userID.String(),
+	})
 	if err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// Преобразуем в DTO
+	var sessions []*SessionDto.Session
+	for _, s := range res.Sessions {
+		sessionID, _ := uuid.Parse(s.Id)
+		userID, _ := uuid.Parse(s.UserId)
+		createdAt, _ := time.Parse("2006-01-02 15:04:05", s.CreatedAt)
+		lastSeen, _ := time.Parse("2006-01-02 15:04:05", s.LastSeen)
+
+		sessions = append(sessions, &SessionDto.Session{
+			ID:         sessionID,
+			UserID:     userID,
+			Device:     s.Device,
+			Created_at: createdAt,
+			Last_seen:  lastSeen,
+		})
+	}
+
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, sessions)
 }
 
@@ -106,13 +131,17 @@ func (h *UserHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	err = h.sessionUsecase.DeleteSession(r.Context(), userID, req.ID)
+	// Вызываем gRPC для удаления сессии
+	_, err = h.authClient.DeleteSession(r.Context(), &gen.DeleteSessionReq{
+		UserId:    userID.String(),
+		SessionId: req.ID.String(),
+	})
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusNotFound, err.Error())
 		return
@@ -136,19 +165,23 @@ func (h *UserHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) DeleteAllSessionWithoutCurrent(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.DeleteAllSessionWithoutCurrent"
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	sessionID, err := h.sessionUtils.GetSessionFromCookie(r)
+	sessionID, err := contextUtils.GetSessionIDFromCookie(r, h.sessionConfig.Signature)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	err = h.sessionUsecase.DeleteAllSessionWithoutCurrent(r.Context(), userID, sessionID)
+	// Вызываем gRPC для удаления всех сессий кроме текущей
+	_, err = h.authClient.DeleteAllSessionsExceptCurrent(r.Context(), &gen.DeleteAllSessionsExceptCurrentReq{
+		UserId:           userID.String(),
+		CurrentSessionId: sessionID.String(),
+	})
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusNotFound, err.Error())
 		return
@@ -256,7 +289,7 @@ func (h *UserHandler) GetUserByUsername(w http.ResponseWriter, r *http.Request) 
 func (h *UserHandler) UploadUserAvatar(w http.ResponseWriter, r *http.Request) {
 	const op = "UserHandler.UploadUserAvatar"
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -327,7 +360,7 @@ func (h *UserHandler) UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := h.sessionUtils.GetUserIDFromSession(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return

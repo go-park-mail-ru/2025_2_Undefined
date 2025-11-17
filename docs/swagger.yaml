@@ -602,8 +602,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Аутентифицирует пользователя по номеру телефона и паролю, создает
-        сессию
+      description: Аутентифицирует пользователя по номеру телефона и паролю через
+        gRPC микросервис, создает сессию
       parameters:
       - description: Креденшиалы для входа
         in: body
@@ -633,7 +633,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Аннулирует текущую сессию и удаляет cookie
+      description: Аннулирует текущую сессию через gRPC микросервис и удаляет cookie
       parameters:
       - description: CSRF Token
         in: header
@@ -775,7 +775,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Регистрирует нового пользователя в системе и создает сессию
+      description: Регистрирует нового пользователя в системе через gRPC микросервис
+        и создает сессию
       parameters:
       - description: Данные для регистрации
         in: body

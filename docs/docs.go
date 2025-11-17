@@ -544,7 +544,7 @@ const docTemplate = `{
         },
         "/login": {
             "post": {
-                "description": "Аутентифицирует пользователя по номеру телефона и паролю, создает сессию",
+                "description": "Аутентифицирует пользователя по номеру телефона и паролю через gRPC микросервис, создает сессию",
                 "consumes": [
                     "application/json"
                 ],
@@ -595,7 +595,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Аннулирует текущую сессию и удаляет cookie",
+                "description": "Аннулирует текущую сессию через gRPC микросервис и удаляет cookie",
                 "consumes": [
                     "application/json"
                 ],
@@ -761,7 +761,7 @@ const docTemplate = `{
         },
         "/register": {
             "post": {
-                "description": "Регистрирует нового пользователя в системе и создает сессию",
+                "description": "Регистрирует нового пользователя в системе через gRPC микросервис и создает сессию",
                 "consumes": [
                     "application/json"
                 ],

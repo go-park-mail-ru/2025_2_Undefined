@@ -16,18 +16,15 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
-	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
-	redisSessionRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis/session"
-	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
-	sessionuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
 
 	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
 	useruc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
 
-	authrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/auth"
-	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
-	authuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
+	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth/http"
+	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	chatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
 	chatsTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
@@ -59,27 +56,26 @@ func NewApp(conf *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	redisClient, err := redisClient.NewClient(conf.RedisConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to redis: %v", err)
-	}
-
 	minioClient, err := minio.NewMinioProvider(*conf.MinioConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to minio: %v", err)
 	}
 
-	sessionRepo := redisSessionRepo.New(redisClient.Client, conf.SessionConfig.LifeSpan)
-	sessionUC := sessionuc.New(sessionRepo)
-	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf.SessionConfig)
-
 	userRepo := userrepo.New(db)
 	userUC := useruc.New(userRepo, minioClient)
-	userHandler := usert.New(userUC, sessionUC, sessionUtils)
 
-	authRepo := authrepo.New(db)
-	authUC := authuc.New(authRepo, userRepo, sessionRepo)
-	authHandler := autht.New(authUC, conf.SessionConfig, conf.CSRFConfig, sessionUtils)
+	// Подключение к gRPC серверу авторизации
+	grpcConn, err := grpc.NewClient(
+		conf.GRPCConfig.AuthServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to auth gRPC service: %v", err)
+	}
+
+	authClient := gen.NewAuthServiceClient(grpcConn)
+	authHandler := autht.NewAuthGRPCProxyHandler(authClient, conf.SessionConfig)
+	userHandler := usert.New(userUC, authClient, conf.SessionConfig)
 
 	chatsRepo := chatsRepository.NewChatsRepository(db)
 	messageRepo := messageRepository.NewMessageRepository(db)
@@ -88,12 +84,12 @@ func NewApp(conf *config.Config) (*App, error) {
 	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, messageRepo, minioClient)
 	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, chatsRepo, minioClient, listenerMap)
 
-	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC, sessionUtils)
-	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionUtils)
+	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC)
+	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC)
 
 	contactRepo := contactRepository.New(db)
 	contactUC := contactUsecase.New(contactRepo, userRepo, minioClient)
-	contactHandler := contactTransport.New(contactUC, sessionUtils)
+	contactHandler := contactTransport.New(contactUC)
 
 	// Настройка логгера
 	logger := logrus.New()
@@ -110,7 +106,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
+	protectedRouter.Use(middleware.AuthGRPCMiddleware(conf.SessionConfig, authClient))
 	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig))
 
 	authRouter := apiRouter.PathPrefix("").Subrouter()
