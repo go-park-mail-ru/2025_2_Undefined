@@ -30,6 +30,7 @@ services:
       gramm-network:
         aliases:
           - auth-service
+    image: lzimin05/100gramm_back_auth_service
 
   user-service:
     build:
@@ -62,6 +63,7 @@ services:
       gramm-network:
         aliases:
           - user-service
+    image: lzimin05/100gramm_back_user_service
 
   app:
     build: .
