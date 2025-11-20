@@ -13,4 +13,5 @@ type UserUsecase interface {
 	GetUserByUsername(ctx context.Context, username string) (*UserDTO.User, error)
 	UploadUserAvatar(ctx context.Context, userID uuid.UUID, data []byte, filename, contentType string) (string, error)
 	UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error
+	GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]*string, error)
 }

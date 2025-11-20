@@ -70,10 +70,12 @@ type MigrationsConfig struct {
 }
 
 type GRPCConfig struct {
-	AuthServiceAddr string
-	AuthServicePort string
-	UserServiceAddr string
-	UserServicePort string
+	AuthServiceAddr  string
+	AuthServicePort  string
+	UserServiceAddr  string
+	UserServicePort  string
+	ChatsServiceAddr string
+	ChatsServicePort string
 }
 
 func NewConfig() (*Config, error) {
@@ -318,10 +320,22 @@ func newGRPCConfig() (*GRPCConfig, error) {
 		userServicePort = "50052" // default порт
 	}
 
+	chatsServiceAddr := os.Getenv("CHATS_SERVICE_ADDR")
+	if chatsServiceAddr == "" {
+		chatsServiceAddr = "localhost:50053" // default
+	}
+
+	chatsServicePort := os.Getenv("CHATS_GRPC_PORT")
+	if chatsServicePort == "" {
+		chatsServicePort = "50053" // default порт
+	}
+
 	return &GRPCConfig{
-		AuthServiceAddr: authServiceAddr,
-		AuthServicePort: authServicePort,
-		UserServiceAddr: userServiceAddr,
-		UserServicePort: userServicePort,
+		AuthServiceAddr:  authServiceAddr,
+		AuthServicePort:  authServicePort,
+		UserServiceAddr:  userServiceAddr,
+		UserServicePort:  userServicePort,
+		ChatsServiceAddr: chatsServiceAddr,
+		ChatsServicePort: chatsServicePort,
 	}, nil
 }

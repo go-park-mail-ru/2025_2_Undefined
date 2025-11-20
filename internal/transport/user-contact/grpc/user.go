@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/validation"
@@ -58,7 +59,6 @@ func (h *UserGRPCHandler) GetUserById(ctx context.Context, req *gen.GetUserByIdR
 			Name:        user.Name,
 			Username:    user.Username,
 			Bio:         bio,
-			AvatarUrl:   user.AvatarURL,
 			AccountType: user.AccountType,
 			CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
@@ -88,7 +88,6 @@ func (h *UserGRPCHandler) GetUserByPhone(ctx context.Context, req *gen.GetUserBy
 			Name:        user.Name,
 			Username:    user.Username,
 			Bio:         bio,
-			AvatarUrl:   user.AvatarURL,
 			AccountType: user.AccountType,
 			CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
@@ -118,7 +117,6 @@ func (h *UserGRPCHandler) GetUserByUsername(ctx context.Context, req *gen.GetUse
 			Name:        user.Name,
 			Username:    user.Username,
 			Bio:         bio,
-			AvatarUrl:   user.AvatarURL,
 			AccountType: user.AccountType,
 			CreatedAt:   user.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
@@ -193,4 +191,37 @@ func (h *UserGRPCHandler) UploadUserAvatar(ctx context.Context, req *gen.UploadU
 	return &gen.UploadUserAvatarRes{
 		AvatarUrl: avatarURL,
 	}, nil
+}
+
+func (h *UserGRPCHandler) GetUserAvatars(ctx context.Context, req *gen.GetUserAvatarsReq) (*gen.GetUserAvatarsRes, error) {
+	const op = "UserGRPCHandler.GetUserAvatars"
+	logger := domains.GetLogger(ctx).WithField("op", op)
+
+	userIDStrings := req.GetUserIds()
+	if len(userIDStrings) == 0 {
+		logger.Debug("No user IDs provided, returning empty response")
+		return &gen.GetUserAvatarsRes{Avatars: make(map[string]string)}, nil
+	}
+
+	userIDs := make([]uuid.UUID, 0, len(userIDStrings))
+	for _, idStr := range userIDStrings {
+		userID, err := uuid.Parse(idStr)
+		if err != nil {
+			logger.WithError(err).Errorf("error parsing userId: %s", idStr)
+			return nil, status.Error(codes.InvalidArgument, "wrong user id format")
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	avatars, err := h.userUC.GetUserAvatars(ctx, userIDs)
+	if err != nil {
+		logger.WithError(err).Error("error getting user avatars")
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	response := &gen.GetUserAvatarsRes{
+		Avatars: dtoUtils.PointerMapToStringMap(avatars),
+	}
+
+	return response, nil
 }

@@ -36,8 +36,6 @@ definitions:
     type: object
   dto.ChatDetailedInformationDTO:
     properties:
-      avatar_url:
-        type: string
       can_chat:
         type: boolean
       description:
@@ -73,8 +71,6 @@ definitions:
     type: object
   dto.ChatViewInformationDTO:
     properties:
-      avatar_url:
-        type: string
       id:
         format: uuid
         type: string
@@ -94,6 +90,23 @@ definitions:
     properties:
       message:
         type: string
+    type: object
+  dto.GetAvatarsRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    required:
+    - ids
+    type: object
+  dto.GetAvatarsResponse:
+    properties:
+      avatars:
+        additionalProperties:
+          type: string
+        description: map[id]url
+        type: object
     type: object
   dto.GetContactsDTO:
     properties:
@@ -140,7 +153,8 @@ definitions:
       created_at:
         format: date-time
         type: string
-      sender_avatar_url:
+      id:
+        format: uuid
         type: string
       sender_id:
         format: uuid
@@ -151,6 +165,9 @@ definitions:
         type: string
       type:
         description: Тип сообщения - системное или пользовательское
+        type: string
+      updated_at:
+        format: date-time
         type: string
     type: object
   dto.PostContactDTO:
@@ -196,8 +213,6 @@ definitions:
     properties:
       account_type:
         type: string
-      avatar_url:
-        type: string
       bio:
         type: string
       created_at:
@@ -219,8 +234,6 @@ definitions:
       role:
         description: Роль пользователя в чате - админ(писать и добавлять участников),
           участник(писать), зритель (только просмотр)
-        type: string
-      user_avatar:
         type: string
       user_id:
         format: uuid
@@ -450,6 +463,58 @@ paths:
       summary: Обновить чат
       tags:
       - chats
+  /chats/{chatId}/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Загружает новый аватар для чата (только админ)
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Файл аватара
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL загруженного аватара
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Неверный формат запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для изменения чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить аватарку чата
+      tags:
+      - chats
   /chats/{chatId}/members:
     patch:
       consumes:
@@ -489,6 +554,38 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Добавить пользователей в чат
+      tags:
+      - chats
+  /chats/avatars:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает аватарки для списка чатов по их ID
+      parameters:
+      - description: Список ID чатов
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetAvatarsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Аватарки чатов
+          schema:
+            $ref: '#/definitions/dto.GetAvatarsResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить аватарки чатов
       tags:
       - chats
   /chats/dialog/{otherUserId}:
@@ -999,6 +1096,38 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Получить информацию о пользователе по username
+      tags:
+      - user
+  /users/avatars:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает аватарки для списка пользователей по их ID
+      parameters:
+      - description: Список ID пользователей
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetAvatarsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Аватарки пользователей
+          schema:
+            $ref: '#/definitions/dto.GetAvatarsResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить аватарки пользователей
       tags:
       - user
 swagger: "2.0"

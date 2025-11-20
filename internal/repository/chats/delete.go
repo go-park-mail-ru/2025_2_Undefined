@@ -28,18 +28,13 @@ func (r *ChatsRepository) DeleteChat(ctx context.Context, userId, chatId uuid.UU
 	}
 
 	// Удаляем чат (связанные записи удалятся каскадно)
-	result, err := r.db.Exec(deleteChatQuery, chatId)
+	result, err := r.db.Exec(ctx, deleteChatQuery, chatId)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: delete chat")
 		return err
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		logger.WithError(err).Error("Database operation failed: check rows affected")
-		return err
-	}
-
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		err := fmt.Errorf("chat not found")
 		logger.WithError(err).Error("Database operation failed: chat not found")

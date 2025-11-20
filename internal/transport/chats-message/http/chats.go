@@ -1,31 +1,32 @@
-package transport
+package chats
 
 import (
-	"database/sql"
+	"bytes"
 	"encoding/json"
-	"errors"
+	"io"
 	"net/http"
 	"strings"
 
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	mappers "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats-message/mappers"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
-	chatsInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/chats"
-	messageInterface "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/interface/message"
+	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 )
 
-type ChatsHandler struct {
-	chatUsecase    chatsInterface.ChatsUsecase
-	messageUsecase messageInterface.MessageUsecase
+type ChatsGRPCProxyHandler struct {
+	chatsClient   gen.ChatServiceClient
+	messageClient gen.MessageServiceClient
 }
 
-func NewChatsHandler(messageUsecase messageInterface.MessageUsecase, chatUsecase chatsInterface.ChatsUsecase) *ChatsHandler {
-	return &ChatsHandler{
-		chatUsecase:    chatUsecase,
-		messageUsecase: messageUsecase,
+func NewChatsGRPCProxyHandler(chatsClient gen.ChatServiceClient, messageClient gen.MessageServiceClient) *ChatsGRPCProxyHandler {
+	return &ChatsGRPCProxyHandler{
+		chatsClient:   chatsClient,
+		messageClient: messageClient,
 	}
 }
 
@@ -40,20 +41,23 @@ func NewChatsHandler(messageUsecase messageInterface.MessageUsecase, chatUsecase
 // @Failure      400  {object}  dto.ErrorDTO                "Некорректный запрос"
 // @Failure      401  {object}  dto.ErrorDTO                "Неавторизованный доступ"
 // @Router       /chats [get]
-func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.GetChats"
-	// Получаем id пользователя из сессии
+func (h *ChatsGRPCProxyHandler) GetChats(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.GetChats"
+
 	userUUID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	chats, err := h.chatUsecase.GetChats(r.Context(), userUUID)
+	request := &gen.GetChatsReq{UserId: userUUID.String()}
+
+	chats, err := h.chatsClient.GetChats(r.Context(), request)
 	if err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
+
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, chats)
 }
 
@@ -70,8 +74,8 @@ func (h *ChatsHandler) GetChats(w http.ResponseWriter, r *http.Request) {
 // @Failure      400   {object}  dto.ErrorDTO                  "Некорректный запрос"
 // @Failure      401   {object}  dto.ErrorDTO                  "Неавторизованный доступ"
 // @Router       /chats [post]
-func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.PostChats"
+func (h *ChatsGRPCProxyHandler) PostChats(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.PostChats"
 	chatDTO := &dtoChats.ChatCreateInformationDTO{}
 
 	if err := json.NewDecoder(r.Body).Decode(chatDTO); err != nil {
@@ -79,23 +83,21 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validateChatCreateDTO(chatDTO); err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+	request := &gen.CreateChatReq{
+		Name:    chatDTO.Name,
+		Type:    chatDTO.Type,
+		Members: mappers.DTOAddChatMembersToProto(chatDTO.Members),
+	}
+
+	response, err := h.chatsClient.CreateChat(r.Context(), request)
+	if err != nil {
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
 
-	// Обрезаем пробелы в основных полях
-	chatDTO.Type = strings.TrimSpace(chatDTO.Type)
-
-	idOfCreatedChat, err := h.chatUsecase.CreateChat(r.Context(), *chatDTO)
+	idOfCreatedChat, err := uuid.Parse(response.GetId())
 	if err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	err = h.messageUsecase.SubscribeUsersOnChat(r.Context(), idOfCreatedChat, chatDTO.Members)
-	if err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, errs.ErrInternalServerError.Error())
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "invalid chat id from service")
 		return
 	}
 
@@ -115,9 +117,8 @@ func (h *ChatsHandler) PostChats(w http.ResponseWriter, r *http.Request) {
 // @Failure      401     {object}  dto.ErrorDTO                    "Неавторизованный доступ"
 // @Failure      404     {object}  dto.ErrorDTO                    "Не существует такого чата"
 // @Router       /chats/{chatId} [get]
-func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.GetInformationAboutChat"
-	// Получаем id чата из пути
+func (h *ChatsGRPCProxyHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.GetInformationAboutChat"
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 2 {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
@@ -131,16 +132,20 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Получаем id пользователя из сессии
-	userUUID, err := contextUtils.GetUserIDFromContext(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	informationDTO, err := h.chatUsecase.GetInformationAboutChat(r.Context(), userUUID, chatUUID)
+	request := &gen.GetChatReq{
+		ChatId: chatUUID.String(),
+		UserId: userID.String(),
+	}
+
+	informationDTO, err := h.chatsClient.GetChat(r.Context(), request)
 	if err != nil {
-		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
 
@@ -160,10 +165,9 @@ func (h *ChatsHandler) GetInformationAboutChat(w http.ResponseWriter, r *http.Re
 // @Failure      401  {object}  dto.ErrorDTO                "Неавторизованный доступ"
 // @Failure      404  {object}  dto.ErrorDTO                "Пользователь не найден"
 // @Router       /chats/dialog/{otherUserId} [get]
-func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.GetUsersDialog"
+func (h *ChatsGRPCProxyHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.GetUsersDialog"
 
-	// Получаем id пользователя из пути
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 3 {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
@@ -177,20 +181,30 @@ func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем id пользователя из сессии
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	DTO, err := h.chatUsecase.GetUsersDialog(r.Context(), userID, otherUserID)
+	request := &gen.GetUsersDialogReq{
+		User1Id: userID.String(),
+		User2Id: otherUserID.String(),
+	}
+
+	response, err := h.chatsClient.GetUsersDialog(r.Context(), request)
 	if err != nil {
-		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
 
-	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, DTO)
+	dialogID, err := uuid.Parse(response.GetId())
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "invalid dialog id from service")
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoUtils.IdDTO{ID: dialogID})
 }
 
 // AddUsersToChat добавляет пользователей в чат
@@ -207,10 +221,9 @@ func (h *ChatsHandler) GetUsersDialog(w http.ResponseWriter, r *http.Request) {
 // @Failure      400     {object}  dto.ErrorDTO               "Некорректный запрос"
 // @Failure      401     {object}  dto.ErrorDTO               "Неавторизованный доступ"
 // @Router       /chats/{chatId}/members [patch]
-func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.AddUsersToChat"
+func (h *ChatsGRPCProxyHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.AddUsersToChat"
 
-	// Получаем id чата из пути
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 3 {
 		utils.SendErrorWithAutoStatus(r.Context(), op, w, errs.ErrBadRequest)
@@ -224,8 +237,7 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем id пользователя из сессии
-	userUUID, err := contextUtils.GetUserIDFromContext(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -237,20 +249,15 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validateUsers(addUsersDTO.Users); err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
-		return
+	request := &gen.AddUserToChatReq{
+		ChatId:  chatUUID.String(),
+		Members: mappers.DTOAddChatMembersToProto(addUsersDTO.Users),
+		UserId:  userID.String(),
 	}
 
-	err = h.chatUsecase.AddUsersToChat(r.Context(), chatUUID, userUUID, addUsersDTO.Users)
+	_, err = h.chatsClient.AddUserToChat(r.Context(), request)
 	if err != nil {
-		utils.SendErrorWithAutoStatus(r.Context(), op, w, err)
-		return
-	}
-
-	err = h.messageUsecase.SubscribeUsersOnChat(r.Context(), chatUUID, addUsersDTO.Users)
-	if err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, errs.ErrInternalServerError.Error())
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
 
@@ -272,10 +279,9 @@ func (h *ChatsHandler) AddUsersToChat(w http.ResponseWriter, r *http.Request) {
 // @Failure      403     {object}  dto.ErrorDTO  "Нет прав для удаления чата"
 // @Failure      404     {object}  dto.ErrorDTO  "Чат не найден"
 // @Router       /chats/{chatId} [delete]
-func (h *ChatsHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.DeleteChat"
+func (h *ChatsGRPCProxyHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.DeleteChat"
 
-	// Получаем id чата из пути
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 2 {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
@@ -289,25 +295,20 @@ func (h *ChatsHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userUUID, err := contextUtils.GetUserIDFromContext(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	err = h.chatUsecase.DeleteChat(r.Context(), userUUID, chatUUID)
+	request := &gen.GetChatReq{
+		ChatId: chatUUID.String(),
+		UserId: userID.String(),
+	}
+
+	_, err = h.chatsClient.DeleteChat(r.Context(), request)
 	if err != nil {
-		if strings.Contains(err.Error(), "user is not admin") {
-			utils.SendError(r.Context(), op, w, http.StatusForbidden, "user must have role admin to delete chat")
-			return
-		}
-
-		if errors.Is(err, sql.ErrNoRows) {
-			utils.SendError(r.Context(), op, w, http.StatusNotFound, "chat not found")
-			return
-		}
-
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
 
@@ -330,10 +331,9 @@ func (h *ChatsHandler) DeleteChat(w http.ResponseWriter, r *http.Request) {
 // @Failure      403     {object}  dto.ErrorDTO  "Нет прав для изменения чата"
 // @Failure      404     {object}  dto.ErrorDTO  "Чат не найден"
 // @Router       /chats/{chatId} [patch]
-func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
-	const op = "ChatsHandler.UpdateChat"
+func (h *ChatsGRPCProxyHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.UpdateChat"
 
-	// Получаем id чата из пути
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 2 {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, errs.ErrBadRequest.Error())
@@ -347,8 +347,7 @@ func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем id пользователя из сессии
-	userUUID, err := contextUtils.GetUserIDFromContext(r)
+	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
@@ -360,112 +359,163 @@ func (h *ChatsHandler) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validateChatUpdateDTO(updateDTO); err != nil {
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
-		return
+	var namePtr *string
+	if updateDTO.Name != "" {
+		namePtr = &updateDTO.Name
 	}
 
-	err = h.chatUsecase.UpdateChat(r.Context(), userUUID, chatUUID, updateDTO.Name, updateDTO.Description)
+	var descriptionPtr *string
+	if updateDTO.Description != "" {
+		descriptionPtr = &updateDTO.Description
+	}
+
+	request := &gen.UpdateChatReq{
+		ChatId:      chatUUID.String(),
+		Name:        namePtr,
+		Description: descriptionPtr,
+		UserId:      userID.String(),
+	}
+
+	_, err = h.chatsClient.UpdateChat(r.Context(), request)
 	if err != nil {
-		if strings.Contains(err.Error(), "user is not admin") {
-			utils.SendError(r.Context(), op, w, http.StatusForbidden, "user must have role admin to update chat")
-			return
-		}
-
-		if errors.Is(err, sql.ErrNoRows) {
-			utils.SendError(r.Context(), op, w, http.StatusNotFound, "chat not found")
-			return
-		}
-
-		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		utils.HandleGRPCError(r.Context(), w, err, op)
 		return
 	}
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, nil)
 }
 
-func validateChatCreateDTO(chatDTO *dtoChats.ChatCreateInformationDTO) error {
-	if strings.TrimSpace(chatDTO.Name) == "" {
-		return errors.New("name is required and cannot be empty")
-	}
-	if strings.TrimSpace(chatDTO.Type) == "" {
-		return errors.New("type is required and cannot be empty")
-	}
-	if len(chatDTO.Members) == 0 {
-		return errors.New("members field is required and cannot be empty")
+// GetChatAvatars получает аватарки нескольких чатов
+// @Summary      Получить аватарки чатов
+// @Description  Возвращает аватарки для списка чатов по их ID
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        request  body      dto.GetAvatarsRequest   true  "Список ID чатов"
+// @Success      200      {object}  dto.GetAvatarsResponse  "Аватарки чатов"
+// @Failure      400      {object}  dto.ErrorDTO            "Некорректный запрос"
+// @Failure      401      {object}  dto.ErrorDTO            "Неавторизованный доступ"
+// @Router       /chats/avatars [post]
+func (h *ChatsGRPCProxyHandler) GetChatAvatars(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.GetChatAvatars"
+
+	var req dtoUtils.GetAvatarsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		return
 	}
 
-	return validateMembers(chatDTO.Members)
+	if len(req.IDs) == 0 {
+		utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoUtils.GetAvatarsResponse{Avatars: make(map[string]*string)})
+		return
+	}
+
+	// Валидация UUID
+	for _, idStr := range req.IDs {
+		if _, err := uuid.Parse(idStr); err != nil {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "invalid chat id format: "+idStr)
+			return
+		}
+	}
+
+	request := &gen.GetChatAvatarsReq{ChatIds: req.IDs}
+
+	response, err := h.chatsClient.GetChatAvatars(r.Context(), request)
+	if err != nil {
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoUtils.GetAvatarsResponse{Avatars: dtoUtils.StringMapToPointerMap(response.Avatars)})
 }
 
-func validateMembers(members []dtoChats.AddChatMemberDTO) error {
-	memberIds := make(map[uuid.UUID]bool)
+// UploadChatAvatar загружает аватарку чата
+// @Summary      Загрузить аватарку чата
+// @Description  Загружает новый аватар для чата (только админ)
+// @Tags         chats
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
+// @Security     ApiKeyAuth
+// @Param        chatId path string true "ID чата" format(uuid)
+// @Param        avatar formData file true "Файл аватара"
+// @Success      200  {object}  map[string]string  "URL загруженного аватара"
+// @Failure      400  {object}  dto.ErrorDTO      "Неверный формат запроса"
+// @Failure      401  {object}  dto.ErrorDTO      "Неавторизованный доступ"
+// @Failure      403  {object}  dto.ErrorDTO      "Нет прав для изменения чата"
+// @Failure      404  {object}  dto.ErrorDTO      "Чат не найден"
+// @Router       /chats/{chatId}/avatar [post]
+func (h *ChatsGRPCProxyHandler) UploadChatAvatar(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.UploadChatAvatar"
+	logger := domains.GetLogger(r.Context()).WithField("op", op)
 
-	for i, member := range members {
-		if member.UserId == uuid.Nil {
-			return errors.New("user_id is required for all members")
-		}
-
-		if strings.TrimSpace(member.Role) == "" {
-			return errors.New("role is required for all members")
-		}
-
-		if err := validateRole(member.Role); err != nil {
-			return err
-		}
-
-		if memberIds[member.UserId] {
-			return errors.New("duplicate user_id found in members")
-		}
-		memberIds[member.UserId] = true
-
-		members[i].Role = strings.TrimSpace(member.Role)
+	// Получить chatId из path
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "invalid chatId in path")
+		return
+	}
+	chatIdStr := parts[len(parts)-2]
+	chatId, err := uuid.Parse(chatIdStr)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "invalid chatId")
+		return
 	}
 
-	return nil
-}
-
-func validateUsers(users []dtoChats.AddChatMemberDTO) error {
-	if len(users) == 0 {
-		return errors.New("users field is required and cannot be empty")
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
 	}
 
-	userIds := make(map[uuid.UUID]bool)
-
-	for i, user := range users {
-		if user.UserId == uuid.Nil {
-			return errors.New("user_id is required for all users")
-		}
-
-		if strings.TrimSpace(user.Role) == "" {
-			return errors.New("role is required for all users")
-		}
-
-		if err := validateRole(user.Role); err != nil {
-			return err
-		}
-
-		if userIds[user.UserId] {
-			return errors.New("duplicate user_id found in request")
-		}
-		userIds[user.UserId] = true
-
-		users[i].Role = strings.TrimSpace(user.Role)
+	// Проверка, что пользователь — админ чата (через gRPC GetChat)
+	chatInfo, err := h.chatsClient.GetChat(r.Context(), &gen.GetChatReq{
+		ChatId: chatId.String(),
+		UserId: userID.String(),
+	})
+	if err != nil {
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+	if !chatInfo.IsAdmin {
+		utils.SendError(r.Context(), op, w, http.StatusForbidden, "only admin can upload chat avatar")
+		return
 	}
 
-	return nil
-}
-
-func validateRole(role string) error {
-	if role != "admin" && role != "writer" && role != "viewer" {
-		return errors.New("role must be one of: admin, writer, viewer")
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		logger.WithError(err).Error("failed to parse multipart form")
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "failed to parse form")
+		return
 	}
-	return nil
-}
 
-func validateChatUpdateDTO(updateDTO *dtoChats.ChatUpdateDTO) error {
-	if strings.TrimSpace(updateDTO.Name) == "" {
-		return errors.New("name is required and cannot be empty")
+	file, header, err := r.FormFile("avatar")
+	if err != nil {
+		logger.WithError(err).Error("failed to get avatar file")
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "avatar file is required")
+		return
 	}
-	return nil
+	defer file.Close()
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, file); err != nil {
+		logger.WithError(err).Error("failed to read file")
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to read file")
+		return
+	}
+
+	res, err := h.chatsClient.UploadChatAvatar(r.Context(), &gen.UploadChatAvatarReq{
+		UserId:      userID.String(),
+		ChatId:      chatId.String(),
+		Data:        buf.Bytes(),
+		Filename:    header.Filename,
+		ContentType: header.Header.Get("Content-Type"),
+	})
+	if err != nil {
+		logger.WithError(err).Error("failed to upload chat avatar")
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, map[string]string{"avatar_url": res.AvatarUrl})
 }

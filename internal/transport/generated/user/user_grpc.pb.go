@@ -27,6 +27,7 @@ const (
 	UserService_UploadUserAvatar_FullMethodName  = "/user.UserService/UploadUserAvatar"
 	UserService_CreateContact_FullMethodName     = "/user.UserService/CreateContact"
 	UserService_GetContacts_FullMethodName       = "/user.UserService/GetContacts"
+	UserService_GetUserAvatars_FullMethodName    = "/user.UserService/GetUserAvatars"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -42,6 +43,7 @@ type UserServiceClient interface {
 	UploadUserAvatar(ctx context.Context, in *UploadUserAvatarReq, opts ...grpc.CallOption) (*UploadUserAvatarRes, error)
 	CreateContact(ctx context.Context, in *CreateContactReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetContacts(ctx context.Context, in *GetContactsReq, opts ...grpc.CallOption) (*GetContactsRes, error)
+	GetUserAvatars(ctx context.Context, in *GetUserAvatarsReq, opts ...grpc.CallOption) (*GetUserAvatarsRes, error)
 }
 
 type userServiceClient struct {
@@ -122,6 +124,16 @@ func (c *userServiceClient) GetContacts(ctx context.Context, in *GetContactsReq,
 	return out, nil
 }
 
+func (c *userServiceClient) GetUserAvatars(ctx context.Context, in *GetUserAvatarsReq, opts ...grpc.CallOption) (*GetUserAvatarsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserAvatarsRes)
+	err := c.cc.Invoke(ctx, UserService_GetUserAvatars_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -135,6 +147,7 @@ type UserServiceServer interface {
 	UploadUserAvatar(context.Context, *UploadUserAvatarReq) (*UploadUserAvatarRes, error)
 	CreateContact(context.Context, *CreateContactReq) (*emptypb.Empty, error)
 	GetContacts(context.Context, *GetContactsReq) (*GetContactsRes, error)
+	GetUserAvatars(context.Context, *GetUserAvatarsReq) (*GetUserAvatarsRes, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -165,6 +178,9 @@ func (UnimplementedUserServiceServer) CreateContact(context.Context, *CreateCont
 }
 func (UnimplementedUserServiceServer) GetContacts(context.Context, *GetContactsReq) (*GetContactsRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetContacts not implemented")
+}
+func (UnimplementedUserServiceServer) GetUserAvatars(context.Context, *GetUserAvatarsReq) (*GetUserAvatarsRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserAvatars not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -313,6 +329,24 @@ func _UserService_GetContacts_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetUserAvatars_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserAvatarsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUserAvatars(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUserAvatars_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUserAvatars(ctx, req.(*GetUserAvatarsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -347,6 +381,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetContacts",
 			Handler:    _UserService_GetContacts_Handler,
+		},
+		{
+			MethodName: "GetUserAvatars",
+			Handler:    _UserService_GetUserAvatars_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

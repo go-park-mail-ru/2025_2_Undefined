@@ -65,6 +65,38 @@ services:
           - user-service
     image: lzimin05/100gramm_back_user_service
 
+  chats-service:
+    build:
+      context: .
+      dockerfile: deploy/chats/Dockerfile
+    container_name: gramm_chats_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_HOST: minio
+      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "${CHATS_GRPC_PORT}:50053"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      gramm-network:
+        aliases:
+          - chats-service
+
   app:
     build: .
     container_name: gramm_app
@@ -73,12 +105,15 @@ services:
     environment:
       AUTH_SERVICE_ADDR: auth-service:50051
       USER_SERVICE_ADDR: user-service:50052
+      CHATS_SERVICE_ADDR: chats-service:50053
     depends_on:
       db:
         condition: service_healthy
       auth-service:
         condition: service_started
       user-service:
+        condition: service_started
+      chats-service:
         condition: service_started
     networks:
       - gramm-network

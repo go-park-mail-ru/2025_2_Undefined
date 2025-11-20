@@ -8,6 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	minio "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dto0 "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	gomock "github.com/golang/mock/gomock"
@@ -80,6 +81,21 @@ func (mr *MockChatsUsecaseMockRecorder) DeleteChat(ctx, userId, chatId interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteChat", reflect.TypeOf((*MockChatsUsecase)(nil).DeleteChat), ctx, userId, chatId)
 }
 
+// GetChatAvatars mocks base method.
+func (m *MockChatsUsecase) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChatAvatars", ctx, chatIDs)
+	ret0, _ := ret[0].(map[string]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetChatAvatars indicates an expected call of GetChatAvatars.
+func (mr *MockChatsUsecaseMockRecorder) GetChatAvatars(ctx, chatIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChatAvatars", reflect.TypeOf((*MockChatsUsecase)(nil).GetChatAvatars), ctx, chatIDs)
+}
+
 // GetChats mocks base method.
 func (m *MockChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dto.ChatViewInformationDTO, error) {
 	m.ctrl.T.Helper()
@@ -137,4 +153,19 @@ func (m *MockChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.U
 func (mr *MockChatsUsecaseMockRecorder) UpdateChat(ctx, userId, chatId, name, description interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChat", reflect.TypeOf((*MockChatsUsecase)(nil).UpdateChat), ctx, userId, chatId, name, description)
+}
+
+// UploadChatAvatar mocks base method.
+func (m *MockChatsUsecase) UploadChatAvatar(ctx context.Context, userID, chatID uuid.UUID, fileData minio.FileData) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadChatAvatar", ctx, userID, chatID, fileData)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UploadChatAvatar indicates an expected call of UploadChatAvatar.
+func (mr *MockChatsUsecaseMockRecorder) UploadChatAvatar(ctx, userID, chatID, fileData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadChatAvatar", reflect.TypeOf((*MockChatsUsecase)(nil).UploadChatAvatar), ctx, userID, chatID, fileData)
 }

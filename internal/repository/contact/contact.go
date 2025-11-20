@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
@@ -10,7 +9,8 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -26,10 +26,10 @@ const (
 )
 
 type ContactRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func New(db *sql.DB) *ContactRepository {
+func New(db *pgxpool.Pool) *ContactRepository {
 	return &ContactRepository{
 		db: db,
 	}
@@ -50,15 +50,15 @@ func (r *ContactRepository) CreateContact(ctx context.Context, user_id uuid.UUID
 
 	logger.Debugf("starting: %s", query)
 
-	err := r.db.QueryRow(createContactQuery,
+	err := r.db.QueryRow(ctx, createContactQuery,
 		user_id, contact_user_id, time.Now(), time.Now()).
 		Scan(&user_id)
 	if err != nil {
 		queryStatus = "fail"
 
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			switch pqErr.Code {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
 			case errs.PostgresErrorUniqueViolationCode:
 				logger.WithError(err).Errorf("db query: %s: duplicate key violation: status: %s", query, queryStatus)
 				return errs.ErrIsDuplicateKey
@@ -87,7 +87,7 @@ func (r *ContactRepository) GetContactsByUserID(ctx context.Context, user_id uui
 
 	logger.Debugf("starting: %s", query)
 
-	rows, err := r.db.Query(getContactsByUserIDQuery, user_id)
+	rows, err := r.db.Query(ctx, getContactsByUserIDQuery, user_id)
 	if err != nil {
 		queryStatus = "fail"
 		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)

@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
+	_ "github.com/lib/pq"
+
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
@@ -15,9 +17,6 @@ import (
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
-
-	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	userHttpProxy "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/http"
 
 	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth/http"
@@ -26,13 +25,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	chatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
-	chatsTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
-	chatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
-
-	messageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
-	messageTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/message"
-	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
+	chatsHTTTPProxy "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats-message/http"
+	chatsGen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 )
 
 type App struct {
@@ -42,22 +36,12 @@ type App struct {
 }
 
 func NewApp(conf *config.Config) (*App, error) {
-	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get connection string: %v", err)
-	}
+	dbConn := repository.GetConnectionString(conf.DBConfig)
 
 	db, err := sql.Open("postgres", dbConn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
-
-	minioClient, err := minio.NewMinioProvider(*conf.MinioConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to minio: %v", err)
-	}
-
-	userRepo := userrepo.New(db)
 
 	// Подключение к gRPC серверу авторизации
 	authGrpcConn, err := grpc.NewClient(
@@ -77,21 +61,23 @@ func NewApp(conf *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to user gRPC service: %v", err)
 	}
 
+	chatsGrpcConn, err := grpc.NewClient(
+		conf.GRPCConfig.ChatsServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to chats gRPC service: %v", err)
+	}
+
 	authClient := authGen.NewAuthServiceClient(authGrpcConn)
 	authHandler := autht.NewAuthGRPCProxyHandler(authClient, conf.SessionConfig)
 
 	userClient := userGen.NewUserServiceClient(userGrpcConn)
 	userHandler := userHttpProxy.NewUserGRPCProxyHandler(userClient)
 
-	chatsRepo := chatsRepository.NewChatsRepository(db)
-	messageRepo := messageRepository.NewMessageRepository(db)
-	listenerMap := messageUsecase.NewListenerMap()
-
-	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, messageRepo, minioClient)
-	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, chatsRepo, minioClient, listenerMap)
-
-	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC)
-	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC)
+	chatsClient := chatsGen.NewChatServiceClient(chatsGrpcConn)
+	messageClient := chatsGen.NewMessageServiceClient(chatsGrpcConn)
+	chatsHandler := chatsHTTTPProxy.NewChatsGRPCProxyHandler(chatsClient, messageClient)
 
 	// Настройка логгера
 	logger := logrus.New()
@@ -127,6 +113,8 @@ func NewApp(conf *config.Config) (*App, error) {
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.DeleteChat).Methods(http.MethodDelete)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.UpdateChat).Methods(http.MethodPatch)
 		chatRouter.HandleFunc("/dialog/{user_id}", chatsHandler.GetUsersDialog).Methods(http.MethodGet)
+		chatRouter.HandleFunc("/avatars/query", chatsHandler.GetChatAvatars).Methods(http.MethodPost)
+		chatRouter.HandleFunc("/{chat_id}/avatar", chatsHandler.UploadChatAvatar).Methods(http.MethodPost)
 	}
 
 	userRouter := protectedRouter.PathPrefix("").Subrouter()
@@ -135,7 +123,8 @@ func NewApp(conf *config.Config) (*App, error) {
 		userRouter.HandleFunc("/me", userHandler.UpdateUserInfo).Methods(http.MethodPatch)
 		userRouter.HandleFunc("/user/by-phone", userHandler.GetUserByPhone).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/by-username", userHandler.GetUserByUsername).Methods(http.MethodPost)
-		userRouter.HandleFunc("/user/avatar", userHandler.UploadUserAvatar)
+		userRouter.HandleFunc("/users/avatar", userHandler.UploadUserAvatar).Methods(http.MethodPost)
+		userRouter.HandleFunc("/users/avatars/query", userHandler.GetUserAvatars).Methods(http.MethodPost)
 	}
 
 	sessionRouter := protectedRouter.PathPrefix("").Subrouter()
@@ -147,7 +136,7 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
-		messageRouter.HandleFunc("/message/ws", messageHandler.HandleMessages)
+		messageRouter.HandleFunc("/message/ws", chatsHandler.HandleMessages)
 	}
 
 	contactRouter := protectedRouter.PathPrefix("/contacts").Subrouter()

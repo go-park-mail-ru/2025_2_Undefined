@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 
@@ -17,7 +16,6 @@ import (
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
 	authUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 	sessionUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
-	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 )
 
@@ -31,12 +29,7 @@ func main() {
 		logger.WithError(err).Fatal("config error")
 	}
 
-	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if err != nil {
-		logger.WithError(err).Fatal("failed to get connection string")
-	}
-
-	db, err := sql.Open("postgres", dbConn)
+	db, err := repository.NewPgxPool(ctx, conf.DBConfig)
 	if err != nil {
 		logger.WithError(err).Fatal("failed to connect to database")
 	}

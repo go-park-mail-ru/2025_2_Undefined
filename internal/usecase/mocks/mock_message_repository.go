@@ -36,6 +36,20 @@ func (m *MockMessageRepository) EXPECT() *MockMessageRepositoryMockRecorder {
 	return m.recorder
 }
 
+// DeleteMessage mocks base method.
+func (m *MockMessageRepository) DeleteMessage(ctx context.Context, messageID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteMessage", ctx, messageID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteMessage indicates an expected call of DeleteMessage.
+func (mr *MockMessageRepositoryMockRecorder) DeleteMessage(ctx, messageID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMessage", reflect.TypeOf((*MockMessageRepository)(nil).DeleteMessage), ctx, messageID)
+}
+
 // GetLastMessagesOfChats mocks base method.
 func (m *MockMessageRepository) GetLastMessagesOfChats(ctx context.Context, userID uuid.UUID) ([]models.Message, error) {
 	m.ctrl.T.Helper()
@@ -49,6 +63,21 @@ func (m *MockMessageRepository) GetLastMessagesOfChats(ctx context.Context, user
 func (mr *MockMessageRepositoryMockRecorder) GetLastMessagesOfChats(ctx, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastMessagesOfChats", reflect.TypeOf((*MockMessageRepository)(nil).GetLastMessagesOfChats), ctx, userID)
+}
+
+// GetMessageByID mocks base method.
+func (m *MockMessageRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (models.Message, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessageByID", ctx, messageID)
+	ret0, _ := ret[0].(models.Message)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMessageByID indicates an expected call of GetMessageByID.
+func (mr *MockMessageRepositoryMockRecorder) GetMessageByID(ctx, messageID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByID", reflect.TypeOf((*MockMessageRepository)(nil).GetMessageByID), ctx, messageID)
 }
 
 // GetMessagesOfChat mocks base method.
@@ -79,4 +108,18 @@ func (m *MockMessageRepository) InsertMessage(ctx context.Context, msg models.Cr
 func (mr *MockMessageRepositoryMockRecorder) InsertMessage(ctx, msg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertMessage", reflect.TypeOf((*MockMessageRepository)(nil).InsertMessage), ctx, msg)
+}
+
+// UpdateMessage mocks base method.
+func (m *MockMessageRepository) UpdateMessage(ctx context.Context, messageID uuid.UUID, newText string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateMessage", ctx, messageID, newText)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateMessage indicates an expected call of UpdateMessage.
+func (mr *MockMessageRepositoryMockRecorder) UpdateMessage(ctx, messageID, newText interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMessage", reflect.TypeOf((*MockMessageRepository)(nil).UpdateMessage), ctx, messageID, newText)
 }

@@ -41,7 +41,7 @@ func (h *UserGRPCHandler) CreateContact(ctx context.Context, req *gen.CreateCont
 
 	if err := h.contactUC.CreateContact(ctx, contactReq, userID); err != nil {
 		logger.WithError(err).Error("failed to create contact")
-		
+
 		switch {
 		case errors.Is(err, errs.ErrIsDuplicateKey), errors.Is(err, errs.ErrContactAlreadyExists):
 			return nil, status.Error(codes.AlreadyExists, "contact already exists")
@@ -86,7 +86,6 @@ func (h *UserGRPCHandler) GetContacts(ctx context.Context, req *gen.GetContactsR
 			Name:        c.ContactUser.Name,
 			Username:    c.ContactUser.Username,
 			Bio:         bio,
-			AvatarUrl:   c.ContactUser.AvatarURL,
 			AccountType: c.ContactUser.AccountType,
 			CreatedAt:   c.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   c.UpdatedAt.Format(time.RFC3339),

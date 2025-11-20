@@ -122,21 +122,18 @@ func TestContactUsecase_GetContacts_Success(t *testing.T) {
 		},
 	}
 
-	avatarID := uuid.New()
 	contactUser := &UserModels.User{
 		ID:          contactUserID,
 		Name:        "Contact User",
 		PhoneNumber: "+79998887777",
 		Username:    "contact_user",
 		AccountType: UserModels.UserAccount,
-		AvatarID:    &avatarID,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
 	mockContactRepo.EXPECT().GetContactsByUserID(ctx, userID).Return(contacts, nil)
 	mockUserRepo.EXPECT().GetUserByID(ctx, contactUserID).Return(contactUser, nil)
-	mockFileStorage.EXPECT().GetOne(ctx, contactUser.AvatarID).Return("https://example.com/avatar.jpg", nil)
 
 	result, err := uc.GetContacts(ctx, userID)
 

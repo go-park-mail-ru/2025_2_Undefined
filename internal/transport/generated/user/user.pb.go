@@ -831,6 +831,95 @@ func (x *GetContactsRes) GetContacts() []*Contact {
 	return nil
 }
 
+// ############### GetUserAvatars ###############
+type GetUserAvatarsReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserIds       []string               `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserAvatarsReq) Reset() {
+	*x = GetUserAvatarsReq{}
+	mi := &file_user_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserAvatarsReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserAvatarsReq) ProtoMessage() {}
+
+func (x *GetUserAvatarsReq) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserAvatarsReq.ProtoReflect.Descriptor instead.
+func (*GetUserAvatarsReq) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetUserAvatarsReq) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type GetUserAvatarsRes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Avatars       map[string]string      `protobuf:"bytes,1,rep,name=avatars,proto3" json:"avatars,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // user_id -> avatar_url
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserAvatarsRes) Reset() {
+	*x = GetUserAvatarsRes{}
+	mi := &file_user_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserAvatarsRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserAvatarsRes) ProtoMessage() {}
+
+func (x *GetUserAvatarsRes) ProtoReflect() protoreflect.Message {
+	mi := &file_user_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserAvatarsRes.ProtoReflect.Descriptor instead.
+func (*GetUserAvatarsRes) Descriptor() ([]byte, []int) {
+	return file_user_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetUserAvatarsRes) GetAvatars() map[string]string {
+	if x != nil {
+		return x.Avatars
+	}
+	return nil
+}
+
 var File_user_proto protoreflect.FileDescriptor
 
 const file_user_proto_rawDesc = "" +
@@ -900,7 +989,14 @@ const file_user_proto_rawDesc = "" +
 	"\x0eGetContactsReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\";\n" +
 	"\x0eGetContactsRes\x12)\n" +
-	"\bcontacts\x18\x01 \x03(\v2\r.user.ContactR\bcontacts2\xe2\x03\n" +
+	"\bcontacts\x18\x01 \x03(\v2\r.user.ContactR\bcontacts\".\n" +
+	"\x11GetUserAvatarsReq\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\tR\auserIds\"\x8f\x01\n" +
+	"\x11GetUserAvatarsRes\x12>\n" +
+	"\aavatars\x18\x01 \x03(\v2$.user.GetUserAvatarsRes.AvatarsEntryR\aavatars\x1a:\n" +
+	"\fAvatarsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xa6\x04\n" +
 	"\vUserService\x129\n" +
 	"\vGetUserById\x12\x14.user.GetUserByIdReq\x1a\x14.user.GetUserByIdRes\x12B\n" +
 	"\x0eGetUserByPhone\x12\x17.user.GetUserByPhoneReq\x1a\x17.user.GetUserByPhoneRes\x12K\n" +
@@ -908,7 +1004,8 @@ const file_user_proto_rawDesc = "" +
 	"\x0eUpdateUserInfo\x12\x17.user.UpdateUserInfoReq\x1a\x16.google.protobuf.Empty\x12H\n" +
 	"\x10UploadUserAvatar\x12\x19.user.UploadUserAvatarReq\x1a\x19.user.UploadUserAvatarRes\x12?\n" +
 	"\rCreateContact\x12\x16.user.CreateContactReq\x1a\x16.google.protobuf.Empty\x129\n" +
-	"\vGetContacts\x12\x14.user.GetContactsReq\x1a\x14.user.GetContactsResBOZMgithub.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/userb\x06proto3"
+	"\vGetContacts\x12\x14.user.GetContactsReq\x1a\x14.user.GetContactsRes\x12B\n" +
+	"\x0eGetUserAvatars\x12\x17.user.GetUserAvatarsReq\x1a\x17.user.GetUserAvatarsResBOZMgithub.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/userb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -922,7 +1019,7 @@ func file_user_proto_rawDescGZIP() []byte {
 	return file_user_proto_rawDescData
 }
 
-var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_user_proto_goTypes = []any{
 	(*User)(nil),                 // 0: user.User
 	(*GetUserByIdReq)(nil),       // 1: user.GetUserByIdReq
@@ -938,32 +1035,38 @@ var file_user_proto_goTypes = []any{
 	(*CreateContactReq)(nil),     // 11: user.CreateContactReq
 	(*GetContactsReq)(nil),       // 12: user.GetContactsReq
 	(*GetContactsRes)(nil),       // 13: user.GetContactsRes
-	(*emptypb.Empty)(nil),        // 14: google.protobuf.Empty
+	(*GetUserAvatarsReq)(nil),    // 14: user.GetUserAvatarsReq
+	(*GetUserAvatarsRes)(nil),    // 15: user.GetUserAvatarsRes
+	nil,                          // 16: user.GetUserAvatarsRes.AvatarsEntry
+	(*emptypb.Empty)(nil),        // 17: google.protobuf.Empty
 }
 var file_user_proto_depIdxs = []int32{
 	0,  // 0: user.GetUserByIdRes.user:type_name -> user.User
 	0,  // 1: user.GetUserByPhoneRes.user:type_name -> user.User
 	0,  // 2: user.GetUserByUsernameRes.user:type_name -> user.User
 	10, // 3: user.GetContactsRes.contacts:type_name -> user.Contact
-	1,  // 4: user.UserService.GetUserById:input_type -> user.GetUserByIdReq
-	3,  // 5: user.UserService.GetUserByPhone:input_type -> user.GetUserByPhoneReq
-	5,  // 6: user.UserService.GetUserByUsername:input_type -> user.GetUserByUsernameReq
-	7,  // 7: user.UserService.UpdateUserInfo:input_type -> user.UpdateUserInfoReq
-	8,  // 8: user.UserService.UploadUserAvatar:input_type -> user.UploadUserAvatarReq
-	11, // 9: user.UserService.CreateContact:input_type -> user.CreateContactReq
-	12, // 10: user.UserService.GetContacts:input_type -> user.GetContactsReq
-	2,  // 11: user.UserService.GetUserById:output_type -> user.GetUserByIdRes
-	4,  // 12: user.UserService.GetUserByPhone:output_type -> user.GetUserByPhoneRes
-	6,  // 13: user.UserService.GetUserByUsername:output_type -> user.GetUserByUsernameRes
-	14, // 14: user.UserService.UpdateUserInfo:output_type -> google.protobuf.Empty
-	9,  // 15: user.UserService.UploadUserAvatar:output_type -> user.UploadUserAvatarRes
-	14, // 16: user.UserService.CreateContact:output_type -> google.protobuf.Empty
-	13, // 17: user.UserService.GetContacts:output_type -> user.GetContactsRes
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	16, // 4: user.GetUserAvatarsRes.avatars:type_name -> user.GetUserAvatarsRes.AvatarsEntry
+	1,  // 5: user.UserService.GetUserById:input_type -> user.GetUserByIdReq
+	3,  // 6: user.UserService.GetUserByPhone:input_type -> user.GetUserByPhoneReq
+	5,  // 7: user.UserService.GetUserByUsername:input_type -> user.GetUserByUsernameReq
+	7,  // 8: user.UserService.UpdateUserInfo:input_type -> user.UpdateUserInfoReq
+	8,  // 9: user.UserService.UploadUserAvatar:input_type -> user.UploadUserAvatarReq
+	11, // 10: user.UserService.CreateContact:input_type -> user.CreateContactReq
+	12, // 11: user.UserService.GetContacts:input_type -> user.GetContactsReq
+	14, // 12: user.UserService.GetUserAvatars:input_type -> user.GetUserAvatarsReq
+	2,  // 13: user.UserService.GetUserById:output_type -> user.GetUserByIdRes
+	4,  // 14: user.UserService.GetUserByPhone:output_type -> user.GetUserByPhoneRes
+	6,  // 15: user.UserService.GetUserByUsername:output_type -> user.GetUserByUsernameRes
+	17, // 16: user.UserService.UpdateUserInfo:output_type -> google.protobuf.Empty
+	9,  // 17: user.UserService.UploadUserAvatar:output_type -> user.UploadUserAvatarRes
+	17, // 18: user.UserService.CreateContact:output_type -> google.protobuf.Empty
+	13, // 19: user.UserService.GetContacts:output_type -> user.GetContactsRes
+	15, // 20: user.UserService.GetUserAvatars:output_type -> user.GetUserAvatarsRes
+	13, // [13:21] is the sub-list for method output_type
+	5,  // [5:13] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_user_proto_init() }
@@ -978,7 +1081,7 @@ func file_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_proto_rawDesc), len(file_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

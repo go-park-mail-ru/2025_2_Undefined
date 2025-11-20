@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	UserDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
+	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	grpcUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/grpc"
@@ -236,8 +237,52 @@ func (h *UserGRPCProxyHandler) UploadUserAvatar(w http.ResponseWriter, r *http.R
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, map[string]string{"avatar_url": res.AvatarUrl})
 }
 
+// GetUserAvatars получает аватарки нескольких пользователей
+// @Summary      Получить аватарки пользователей
+// @Description  Возвращает аватарки для списка пользователей по их ID
+// @Tags         user
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        request  body      dto.GetAvatarsRequest   true  "Список ID пользователей"
+// @Success      200      {object}  dto.GetAvatarsResponse  "Аватарки пользователей"
+// @Failure      400      {object}  dto.ErrorDTO            "Некорректный запрос"
+// @Failure      401      {object}  dto.ErrorDTO            "Неавторизованный доступ"
+// @Router       /users/avatars [post]
+func (h *UserGRPCProxyHandler) GetUserAvatars(w http.ResponseWriter, r *http.Request) {
+	const op = "UserGRPCProxyHandler.GetUserAvatars"
+
+	var req dtoUtils.GetAvatarsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoUtils.GetAvatarsResponse{Avatars: make(map[string]*string)})
+		return
+	}
+
+	// Валидация UUID
+	for _, idStr := range req.IDs {
+		if _, err := uuid.Parse(idStr); err != nil {
+			utils.SendError(r.Context(), op, w, http.StatusBadRequest, "invalid user id format: "+idStr)
+			return
+		}
+	}
+
+	request := &gen.GetUserAvatarsReq{UserIds: req.IDs}
+
+	response, err := h.userClient.GetUserAvatars(r.Context(), request)
+	if err != nil {
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoUtils.GetAvatarsResponse{Avatars: dtoUtils.StringMapToPointerMap(response.Avatars)})
+}
+
 func mapProtoUserToDTO(protoUser *gen.User) *UserDTO.User {
-	userID, _ := uuid.Parse(protoUser.Id)
 	createdAt, _ := time.Parse(time.RFC3339, protoUser.CreatedAt)
 	updatedAt, _ := time.Parse(time.RFC3339, protoUser.UpdatedAt)
 
@@ -246,13 +291,14 @@ func mapProtoUserToDTO(protoUser *gen.User) *UserDTO.User {
 		bio = &protoUser.Bio
 	}
 
+	userID, _ := uuid.Parse(protoUser.GetId())
+
 	return &UserDTO.User{
 		ID:          userID,
 		PhoneNumber: protoUser.PhoneNumber,
 		Name:        protoUser.Name,
 		Username:    protoUser.Username,
 		Bio:         bio,
-		AvatarURL:   protoUser.AvatarUrl,
 		AccountType: protoUser.AccountType,
 		CreatedAt:   createdAt,
 		UpdatedAt:   updatedAt,

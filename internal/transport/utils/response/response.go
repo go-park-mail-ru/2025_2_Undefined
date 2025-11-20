@@ -51,11 +51,6 @@ func SendError(ctx context.Context, op string, w http.ResponseWriter, status int
 // - ErrIsDuplicateKey -> 409 Conflict
 // - ErrRequiredFieldsMissing -> 422 Unprocessable Entity
 // - Все остальные ошибки -> 400 Bad Request (по умолчанию)
-//
-// Преимущества errors.Is() над строковым сравнением:
-// - Работает с wrapped ошибками
-// - Не зависит от изменения текста ошибки
-// - Более производительно и типобезопасно
 func SendErrorWithAutoStatus(ctx context.Context, op string, w http.ResponseWriter, err error) {
 	// 503 Service Unavailable - сервис недоступен или перегружен
 	if errors.Is(err, errs.ErrServiceIsOverloaded) {

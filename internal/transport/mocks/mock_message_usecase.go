@@ -38,17 +38,45 @@ func (m *MockMessageUsecase) EXPECT() *MockMessageUsecaseMockRecorder {
 }
 
 // AddMessage mocks base method.
-func (m *MockMessageUsecase) AddMessage(ctx context.Context, msg dto0.CreateMessageDTO, userID uuid.UUID) error {
+func (m *MockMessageUsecase) AddMessage(ctx context.Context, message dto0.CreateMessageDTO, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddMessage", ctx, msg, userID)
+	ret := m.ctrl.Call(m, "AddMessage", ctx, message, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddMessage indicates an expected call of AddMessage.
-func (mr *MockMessageUsecaseMockRecorder) AddMessage(ctx, msg, userID interface{}) *gomock.Call {
+func (mr *MockMessageUsecaseMockRecorder) AddMessage(ctx, message, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessage", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessage), ctx, msg, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessage", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessage), ctx, message, userID)
+}
+
+// DeleteMessage mocks base method.
+func (m *MockMessageUsecase) DeleteMessage(ctx context.Context, message dto0.DeleteMessageDTO, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteMessage", ctx, message, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteMessage indicates an expected call of DeleteMessage.
+func (mr *MockMessageUsecaseMockRecorder) DeleteMessage(ctx, message, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMessage", reflect.TypeOf((*MockMessageUsecase)(nil).DeleteMessage), ctx, message, userID)
+}
+
+// EditMessage mocks base method.
+func (m *MockMessageUsecase) EditMessage(ctx context.Context, message dto0.EditMessageDTO, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EditMessage", ctx, message, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EditMessage indicates an expected call of EditMessage.
+func (mr *MockMessageUsecaseMockRecorder) EditMessage(ctx, message, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditMessage", reflect.TypeOf((*MockMessageUsecase)(nil).EditMessage), ctx, message, userID)
 }
 
 // SubscribeConnectionToChats mocks base method.

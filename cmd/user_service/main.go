@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 
@@ -16,7 +15,6 @@ import (
 	grpcHandler "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/grpc"
 	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
 	userUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
-	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 )
 
@@ -30,12 +28,7 @@ func main() {
 		logger.WithError(err).Fatal("config error")
 	}
 
-	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if err != nil {
-		logger.WithError(err).Fatal("failed to get connection string")
-	}
-
-	db, err := sql.Open("postgres", dbConn)
+	db, err := repository.NewPgxPool(ctx, conf.DBConfig)
 	if err != nil {
 		logger.WithError(err).Fatal("failed to connect to database")
 	}

@@ -93,6 +93,15 @@ message GetContactsRes {
   repeated Contact contacts = 1;
 }
 
+/* ############### GetUserAvatars ############### */
+message GetUserAvatarsReq {
+  repeated string user_ids = 1;
+}
+
+message GetUserAvatarsRes {
+  map<string, string> avatars = 1; // user_id -> avatar_url
+}
+
 /* ############### UserService ############### */
 service UserService {
   rpc GetUserById(GetUserByIdReq) returns (GetUserByIdRes);
@@ -102,4 +111,5 @@ service UserService {
   rpc UploadUserAvatar(UploadUserAvatarReq) returns (UploadUserAvatarRes);
   rpc CreateContact(CreateContactReq) returns (google.protobuf.Empty);
   rpc GetContacts(GetContactsReq) returns (GetContactsRes);
+  rpc GetUserAvatars(GetUserAvatarsReq) returns (GetUserAvatarsRes);
 }

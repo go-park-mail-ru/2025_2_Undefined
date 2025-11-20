@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat, usersInfo []modelsChats.UserInfo, usersNames []string) error {
@@ -24,16 +24,16 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	}
 
 	logger.Debug("Starting database transaction")
-	tx, err := r.db.Begin()
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: begin transaction")
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	// 1. Вставка чата
 	logger.Debug("Executing database query: INSERT chat")
-	_, err = tx.Exec(`INSERT INTO chat (id, chat_type, name, description) 
+	_, err = tx.Exec(ctx, `INSERT INTO chat (id, chat_type, name, description) 
         VALUES ($1, $2::chat_type_enum, $3, $4)`,
 		chat.ID, chat.Type, chat.Name, chat.Description)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	if len(placeholders) > 0 {
 		query += strings.Join(placeholders, ", ")
 		logger.Debug("Executing database query: INSERT system messages")
-		_, err = tx.Exec(query, values...)
+		_, err = tx.Exec(ctx, query, values...)
 		if err != nil {
 			logger.WithError(err).Error("Database operation failed: insert system messages")
 			return err
@@ -87,7 +87,7 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	}
 
 	logger.Debug("Committing database transaction")
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		logger.WithError(err).Error("Database operation failed: commit transaction")
 		return err
 	}
@@ -102,12 +102,12 @@ func (r *ChatsRepository) InsertUsersToChat(ctx context.Context, chatID uuid.UUI
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String()).WithField("users_count", len(usersInfo))
 	logger.Debug("Starting database operation: insert users to chat")
 
-	tx, err := r.db.Begin()
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: begin transaction")
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	err = r.insertUsersToChat(ctx, tx, chatID, usersInfo)
 	if err != nil {
@@ -115,7 +115,7 @@ func (r *ChatsRepository) InsertUsersToChat(ctx context.Context, chatID uuid.UUI
 		return err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		logger.WithError(err).Error("Database operation failed: commit transaction")
 		return err
 	}
@@ -125,7 +125,7 @@ func (r *ChatsRepository) InsertUsersToChat(ctx context.Context, chatID uuid.UUI
 	return nil
 }
 
-func (r *ChatsRepository) insertUsersToChat(ctx context.Context, tx *sql.Tx, chatID uuid.UUID, usersInfo []modelsChats.UserInfo) error {
+func (r *ChatsRepository) insertUsersToChat(ctx context.Context, tx pgx.Tx, chatID uuid.UUID, usersInfo []modelsChats.UserInfo) error {
 	const op = "ChatsRepository.insertUsersToChat"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_id", chatID.String()).WithField("users_count", len(usersInfo))
@@ -142,7 +142,7 @@ func (r *ChatsRepository) insertUsersToChat(ctx context.Context, tx *sql.Tx, cha
 
 	query += strings.Join(placeholders, ", ")
 	logger.Debug("Executing database query: INSERT chat members")
-	_, err := tx.Exec(query, values...)
+	_, err := tx.Exec(ctx, query, values...)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: insert chat members")
 		return err

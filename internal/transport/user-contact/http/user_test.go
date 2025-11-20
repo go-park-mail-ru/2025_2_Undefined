@@ -10,6 +10,7 @@ import (
 
 	UserDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/user"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

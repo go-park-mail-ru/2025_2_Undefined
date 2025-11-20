@@ -5,6 +5,7 @@ DB_URL=postgres://user:password@localhost:5433/gramm?sslmode=disable
 MIGRATIONS_PATH=db/migrations
 CONFIG_SOURCE=config.yml
 ENV_FILE=.env
+VERSION=2
 
 # Миграции базы данных (через CLI migrate)
 db-up:
@@ -47,7 +48,7 @@ test-coverage:
 	@echo "Запуск тестов с покрытием кода..."
 	go test -v -coverprofile=coverage.out -coverpkg=./... ./...
 	@echo "Исключаем docs.go, fill.go, mock*.go, main.go, config.go, app.go из покрытия..."
-	grep -v -E "(docs|fill\.go|mock.*\.go|generate\.go|cmd/.*main\.go|config/config\.go|internal/app/app\.go)" coverage.out > coverage_filtered.out || true
+	grep -v -E "(docs|fill\.go|mock.*\.go|generate\.go|cmd/.*main\.go|config/config\.go|internal/app/app\.go|generated/*)" coverage.out > coverage_filtered.out || true
 	@echo "Результаты покрытия:"
 	go tool cover -func=coverage_filtered.out | grep total
 
@@ -133,3 +134,12 @@ user_proto:
 		--go-grpc_opt=paths=source_relative \
 		--go_opt=paths=source_relative \
 		proto/user.proto
+
+chats_proto:
+	@mkdir -p internal/transport/generated/chats && \
+	protoc --proto_path=proto \
+		--go_out=internal/transport/generated/chats \
+		--go-grpc_out=internal/transport/generated/chats \
+		--go-grpc_opt=paths=source_relative \
+		--go_opt=paths=source_relative \
+		proto/chats.proto

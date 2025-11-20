@@ -122,6 +122,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/chats/avatars": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает аватарки для списка чатов по их ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Получить аватарки чатов",
+                "parameters": [
+                    {
+                        "description": "Список ID чатов",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Аватарки чатов",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/chats/dialog/{otherUserId}": {
             "get": {
                 "security": [
@@ -346,6 +397,85 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав для изменения чата",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Чат не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/{chatId}/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Загружает новый аватар для чата (только админ)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Загрузить аватарку чата",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID чата",
+                        "name": "chatId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл аватара",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URL загруженного аватара",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат запроса",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1120,6 +1250,57 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/avatars": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает аватарки для списка пользователей по их ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Получить аватарки пользователей",
+                "parameters": [
+                    {
+                        "description": "Список ID пользователей",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Аватарки пользователей",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1176,9 +1357,6 @@ const docTemplate = `{
         "dto.ChatDetailedInformationDTO": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "can_chat": {
                     "type": "boolean"
                 },
@@ -1232,9 +1410,6 @@ const docTemplate = `{
         "dto.ChatViewInformationDTO": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "string",
                     "format": "uuid"
@@ -1263,6 +1438,32 @@ const docTemplate = `{
             "properties": {
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.GetAvatarsRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.GetAvatarsResponse": {
+            "type": "object",
+            "properties": {
+                "avatars": {
+                    "description": "map[id]url",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1334,8 +1535,9 @@ const docTemplate = `{
                     "type": "string",
                     "format": "date-time"
                 },
-                "sender_avatar_url": {
-                    "type": "string"
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
                 },
                 "sender_id": {
                     "type": "string",
@@ -1350,6 +1552,10 @@ const docTemplate = `{
                 "type": {
                     "description": "Тип сообщения - системное или пользовательское",
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
                 }
             }
         },
@@ -1418,9 +1624,6 @@ const docTemplate = `{
                 "account_type": {
                     "type": "string"
                 },
-                "avatar_url": {
-                    "type": "string"
-                },
                 "bio": {
                     "type": "string"
                 },
@@ -1450,9 +1653,6 @@ const docTemplate = `{
             "properties": {
                 "role": {
                     "description": "Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)",
-                    "type": "string"
-                },
-                "user_avatar": {
                     "type": "string"
                 },
                 "user_id": {
