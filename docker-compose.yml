@@ -96,7 +96,8 @@ services:
       gramm-network:
         aliases:
           - chats-service
-
+    image: lzimin05/100gramm_back_chats_service
+    
   app:
     build: .
     container_name: gramm_app
