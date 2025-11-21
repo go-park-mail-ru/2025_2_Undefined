@@ -1,11 +1,14 @@
 name: CD
-on: push
+on:
+  push
+
 
 env:
   DOCKER_HUB_LOGIN: "lzimin05"
   IMAGE_NAME: "100gramm_backend_app"
   IMAGE_NAME_AUTH: "100gramm_back_auth_service"
   IMAGE_NAME_USER: "100gramm_back_user_service"
+  IMAGE_NAME_CHATS: "100gramm_back_chats_service"
 
 jobs:
   build:
@@ -54,6 +57,16 @@ jobs:
           build-args: |
             IMAGE_NAME=${{ env.IMAGE_NAME_USER }}
             REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
+      - name: Сборка и отправка образа в DockerHub chats-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_HUB_LOGIN }}/${{ env.IMAGE_NAME_CHATS }}
+          file: ./deploy/user/Dockerfile
+          build-args: |
+            IMAGE_NAME=${{ env.IMAGE_NAME_CHATS }}
+            REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
   deploy:
     name: deploy
     runs-on: ubuntu-latest
@@ -83,5 +96,6 @@ jobs:
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME:latest
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_AUTH:latest
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_USER:latest
+            docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_CHATS:latest
             cd app && docker compose up -d
         
