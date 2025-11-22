@@ -87,7 +87,7 @@ func (h *UserGRPCProxyHandler) GetContacts(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var contacts []*ContactDTO.GetContactsDTO
+	contacts := make([]*ContactDTO.GetContactsDTO, 0)
 	for _, c := range res.Contacts {
 		createdAt, _ := time.Parse(time.RFC3339, c.CreatedAt)
 		updatedAt, _ := time.Parse(time.RFC3339, c.UpdatedAt)
