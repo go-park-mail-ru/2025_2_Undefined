@@ -35,21 +35,12 @@ func (uc *UserUsecase) GetUserById(ctx context.Context, id uuid.UUID) (*UserDto.
 		return nil, errs.ErrUserNotFound
 	}
 
-	avatar_url, err := uc.fileStorage.GetOne(ctx, user.AvatarID)
-	if err != nil {
-		logger.Warningf("could not get avatar URL for user %s: %v", user.ID, err)
-		avatar_url = ""
-	}
-
-	logger.Debugf("user avatar url is %s", avatar_url)
-
 	userdto := &UserDto.User{
 		ID:          user.ID,
 		PhoneNumber: user.PhoneNumber,
 		Name:        user.Name,
 		Username:    user.Username,
 		Bio:         user.Bio,
-		AvatarURL:   avatar_url,
 		AccountType: user.AccountType,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
@@ -69,19 +60,12 @@ func (uc *UserUsecase) GetUserByPhone(ctx context.Context, phone string) (*UserD
 		return nil, errs.ErrUserNotFound
 	}
 
-	avatar_url, err := uc.fileStorage.GetOne(ctx, user.AvatarID)
-	if err != nil {
-		logger.Warningf("could not get avatar URL for user %s: %v", user.ID, err)
-		avatar_url = ""
-	}
-
 	userdto := &UserDto.User{
 		ID:          user.ID,
 		PhoneNumber: user.PhoneNumber,
 		Name:        user.Name,
 		Username:    user.Username,
 		Bio:         user.Bio,
-		AvatarURL:   avatar_url,
 		AccountType: user.AccountType,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
@@ -101,19 +85,12 @@ func (uc *UserUsecase) GetUserByUsername(ctx context.Context, username string) (
 		return nil, errs.ErrUserNotFound
 	}
 
-	avatar_url, err := uc.fileStorage.GetOne(ctx, user.AvatarID)
-	if err != nil {
-		logger.Warningf("could not get avatar URL for user %s: %v", user.ID, err)
-		avatar_url = ""
-	}
-
 	userdto := &UserDto.User{
 		ID:          user.ID,
 		PhoneNumber: user.PhoneNumber,
 		Name:        user.Name,
 		Username:    user.Username,
 		Bio:         user.Bio,
-		AvatarURL:   avatar_url,
 		AccountType: user.AccountType,
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
@@ -162,4 +139,36 @@ func (uc *UserUsecase) UpdateUserInfo(ctx context.Context, userID uuid.UUID, nam
 	}
 
 	return nil
+}
+
+func (uc *UserUsecase) GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]*string, error) {
+	const op = "UserUsecase.GetUserAvatars"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_ids_count", len(userIDs))
+	logger.Debug("Starting usecase operation: get user avatars")
+
+	// Инициализируем карту для всех запрошенных ID со значением nil
+	avatars := make(map[string]*string, len(userIDs))
+	for _, userID := range userIDs {
+		avatars[userID.String()] = nil
+	}
+
+	avatarsIDs, err := uc.userrepo.GetUserAvatars(ctx, userIDs)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get user avatars from repository")
+		return nil, err
+	}
+
+	for userID, attachmentID := range avatarsIDs {
+		url, err := uc.fileStorage.GetOne(ctx, &attachmentID)
+		if err != nil {
+			avatars[userID] = nil
+		} else {
+			u := url
+			avatars[userID] = &u
+		}
+	}
+
+	logger.WithField("avatars_count", len(avatars)).Info("Usecase operation completed successfully: user avatars retrieved")
+	return avatars, nil
 }

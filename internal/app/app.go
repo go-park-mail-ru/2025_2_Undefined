@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	_ "github.com/go-park-mail-ru/2025_2_Undefined/docs"
+	_ "github.com/lib/pq"
+
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
@@ -15,31 +17,16 @@ import (
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
-	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
-	redisSessionRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis/session"
-	sessionutils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/session"
-	sessionuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
+	userHttpProxy "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/http"
 
-	userrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
-	usert "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user"
-	useruc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
+	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth/http"
+	authGen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
+	userGen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	authrepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/auth"
-	autht "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth"
-	authuc "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
-
-	chatsRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
-	chatsTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats"
-	chatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
-
-	messageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
-	messageTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/message"
-	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
-
-	contactRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/contact"
-	contactTransport "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/contact"
-	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
+	chatsHTTTPProxy "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats-message/http"
+	chatsGen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 )
 
 type App struct {
@@ -49,51 +36,48 @@ type App struct {
 }
 
 func NewApp(conf *config.Config) (*App, error) {
-	dbConn, err := repository.GetConnectionString(conf.DBConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get connection string: %v", err)
-	}
+	dbConn := repository.GetConnectionString(conf.DBConfig)
 
 	db, err := sql.Open("postgres", dbConn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	redisClient, err := redisClient.NewClient(conf.RedisConfig)
+	// Подключение к gRPC серверу авторизации
+	authGrpcConn, err := grpc.NewClient(
+		conf.GRPCConfig.AuthServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to redis: %v", err)
+		return nil, fmt.Errorf("failed to connect to auth gRPC service: %v", err)
 	}
 
-	minioClient, err := minio.NewMinioProvider(*conf.MinioConfig)
+	// Подключение к gRPC серверу user+contacts
+	userGrpcConn, err := grpc.NewClient(
+		conf.GRPCConfig.UserServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to minio: %v", err)
+		return nil, fmt.Errorf("failed to connect to user gRPC service: %v", err)
 	}
 
-	sessionRepo := redisSessionRepo.New(redisClient.Client, conf.SessionConfig.LifeSpan)
-	sessionUC := sessionuc.New(sessionRepo)
-	sessionUtils := sessionutils.NewSessionUtils(sessionUC, conf.SessionConfig)
+	chatsGrpcConn, err := grpc.NewClient(
+		conf.GRPCConfig.ChatsServiceAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to chats gRPC service: %v", err)
+	}
 
-	userRepo := userrepo.New(db)
-	userUC := useruc.New(userRepo, minioClient)
-	userHandler := usert.New(userUC, sessionUC, sessionUtils)
+	authClient := authGen.NewAuthServiceClient(authGrpcConn)
+	authHandler := autht.NewAuthGRPCProxyHandler(authClient, conf.SessionConfig)
 
-	authRepo := authrepo.New(db)
-	authUC := authuc.New(authRepo, userRepo, sessionRepo)
-	authHandler := autht.New(authUC, conf.SessionConfig, conf.CSRFConfig, sessionUtils)
+	userClient := userGen.NewUserServiceClient(userGrpcConn)
+	userHandler := userHttpProxy.NewUserGRPCProxyHandler(userClient)
 
-	chatsRepo := chatsRepository.NewChatsRepository(db)
-	messageRepo := messageRepository.NewMessageRepository(db)
-	listenerMap := messageUsecase.NewListenerMap()
-
-	chatsUC := chatsUsecase.NewChatsUsecase(chatsRepo, userRepo, messageRepo, minioClient)
-	messageUC := messageUsecase.NewMessageUsecase(messageRepo, userRepo, chatsRepo, minioClient, listenerMap)
-
-	chatsHandler := chatsTransport.NewChatsHandler(messageUC, chatsUC, sessionUtils)
-	messageHandler := messageTransport.NewMessageHandler(messageUC, chatsUC, sessionUtils)
-
-	contactRepo := contactRepository.New(db)
-	contactUC := contactUsecase.New(contactRepo, userRepo, minioClient)
-	contactHandler := contactTransport.New(contactUC, sessionUtils)
+	chatsClient := chatsGen.NewChatServiceClient(chatsGrpcConn)
+	messageClient := chatsGen.NewMessageServiceClient(chatsGrpcConn)
+	chatsHandler := chatsHTTTPProxy.NewChatsGRPCProxyHandler(chatsClient, messageClient)
 
 	// Настройка логгера
 	logger := logrus.New()
@@ -110,7 +94,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
 	protectedRouter := apiRouter.NewRoute().Subrouter()
-	protectedRouter.Use(middleware.AuthMiddleware(conf.SessionConfig, sessionUC))
+	protectedRouter.Use(middleware.AuthGRPCMiddleware(conf.SessionConfig, authClient))
 	protectedRouter.Use(middleware.CSRFMiddleware(conf.SessionConfig, conf.CSRFConfig))
 
 	authRouter := apiRouter.PathPrefix("").Subrouter()
@@ -129,29 +113,36 @@ func NewApp(conf *config.Config) (*App, error) {
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.DeleteChat).Methods(http.MethodDelete)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.UpdateChat).Methods(http.MethodPatch)
 		chatRouter.HandleFunc("/dialog/{user_id}", chatsHandler.GetUsersDialog).Methods(http.MethodGet)
+		chatRouter.HandleFunc("/avatars/query", chatsHandler.GetChatAvatars).Methods(http.MethodPost)
+		chatRouter.HandleFunc("/{chat_id}/avatar", chatsHandler.UploadChatAvatar).Methods(http.MethodPost)
 	}
 
 	userRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
 		userRouter.HandleFunc("/me", userHandler.GetCurrentUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/me", userHandler.UpdateUserInfo).Methods(http.MethodPatch)
-		userRouter.HandleFunc("/sessions", userHandler.GetSessionsByUser).Methods(http.MethodGet)
 		userRouter.HandleFunc("/user/by-phone", userHandler.GetUserByPhone).Methods(http.MethodPost)
 		userRouter.HandleFunc("/user/by-username", userHandler.GetUserByUsername).Methods(http.MethodPost)
-		userRouter.HandleFunc("/user/avatar", userHandler.UploadUserAvatar)
-		userRouter.HandleFunc("/session", userHandler.DeleteSession).Methods(http.MethodDelete)
-		userRouter.HandleFunc("/sessions", userHandler.DeleteAllSessionWithoutCurrent).Methods(http.MethodDelete)
+		userRouter.HandleFunc("/users/avatar", userHandler.UploadUserAvatar).Methods(http.MethodPost)
+		userRouter.HandleFunc("/users/avatars/query", userHandler.GetUserAvatars).Methods(http.MethodPost)
+	}
+
+	sessionRouter := protectedRouter.PathPrefix("").Subrouter()
+	{
+		sessionRouter.HandleFunc("/sessions", authHandler.GetSessionsByUser).Methods(http.MethodGet)
+		sessionRouter.HandleFunc("/session", authHandler.DeleteSession).Methods(http.MethodDelete)
+		sessionRouter.HandleFunc("/sessions", authHandler.DeleteAllSessionsExceptCurrent).Methods(http.MethodDelete)
 	}
 
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
-		messageRouter.HandleFunc("/message/ws", messageHandler.HandleMessages)
+		messageRouter.HandleFunc("/message/ws", chatsHandler.HandleMessages)
 	}
 
 	contactRouter := protectedRouter.PathPrefix("/contacts").Subrouter()
 	{
-		contactRouter.HandleFunc("", contactHandler.CreateContact).Methods(http.MethodPost)
-		contactRouter.HandleFunc("", contactHandler.GetContacts).Methods(http.MethodGet)
+		contactRouter.HandleFunc("", userHandler.CreateContact).Methods(http.MethodPost)
+		contactRouter.HandleFunc("", userHandler.GetContacts).Methods(http.MethodGet)
 	}
 
 	// Swagger

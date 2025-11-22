@@ -54,14 +54,13 @@ func TestMessageUsecase_NewMessageUsecase(t *testing.T) {
 }
 
 func TestMessageUsecase_AddMessage_Success(t *testing.T) {
-	uc, mockMessageRepo, mockUserRepo, mockChatsRepo, mockFileStorage, _ := setupMessageUsecase(t)
+	uc, mockMessageRepo, mockUserRepo, mockChatsRepo, _, _ := setupMessageUsecase(t)
 	defer uc.Stop()
 
 	ctx := context.Background()
 	userID := uuid.New()
 	chatID := uuid.New()
 	messageID := uuid.New()
-	avatarID := uuid.New()
 
 	msg := dtoMessage.CreateMessageDTO{
 		ChatId:    chatID,
@@ -70,9 +69,8 @@ func TestMessageUsecase_AddMessage_Success(t *testing.T) {
 	}
 
 	user := &modelsUser.User{
-		ID:       userID,
-		Name:     "Test User",
-		AvatarID: &avatarID,
+		ID:   userID,
+		Name: "Test User",
 	}
 
 	// Проверяем права пользователя (false означает, что пользователь НЕ viewer, то есть имеет права)
@@ -80,9 +78,6 @@ func TestMessageUsecase_AddMessage_Success(t *testing.T) {
 
 	// Получаем пользователя
 	mockUserRepo.EXPECT().GetUserByID(ctx, userID).Return(user, nil)
-
-	// Получаем URL аватара
-	mockFileStorage.EXPECT().GetOne(ctx, user.AvatarID).Return("http://example.com/avatar.jpg", nil)
 
 	// Вставляем сообщение в базу данных
 	mockMessageRepo.EXPECT().InsertMessage(ctx, gomock.Any()).Return(messageID, nil)
@@ -175,7 +170,7 @@ func TestMessageUsecase_SubscribeConnectionToChats_Success(t *testing.T) {
 }
 
 func TestMessageUsecase_SubscribeUsersOnChat_Success(t *testing.T) {
-	uc, mockMessageRepo, _, mockChatsRepo, mockFileStorage, mockListenerMap := setupMessageUsecase(t)
+	uc, mockMessageRepo, _, mockChatsRepo, _, mockListenerMap := setupMessageUsecase(t)
 	defer uc.Stop()
 
 	ctx := context.Background()
@@ -221,7 +216,6 @@ func TestMessageUsecase_SubscribeUsersOnChat_Success(t *testing.T) {
 
 	mockChatsRepo.EXPECT().GetChat(ctx, chatID).Return(chat, nil)
 	mockMessageRepo.EXPECT().GetMessagesOfChat(ctx, chatID, 0, 1).Return(messages, nil)
-	mockFileStorage.EXPECT().GetOne(ctx, messages[0].UserAvatarID).Return("http://example.com/avatar.jpg", nil)
 	mockListenerMap.EXPECT().AddChatToUserSubscription(userID, chatID).Return(userConnections)
 	mockListenerMap.EXPECT().GetOutgoingChannel(connectionID).Return(outChannel)
 

@@ -36,8 +36,6 @@ definitions:
     type: object
   dto.ChatDetailedInformationDTO:
     properties:
-      avatar_url:
-        type: string
       can_chat:
         type: boolean
       description:
@@ -73,8 +71,6 @@ definitions:
     type: object
   dto.ChatViewInformationDTO:
     properties:
-      avatar_url:
-        type: string
       id:
         format: uuid
         type: string
@@ -94,6 +90,23 @@ definitions:
     properties:
       message:
         type: string
+    type: object
+  dto.GetAvatarsRequest:
+    properties:
+      ids:
+        items:
+          type: string
+        type: array
+    required:
+    - ids
+    type: object
+  dto.GetAvatarsResponse:
+    properties:
+      avatars:
+        additionalProperties:
+          type: string
+        description: map[id]url
+        type: object
     type: object
   dto.GetContactsDTO:
     properties:
@@ -140,7 +153,8 @@ definitions:
       created_at:
         format: date-time
         type: string
-      sender_avatar_url:
+      id:
+        format: uuid
         type: string
       sender_id:
         format: uuid
@@ -151,6 +165,9 @@ definitions:
         type: string
       type:
         description: Тип сообщения - системное или пользовательское
+        type: string
+      updated_at:
+        format: date-time
         type: string
     type: object
   dto.PostContactDTO:
@@ -196,8 +213,6 @@ definitions:
     properties:
       account_type:
         type: string
-      avatar_url:
-        type: string
       bio:
         type: string
       created_at:
@@ -219,8 +234,6 @@ definitions:
       role:
         description: Роль пользователя в чате - админ(писать и добавлять участников),
           участник(писать), зритель (только просмотр)
-        type: string
-      user_avatar:
         type: string
       user_id:
         format: uuid
@@ -450,6 +463,58 @@ paths:
       summary: Обновить чат
       tags:
       - chats
+  /chats/{chatId}/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Загружает новый аватар для чата (только админ)
+      parameters:
+      - description: CSRF Token
+        in: header
+        name: X-CSRF-Token
+        required: true
+        type: string
+      - description: ID чата
+        format: uuid
+        in: path
+        name: chatId
+        required: true
+        type: string
+      - description: Файл аватара
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: URL загруженного аватара
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Неверный формат запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "403":
+          description: Нет прав для изменения чата
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "404":
+          description: Чат не найден
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Загрузить аватарку чата
+      tags:
+      - chats
   /chats/{chatId}/members:
     patch:
       consumes:
@@ -489,6 +554,38 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Добавить пользователей в чат
+      tags:
+      - chats
+  /chats/avatars:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает аватарки для списка чатов по их ID
+      parameters:
+      - description: Список ID чатов
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetAvatarsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Аватарки чатов
+          schema:
+            $ref: '#/definitions/dto.GetAvatarsResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Получить аватарки чатов
       tags:
       - chats
   /chats/dialog/{otherUserId}:
@@ -602,8 +699,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Аутентифицирует пользователя по номеру телефона и паролю, создает
-        сессию
+      description: Аутентифицирует пользователя по номеру телефона и паролю через
+        gRPC микросервис, создает сессию
       parameters:
       - description: Креденшиалы для входа
         in: body
@@ -633,7 +730,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Аннулирует текущую сессию и удаляет cookie
+      description: Аннулирует текущую сессию через gRPC микросервис и удаляет cookie
       parameters:
       - description: CSRF Token
         in: header
@@ -678,8 +775,7 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Частичное обновление информации пользователя. Можно обновить только
-        нужные поля.
+      description: Обновляет имя, username или bio текущего пользователя
       parameters:
       - description: CSRF Token
         in: header
@@ -688,7 +784,7 @@ paths:
         type: string
       - description: Данные для обновления
         in: body
-        name: request
+        name: user
         required: true
         schema:
           $ref: '#/definitions/dto.UpdateUserInfo'
@@ -696,24 +792,18 @@ paths:
       - application/json
       responses:
         "200":
-          description: Информация пользователя обновилось
+          description: Информация успешно обновлена
         "400":
-          description: Bad Request
+          description: Неверный формат запроса
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "401":
-          description: Unauthorized
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-      summary: Обновить информацию пользователя
+      security:
+      - ApiKeyAuth: []
+      summary: Обновить информацию о пользователе
       tags:
       - user
   /message/ws:
@@ -775,7 +865,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Регистрирует нового пользователя в системе и создает сессию
+      description: Регистрирует нового пользователя в системе через gRPC микросервис
+        и создает сессию
       parameters:
       - description: Данные для регистрации
         in: body
@@ -831,7 +922,7 @@ paths:
       - ApiKeyAuth: []
       summary: удалить сессию пользователя
       tags:
-      - user
+      - auth
   /sessions:
     delete:
       consumes:
@@ -860,7 +951,7 @@ paths:
       - ApiKeyAuth: []
       summary: удалить сессии пользователя, кроме текущей
       tags:
-      - user
+      - auth
     get:
       consumes:
       - application/json
@@ -886,13 +977,12 @@ paths:
       - ApiKeyAuth: []
       summary: Получить список сессий пользователя
       tags:
-      - user
+      - auth
   /user/avatar:
     post:
       consumes:
       - multipart/form-data
-      description: Позволяет текущему авторизованному пользователю загрузить или обновить
-        свой аватар
+      description: Загружает новый аватар для текущего пользователя
       parameters:
       - description: CSRF Token
         in: header
@@ -914,15 +1004,11 @@ paths:
               type: string
             type: object
         "400":
-          description: Ошибка загрузки файла
+          description: Неверный формат запроса
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "401":
           description: Неавторизованный доступ
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
       security:
@@ -941,7 +1027,7 @@ paths:
         name: X-CSRF-Token
         required: true
         type: string
-      - description: Запрос с номером телефона
+      - description: Номер телефона
         in: body
         name: request
         required: true
@@ -955,15 +1041,15 @@ paths:
           schema:
             $ref: '#/definitions/dto.User'
         "400":
-          description: Неверный формат номера телефона
+          description: Неверный формат запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "404":
           description: Пользователь не найден
-          schema:
-            $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
       security:
@@ -975,14 +1061,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Возвращает полные данные о пользователе по указанному имени пользователя
+      description: Возвращает полные данные о пользователе по указанному username
       parameters:
       - description: CSRF Token
         in: header
         name: X-CSRF-Token
         required: true
         type: string
-      - description: Запрос с именем пользователя
+      - description: Username пользователя
         in: body
         name: request
         required: true
@@ -996,20 +1082,52 @@ paths:
           schema:
             $ref: '#/definitions/dto.User'
         "400":
-          description: Неверный формат имени пользователя
+          description: Неверный формат запроса
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
         "404":
           description: Пользователь не найден
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
-        "500":
-          description: Внутренняя ошибка сервера
+      security:
+      - ApiKeyAuth: []
+      summary: Получить информацию о пользователе по username
+      tags:
+      - user
+  /users/avatars:
+    post:
+      consumes:
+      - application/json
+      description: Возвращает аватарки для списка пользователей по их ID
+      parameters:
+      - description: Список ID пользователей
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GetAvatarsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Аватарки пользователей
+          schema:
+            $ref: '#/definitions/dto.GetAvatarsResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
           schema:
             $ref: '#/definitions/dto.ErrorDTO'
       security:
       - ApiKeyAuth: []
-      summary: Получить информацию о пользователе по имени пользователя
+      summary: Получить аватарки пользователей
       tags:
       - user
 swagger: "2.0"

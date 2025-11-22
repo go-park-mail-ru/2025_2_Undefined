@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
+	minio "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
 )
@@ -92,6 +93,21 @@ func (m *MockChatsRepository) GetChat(ctx context.Context, chatID uuid.UUID) (*m
 func (mr *MockChatsRepositoryMockRecorder) GetChat(ctx, chatID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChat", reflect.TypeOf((*MockChatsRepository)(nil).GetChat), ctx, chatID)
+}
+
+// GetChatAvatars mocks base method.
+func (m *MockChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChatAvatars", ctx, chatIDs)
+	ret0, _ := ret[0].(map[string]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetChatAvatars indicates an expected call of GetChatAvatars.
+func (mr *MockChatsRepositoryMockRecorder) GetChatAvatars(ctx, chatIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChatAvatars", reflect.TypeOf((*MockChatsRepository)(nil).GetChatAvatars), ctx, chatIDs)
 }
 
 // GetChats mocks base method.
@@ -180,4 +196,18 @@ func (m *MockChatsRepository) UpdateChat(ctx context.Context, userID, chatID uui
 func (mr *MockChatsRepositoryMockRecorder) UpdateChat(ctx, userID, chatID, name, description interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChat", reflect.TypeOf((*MockChatsRepository)(nil).UpdateChat), ctx, userID, chatID, name, description)
+}
+
+// UpdateChatAvatar mocks base method.
+func (m *MockChatsRepository) UpdateChatAvatar(ctx context.Context, chatID uuid.UUID, fileData minio.FileData) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateChatAvatar", ctx, chatID, fileData)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateChatAvatar indicates an expected call of UpdateChatAvatar.
+func (mr *MockChatsRepositoryMockRecorder) UpdateChatAvatar(ctx, chatID, fileData interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChatAvatar", reflect.TypeOf((*MockChatsRepository)(nil).UpdateChatAvatar), ctx, chatID, fileData)
 }

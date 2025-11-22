@@ -20,6 +20,7 @@ type Config struct {
 	MigrationsConfig *MigrationsConfig
 	RedisConfig      *RedisConfig
 	MinioConfig      *MinioConfig
+	GRPCConfig       *GRPCConfig
 }
 
 type DBConfig struct {
@@ -68,6 +69,15 @@ type MigrationsConfig struct {
 	Path string
 }
 
+type GRPCConfig struct {
+	AuthServiceAddr  string
+	AuthServicePort  string
+	UserServiceAddr  string
+	UserServicePort  string
+	ChatsServiceAddr string
+	ChatsServicePort string
+}
+
 func NewConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("error loading .env file: %v", err)
@@ -108,6 +118,11 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	grpcConfig, err := newGRPCConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		DBConfig:         dbConfig,
 		ServerConfig:     serverConfig,
@@ -116,6 +131,7 @@ func NewConfig() (*Config, error) {
 		MigrationsConfig: migrationsConfig,
 		RedisConfig:      redisConfig,
 		MinioConfig:      minioConfig,
+		GRPCConfig:       grpcConfig,
 	}, nil
 }
 
@@ -192,6 +208,7 @@ func parseDurationWithDays(s string) (time.Duration, error) {
 
 	return time.ParseDuration(s)
 }
+
 func newCSRFConfig() (*CSRFConfig, error) {
 	secret, secretExists := os.LookupEnv("CSRF_SECRET")
 	if !secretExists {
@@ -280,4 +297,45 @@ func newMinioConfig() (*MinioConfig, error) {
 	logger.Debugf("minio config is %v", cfg)
 
 	return cfg, nil
+}
+
+func newGRPCConfig() (*GRPCConfig, error) {
+	authServiceAddr := os.Getenv("AUTH_SERVICE_ADDR")
+	if authServiceAddr == "" {
+		authServiceAddr = "localhost:50051" // default
+	}
+
+	authServicePort := os.Getenv("AUTH_GRPC_PORT")
+	if authServicePort == "" {
+		authServicePort = "50051" // default порт
+	}
+
+	userServiceAddr := os.Getenv("USER_SERVICE_ADDR")
+	if userServiceAddr == "" {
+		userServiceAddr = "localhost:50052" // default
+	}
+
+	userServicePort := os.Getenv("USER_GRPC_PORT")
+	if userServicePort == "" {
+		userServicePort = "50052" // default порт
+	}
+
+	chatsServiceAddr := os.Getenv("CHATS_SERVICE_ADDR")
+	if chatsServiceAddr == "" {
+		chatsServiceAddr = "localhost:50053" // default
+	}
+
+	chatsServicePort := os.Getenv("CHATS_GRPC_PORT")
+	if chatsServicePort == "" {
+		chatsServicePort = "50053" // default порт
+	}
+
+	return &GRPCConfig{
+		AuthServiceAddr:  authServiceAddr,
+		AuthServicePort:  authServicePort,
+		UserServiceAddr:  userServiceAddr,
+		UserServicePort:  userServicePort,
+		ChatsServiceAddr: chatsServiceAddr,
+		ChatsServicePort: chatsServicePort,
+	}, nil
 }

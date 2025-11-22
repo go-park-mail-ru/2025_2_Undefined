@@ -71,19 +71,12 @@ func (uc *ContactUsecase) GetContacts(ctx context.Context, userID uuid.UUID) ([]
 			return nil, err
 		}
 
-		avatar_url, err := uc.fileStorage.GetOne(ctx, contactUserInfoModels.AvatarID)
-		if err != nil {
-			logger.Warningf("could not get avatar URL for user %s: %v", contactUserInfoModels.ID, err)
-			avatar_url = ""
-		}
-
 		contactUserInfoDTO := &UserDTO.User{
 			ID:          contactUserInfoModels.ID,
 			PhoneNumber: contactUserInfoModels.PhoneNumber,
 			Name:        contactUserInfoModels.Name,
 			Username:    contactUserInfoModels.Username,
 			Bio:         contactUserInfoModels.Bio,
-			AvatarURL:   avatar_url,
 			AccountType: contactUserInfoModels.AccountType,
 			CreatedAt:   contactUserInfoModels.CreatedAt,
 			UpdatedAt:   contactUserInfoModels.UpdatedAt,

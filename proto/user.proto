@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package user;
+option go_package = "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user";
+
+/* ############### User ############### */
+message User {
+  string id = 1;
+  string phone_number = 2;
+  string name = 3;
+  string username = 4;
+  string bio = 5;
+  string avatar_url = 6;
+  string account_type = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+/* ############### GetUserById ############### */
+message GetUserByIdReq {
+  string user_id = 1;
+}
+
+message GetUserByIdRes {
+  User user = 1;
+}
+
+/* ############### GetUserByPhone ############### */
+message GetUserByPhoneReq {
+  string phone_number = 1;
+}
+
+message GetUserByPhoneRes {
+  User user = 1;
+}
+
+/* ############### GetUserByUsername ############### */
+message GetUserByUsernameReq {
+  string username = 1;
+}
+
+message GetUserByUsernameRes {
+  User user = 1;
+}
+
+/* ############### UpdateUserInfo ############### */
+message UpdateUserInfoReq {
+  string user_id = 1;
+  optional string name = 2;
+  optional string username = 3;
+  optional string bio = 4;
+}
+
+/* ############### UploadUserAvatar ############### */
+message UploadUserAvatarReq {
+  string user_id = 1;
+  bytes data = 2;
+  string filename = 3;
+  string content_type = 4;
+}
+
+message UploadUserAvatarRes {
+  string avatar_url = 1;
+}
+
+/* ############### Contact ############### */
+message Contact {
+  string id = 1;
+  string phone_number = 2;
+  string name = 3;
+  string username = 4;
+  string bio = 5;
+  string avatar_url = 6;
+  string account_type = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+/* ############### CreateContact ############### */
+message CreateContactReq {
+  string user_id = 1;
+  string contact_user_id = 2;
+}
+
+/* ############### GetContacts ############### */
+message GetContactsReq {
+  string user_id = 1;
+}
+
+message GetContactsRes {
+  repeated Contact contacts = 1;
+}
+
+/* ############### GetUserAvatars ############### */
+message GetUserAvatarsReq {
+  repeated string user_ids = 1;
+}
+
+message GetUserAvatarsRes {
+  map<string, string> avatars = 1; // user_id -> avatar_url
+}
+
+/* ############### UserService ############### */
+service UserService {
+  rpc GetUserById(GetUserByIdReq) returns (GetUserByIdRes);
+  rpc GetUserByPhone(GetUserByPhoneReq) returns (GetUserByPhoneRes);
+  rpc GetUserByUsername(GetUserByUsernameReq) returns (GetUserByUsernameRes);
+  rpc UpdateUserInfo(UpdateUserInfoReq) returns (google.protobuf.Empty);
+  rpc UploadUserAvatar(UploadUserAvatarReq) returns (UploadUserAvatarRes);
+  rpc CreateContact(CreateContactReq) returns (google.protobuf.Empty);
+  rpc GetContacts(GetContactsReq) returns (GetContactsRes);
+  rpc GetUserAvatars(GetUserAvatarsReq) returns (GetUserAvatarsRes);
+}

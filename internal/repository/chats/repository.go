@@ -1,12 +1,12 @@
 package repository
 
-import "database/sql"
+import "github.com/jackc/pgx/v5/pgxpool"
 
 type ChatsRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewChatsRepository(db *sql.DB) *ChatsRepository {
+func NewChatsRepository(db *pgxpool.Pool) *ChatsRepository {
 	return &ChatsRepository{
 		db: db,
 	}

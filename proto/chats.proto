@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+package chats;
+option go_package = "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats";
+
+// Запросы/ответы для работы с чатами и сообщениями
+message Chat {
+    string id = 1;
+    string name = 2;
+    Message last_message = 3;
+    string type = 4;
+    optional string avatar_url = 5;
+}
+
+message UserInfoChat {
+    string user_id = 1;
+    string user_name = 2;
+    optional string user_avatar = 3;
+    string role = 4;
+}
+
+message ChatDetailedInformation {
+    string id = 1;
+    string name = 2;
+    optional string description = 3;
+    bool is_admin = 4;
+    bool can_chat = 5;
+    bool is_member = 6;
+    bool is_private = 7;
+    string type = 8;
+    repeated Message messages = 9;
+    repeated UserInfoChat members = 10;
+    optional string avatar_url = 11;
+}
+
+message GetChatsReq {
+    string user_id = 1;
+}
+
+message GetChatsRes {
+    repeated Chat chats = 1;
+}
+
+message GetChatReq {
+    string user_id = 1;
+    string chat_id = 2;
+}
+
+message GetUsersDialogReq{
+    string user1_id = 1;
+    string user2_id = 2;
+}
+
+message AddMember{
+    string user_id = 1;
+    string role = 2;
+}
+
+message CreateChatReq {
+    string name = 1;
+    repeated AddMember members = 2;
+    string type = 3;
+}
+
+message IdRes {
+    string id = 1;
+}
+
+message UpdateChatReq {
+    string user_id = 1;
+    string chat_id = 2;
+    optional string name = 3;
+    optional string description = 4;
+}
+
+message AddUserToChatReq {
+    string user_id = 1;
+    string chat_id = 2;
+    repeated AddMember members = 3;
+}
+
+message RemoveUserFromChatReq {
+    string chat_id = 1;
+    string user_id = 2;
+}
+
+message MessageEventReq {
+    string user_id = 1;
+    oneof event {
+        CreateMessage new_chat_message = 2;
+        EditMessage edit_chat_message = 3;
+        DeleteMessage delete_chat_message = 4;
+    }
+}
+
+message MessageEventRes {
+    string chat_id = 1;
+    oneof event {
+        Message new_chat_message = 2;
+        Chat new_chat_created = 3;
+        EditMessage edit_chat_message = 4;
+        DeleteMessage delete_chat_message = 5;
+        UserJoined user_joined = 6;
+    }
+}
+
+message CreateMessage {
+    string chat_id = 1;
+    string text = 2;
+}
+
+message Message {
+    string id = 1;
+    string chat_id = 2;
+    optional string sender_id = 3;
+    string sender_name = 4;
+    string text = 5;
+    string created_at = 6;
+    string type = 7;
+}
+
+message EditMessage {
+    string message_id = 1;
+    string text = 2;
+    google.protobuf.Timestamp updated_at = 3;
+}
+
+message DeleteMessage{
+    string message_id = 1;
+}
+
+message UserJoined {
+    string chat_id = 1;
+    string user_id = 2;
+}
+
+message StreamMessagesForUserReq{
+    string user_id = 1;
+}
+
+message GetChatAvatarsReq {
+    repeated string chat_ids = 1;
+}
+
+message GetChatAvatarsRes {
+    map<string, string> avatars = 1; // chat_id -> avatar_url
+}
+
+// Сервисы
+service ChatService {
+    rpc GetChats(GetChatsReq) returns (GetChatsRes);
+    rpc GetChat(GetChatReq) returns (ChatDetailedInformation);
+    rpc GetUsersDialog(GetUsersDialogReq) returns (IdRes);
+    rpc CreateChat(CreateChatReq) returns (IdRes);
+    rpc UpdateChat(UpdateChatReq) returns (google.protobuf.Empty);
+    rpc DeleteChat(GetChatReq) returns (google.protobuf.Empty);
+    rpc AddUserToChat(AddUserToChatReq) returns (google.protobuf.Empty);
+    rpc RemoveUserFromChat(RemoveUserFromChatReq) returns (google.protobuf.Empty);
+    rpc GetChatAvatars(GetChatAvatarsReq) returns (GetChatAvatarsRes);
+    rpc UploadChatAvatar(UploadChatAvatarReq) returns (UploadChatAvatarRes);
+}
+
+message UploadChatAvatarReq {
+    string user_id = 1;
+    string chat_id = 2;
+    bytes data = 3;
+    string filename = 4;
+    string content_type = 5;
+}
+
+message UploadChatAvatarRes {
+    string avatar_url = 1;
+}
+
+service MessageService {
+    rpc StreamMessagesForUser(StreamMessagesForUserReq) returns (stream MessageEventRes);
+    rpc HandleSendMessage(MessageEventReq) returns (google.protobuf.Empty);
+}

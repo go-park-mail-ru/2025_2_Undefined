@@ -1,12 +1,121 @@
 services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: deploy/auth/Dockerfile
+    container_name: gramm_auth_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
+      AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
+      AUTH_REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
+      AUTH_REDIS_DB: ${AUTH_REDIS_DB:-0}
+      SESSION_TOKEN_LIFESPAN: ${SESSION_TOKEN_LIFESPAN}
+      CSRF_SECRET: ${CSRF_SECRET}
+      CSRF_TIMEOUT: ${CSRF_TIMEOUT}
+    ports:
+      - "${AUTH_GRPC_PORT}:${AUTH_GRPC_PORT}"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      auth_redis:
+        condition: service_healthy
+    networks:
+      gramm-network:
+        aliases:
+          - auth-service
+    image: lzimin05/100gramm_back_auth_service
+
+  user-service:
+    build:
+      context: .
+      dockerfile: deploy/user/Dockerfile
+    container_name: gramm_user_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_HOST: minio
+      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "${USER_GRPC_PORT}:${USER_GRPC_PORT}"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      gramm-network:
+        aliases:
+          - user-service
+    image: lzimin05/100gramm_back_user_service
+
+  chats-service:
+    build:
+      context: .
+      dockerfile: deploy/chats/Dockerfile
+    container_name: gramm_chats_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_HOST: minio
+      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "${CHATS_GRPC_PORT}:${CHATS_GRPC_PORT}"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      gramm-network:
+        aliases:
+          - chats-service
+    image: lzimin05/100gramm_back_chats_service
+    
   app:
     build: .
     container_name: gramm_app
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      AUTH_SERVICE_ADDR: auth-service:50051
+      USER_SERVICE_ADDR: user-service:50052
+      CHATS_SERVICE_ADDR: chats-service:50053
     depends_on:
       db:
         condition: service_healthy
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      chats-service:
+        condition: service_started
     networks:
       - gramm-network
     image: lzimin05/100gramm_backend_app

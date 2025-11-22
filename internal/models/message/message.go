@@ -19,6 +19,7 @@ type Message struct {
 	UserAvatarID *uuid.UUID
 	Text         string
 	CreatedAt    time.Time
+	UpdatedAt    *time.Time
 	Type         string
 }
 

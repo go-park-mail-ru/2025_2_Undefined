@@ -12,61 +12,20 @@ const (
 		FROM chat c
 		WHERE c.id = $1`
 
-	getChatWithAvatarQuery = `
-		SELECT 
-			c.id, 
-			c.chat_type::text, 
-			c.name,
-			c.description,
-			CASE 
-				WHEN c.chat_type = 'dialog' THEN (
-					SELECT a.id 
-					FROM avatar_user au 
-					JOIN attachment a ON au.attachment_id = a.id 
-					JOIN chat_member cm ON au.user_id = cm.user_id 
-					WHERE cm.chat_id = c.id 
-					AND cm.user_id != $1  -- ID текущего пользователя
-					LIMIT 1
-				)
-				ELSE (
-					SELECT a.id 
-					FROM avatar_chat ac 
-					JOIN attachment a ON ac.attachment_id = a.id 
-					WHERE ac.chat_id = c.id 
-					LIMIT 1
-				)
-			END as avatar_id
-		FROM chat c 
-		WHERE c.id = $2;`
-
 	getUsersOfChat = `
-		WITH latest_avatars AS (
-			SELECT DISTINCT ON (user_id) user_id, attachment_id
-			FROM avatar_user 
-			ORDER BY user_id, created_at DESC
-		)
 		SELECT 
 			cm.user_id, cm.chat_id, usr.name, 
-			la.attachment_id,
 			cm.chat_member_role::text
 		FROM chat_member cm
 		JOIN "user" usr ON usr.id = cm.user_id
-		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.chat_id = $1`
 
 	getUserInfo = `
-		WITH latest_avatars AS (
-			SELECT DISTINCT ON (user_id) user_id, attachment_id
-			FROM avatar_user 
-			ORDER BY user_id, created_at DESC
-		)
 		SELECT 
 			cm.user_id, cm.chat_id, usr.name, 
-			la.attachment_id,
 			cm.chat_member_role::text
 		FROM chat_member cm
 		JOIN "user" usr ON usr.id = cm.user_id
-		LEFT JOIN latest_avatars la ON la.user_id = cm.user_id
 		WHERE cm.user_id = $1 AND cm.chat_id = $2`
 
 	getUsersDialogQuery = `
@@ -85,4 +44,25 @@ const (
 	deleteChatQuery = `DELETE FROM chat WHERE id = $1`
 
 	updateChatQuery = `UPDATE chat SET name = $1, description = $2 WHERE id = $3`
+
+	getChatAvatarsQuery = `
+		WITH latest_avatars AS (
+			SELECT DISTINCT ON (ac.chat_id) 
+				ac.chat_id, 
+				a.id as attachment_id
+			FROM avatar_chat ac
+			JOIN attachment a ON ac.attachment_id = a.id
+			WHERE ac.chat_id = ANY($1)
+			ORDER BY ac.chat_id, ac.created_at DESC
+		)
+		SELECT chat_id, attachment_id 
+		FROM latest_avatars`
+
+	insertChatAvatarInAttachmentTableQuery = `
+		INSERT INTO attachment (id, file_name, file_size, content_disposition)
+		VALUES ($1, $2, $3, $4)`
+
+	insertChatAvatarInAvatarChatTableQuery = `
+		INSERT INTO avatar_chat (chat_id, attachment_id)
+		VALUES ($1, $2)`
 )
