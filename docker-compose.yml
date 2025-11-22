@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      POSTGRES_PORT: ${POSTGRES_PORT}
       AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
       AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
       AUTH_REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
@@ -18,7 +18,7 @@ services:
       CSRF_SECRET: ${CSRF_SECRET}
       CSRF_TIMEOUT: ${CSRF_TIMEOUT}
     ports:
-      - "${AUTH_GRPC_PORT}:50051"
+      - "${AUTH_GRPC_PORT}:${AUTH_GRPC_PORT}"
     volumes:
       - ./.env:/app/.env
     depends_on:
@@ -42,7 +42,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      POSTGRES_PORT: ${POSTGRES_PORT}
       MINIO_PORT: ${MINIO_PORT}
       MINIO_HOST: minio
       MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
@@ -51,7 +51,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_USE_SSL: ${MINIO_USE_SSL}
     ports:
-      - "${USER_GRPC_PORT}:50052"
+      - "${USER_GRPC_PORT}:${USER_GRPC_PORT}"
     volumes:
       - ./.env:/app/.env
     depends_on:
@@ -75,7 +75,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      POSTGRES_PORT: ${POSTGRES_PORT}
       MINIO_PORT: ${MINIO_PORT}
       MINIO_HOST: minio
       MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
@@ -84,7 +84,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_USE_SSL: ${MINIO_USE_SSL}
     ports:
-      - "${CHATS_GRPC_PORT}:50053"
+      - "${CHATS_GRPC_PORT}:${CHATS_GRPC_PORT}"
     volumes:
       - ./.env:/app/.env
     depends_on:

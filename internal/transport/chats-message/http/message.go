@@ -128,6 +128,7 @@ func (h *ChatsGRPCProxyHandler) readMessages(ctx context.Context, cancel context
 	if err != nil {
 		logger.WithError(err).Error("Error getting stream messages")
 		h.writeJSONErrorWebSocket(conn, "error getting stream messages")
+		return
 	}
 
 	pingTicker := time.NewTicker(30 * time.Second) // Интервал пинга

@@ -506,6 +506,7 @@ func DTOWebSocketMessageToProtoEventRes(wsMsg dtoMessage.WebSocketMessageDTO) (*
 		if msgDTO, ok := wsMsg.Value.(dtoMessage.MessageDTO); ok {
 			protoMsg := DTOMessageToProto(msgDTO)
 			return &gen.MessageEventRes{
+				ChatId: wsMsg.ChatID.String(),
 				Event: &gen.MessageEventRes_NewChatMessage{
 					NewChatMessage: protoMsg,
 				},
@@ -517,6 +518,7 @@ func DTOWebSocketMessageToProtoEventRes(wsMsg dtoMessage.WebSocketMessageDTO) (*
 		if chatDTO, ok := wsMsg.Value.(dtoChats.ChatViewInformationDTO); ok {
 			protoChat := DTOChatViewToProto(chatDTO)
 			return &gen.MessageEventRes{
+				ChatId: wsMsg.ChatID.String(),
 				Event: &gen.MessageEventRes_NewChatCreated{
 					NewChatCreated: protoChat,
 				},
@@ -527,6 +529,7 @@ func DTOWebSocketMessageToProtoEventRes(wsMsg dtoMessage.WebSocketMessageDTO) (*
 	case dtoMessage.WebSocketMessageTypeEditChatMessage:
 		if editDTO, ok := wsMsg.Value.(dtoMessage.EditMessageDTO); ok {
 			return &gen.MessageEventRes{
+				ChatId: wsMsg.ChatID.String(),
 				Event: &gen.MessageEventRes_EditChatMessage{
 					EditChatMessage: protoEditMessageToGen(wsMsg.ChatID, editDTO),
 				},
@@ -537,6 +540,7 @@ func DTOWebSocketMessageToProtoEventRes(wsMsg dtoMessage.WebSocketMessageDTO) (*
 	case dtoMessage.WebSocketMessageTypeDeleteChatMessage:
 		if deleteDTO, ok := wsMsg.Value.(dtoMessage.DeleteMessageDTO); ok {
 			return &gen.MessageEventRes{
+				ChatId: wsMsg.ChatID.String(),
 				Event: &gen.MessageEventRes_DeleteChatMessage{
 					DeleteChatMessage: protoDeleteMessageToGen(wsMsg.ChatID, deleteDTO),
 				},
@@ -547,6 +551,7 @@ func DTOWebSocketMessageToProtoEventRes(wsMsg dtoMessage.WebSocketMessageDTO) (*
 	case "user_joined":
 		if userJoinedDTO, ok := wsMsg.Value.(dtoMessage.UserJoinedDTO); ok {
 			return &gen.MessageEventRes{
+				ChatId: wsMsg.ChatID.String(),
 				Event: &gen.MessageEventRes_UserJoined{
 					UserJoined: &gen.UserJoined{
 						ChatId: wsMsg.ChatID.String(),
