@@ -63,7 +63,7 @@ jobs:
           context: .
           push: true
           tags: ${{ env.DOCKER_HUB_LOGIN }}/${{ env.IMAGE_NAME_CHATS }}
-          file: ./deploy/user/Dockerfile
+          file: ./deploy/chats/Dockerfile
           build-args: |
             IMAGE_NAME=${{ env.IMAGE_NAME_CHATS }}
             REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
