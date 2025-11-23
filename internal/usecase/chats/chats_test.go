@@ -28,7 +28,7 @@ func createTestHandler(ctrl *gomock.Controller) (*ChatsUsecase, *mocks.MockChats
 func TestGetChats_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	service, mockChatsRepo, mockMessageRepo, _, mockStorage := createTestHandler(ctrl)
+	service, mockChatsRepo, mockMessageRepo, _, _ := createTestHandler(ctrl)
 
 	userId := uuid.New()
 	chatId := uuid.New()
@@ -45,10 +45,6 @@ func TestGetChats_Success(t *testing.T) {
 			Text:      "Hello",
 			CreatedAt: time.Now(),
 		}}, nil)
-
-	mockStorage.EXPECT().
-		GetOne(gomock.Any(), gomock.Any()).
-		Return("", nil)
 
 	chats, err := service.GetChats(context.Background(), userId)
 

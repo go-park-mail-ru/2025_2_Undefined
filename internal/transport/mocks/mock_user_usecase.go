@@ -36,6 +36,21 @@ func (m *MockUserUsecase) EXPECT() *MockUserUsecaseMockRecorder {
 	return m.recorder
 }
 
+// GetUserAvatars mocks base method.
+func (m *MockUserUsecase) GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]*string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserAvatars", ctx, userIDs)
+	ret0, _ := ret[0].(map[string]*string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserAvatars indicates an expected call of GetUserAvatars.
+func (mr *MockUserUsecaseMockRecorder) GetUserAvatars(ctx, userIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAvatars", reflect.TypeOf((*MockUserUsecase)(nil).GetUserAvatars), ctx, userIDs)
+}
+
 // GetUserById mocks base method.
 func (m *MockUserUsecase) GetUserById(ctx context.Context, id uuid.UUID) (*dto.User, error) {
 	m.ctrl.T.Helper()

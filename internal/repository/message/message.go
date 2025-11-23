@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/pgxinterface"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -50,10 +51,17 @@ const (
 )
 
 type MessageRepository struct {
-	db *pgxpool.Pool
+	db pgxinterface.PgxPool
 }
 
-func NewMessageRepository(db *pgxpool.Pool) *MessageRepository {
+func NewMessageRepository(db pgxinterface.PgxPool) *MessageRepository {
+	return &MessageRepository{
+		db: db,
+	}
+}
+
+// NewMessageRepositoryWithPool создает репозиторий с конкретным типом *pgxpool.Pool
+func NewMessageRepositoryWithPool(db *pgxpool.Pool) *MessageRepository {
 	return &MessageRepository{
 		db: db,
 	}

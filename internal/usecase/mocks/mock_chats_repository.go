@@ -9,7 +9,6 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
-	minio "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
 )
@@ -96,10 +95,10 @@ func (mr *MockChatsRepositoryMockRecorder) GetChat(ctx, chatID interface{}) *gom
 }
 
 // GetChatAvatars mocks base method.
-func (m *MockChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]string, error) {
+func (m *MockChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]uuid.UUID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChatAvatars", ctx, chatIDs)
-	ret0, _ := ret[0].(map[string]string)
+	ret0, _ := ret[0].(map[string]uuid.UUID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -199,15 +198,15 @@ func (mr *MockChatsRepositoryMockRecorder) UpdateChat(ctx, userID, chatID, name,
 }
 
 // UpdateChatAvatar mocks base method.
-func (m *MockChatsRepository) UpdateChatAvatar(ctx context.Context, chatID uuid.UUID, fileData minio.FileData) error {
+func (m *MockChatsRepository) UpdateChatAvatar(ctx context.Context, chatID, attachmentID uuid.UUID, fileSize int64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateChatAvatar", ctx, chatID, fileData)
+	ret := m.ctrl.Call(m, "UpdateChatAvatar", ctx, chatID, attachmentID, fileSize)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateChatAvatar indicates an expected call of UpdateChatAvatar.
-func (mr *MockChatsRepositoryMockRecorder) UpdateChatAvatar(ctx, chatID, fileData interface{}) *gomock.Call {
+func (mr *MockChatsRepositoryMockRecorder) UpdateChatAvatar(ctx, chatID, attachmentID, fileSize interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChatAvatar", reflect.TypeOf((*MockChatsRepository)(nil).UpdateChatAvatar), ctx, chatID, fileData)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateChatAvatar", reflect.TypeOf((*MockChatsRepository)(nil).UpdateChatAvatar), ctx, chatID, attachmentID, fileSize)
 }

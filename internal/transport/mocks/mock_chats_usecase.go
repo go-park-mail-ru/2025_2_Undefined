@@ -82,10 +82,10 @@ func (mr *MockChatsUsecaseMockRecorder) DeleteChat(ctx, userId, chatId interface
 }
 
 // GetChatAvatars mocks base method.
-func (m *MockChatsUsecase) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]string, error) {
+func (m *MockChatsUsecase) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]*string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChatAvatars", ctx, chatIDs)
-	ret0, _ := ret[0].(map[string]string)
+	ret0, _ := ret[0].(map[string]*string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
