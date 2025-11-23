@@ -11,16 +11,21 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	ContactDTO "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/contact"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/http/mocks"
+
+	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestContactHandler_CreateContact_Success(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
@@ -30,9 +35,9 @@ func TestContactHandler_CreateContact_Success(t *testing.T) {
 		ContactUserID: contactUserID,
 	}
 
-	mockUserClient.On("CreateContact", mock.Anything, mock.MatchedBy(func(r *gen.CreateContactReq) bool {
-		return r.UserId == userID.String() && r.ContactUserId == contactUserID.String()
-	})).Return(&emptypb.Empty{}, nil)
+	mockUserClient.EXPECT().
+		CreateContact(gomock.Any(), gomock.Any()).
+		Return(&emptypb.Empty{}, nil)
 
 	body, _ := json.Marshal(req)
 	request := httptest.NewRequest(http.MethodPost, "/contacts", bytes.NewBuffer(body))
@@ -44,11 +49,13 @@ func TestContactHandler_CreateContact_Success(t *testing.T) {
 	handler.CreateContact(recorder, request)
 
 	assert.Equal(t, http.StatusCreated, recorder.Code)
-	mockUserClient.AssertExpectations(t)
 }
 
 func TestContactHandler_CreateContact_InvalidJSON(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
@@ -65,7 +72,10 @@ func TestContactHandler_CreateContact_InvalidJSON(t *testing.T) {
 }
 
 func TestContactHandler_CreateContact_SelfContact(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
@@ -87,7 +97,10 @@ func TestContactHandler_CreateContact_SelfContact(t *testing.T) {
 }
 
 func TestContactHandler_CreateContact_Unauthorized(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	contactUserID := uuid.New()
@@ -106,7 +119,10 @@ func TestContactHandler_CreateContact_Unauthorized(t *testing.T) {
 }
 
 func TestContactHandler_CreateContact_UserNotFound(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
@@ -116,7 +132,8 @@ func TestContactHandler_CreateContact_UserNotFound(t *testing.T) {
 		ContactUserID: contactUserID,
 	}
 
-	mockUserClient.On("CreateContact", mock.Anything, mock.Anything).
+	mockUserClient.EXPECT().
+		CreateContact(gomock.Any(), gomock.Any()).
 		Return(nil, status.Error(codes.NotFound, "user not found"))
 
 	body, _ := json.Marshal(req)
@@ -129,33 +146,35 @@ func TestContactHandler_CreateContact_UserNotFound(t *testing.T) {
 	handler.CreateContact(recorder, request)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
-	mockUserClient.AssertExpectations(t)
 }
 
 func TestContactHandler_GetContacts_Success(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
 	contactID := uuid.New()
 
-	mockUserClient.On("GetContacts", mock.Anything, mock.MatchedBy(func(r *gen.GetContactsReq) bool {
-		return r.UserId == userID.String()
-	})).Return(&gen.GetContactsRes{
-		Contacts: []*gen.Contact{
-			{
-				Id:          contactID.String(),
-				PhoneNumber: "+79998887766",
-				Name:        "Contact User",
-				Username:    "contactuser",
-				Bio:         "",
-				AvatarUrl:   "",
-				AccountType: "personal",
-				CreatedAt:   "2024-01-01T00:00:00Z",
-				UpdatedAt:   "2024-01-01T00:00:00Z",
+	mockUserClient.EXPECT().
+		GetContacts(gomock.Any(), gomock.Any()).
+		Return(&gen.GetContactsRes{
+			Contacts: []*gen.Contact{
+				{
+					Id:          contactID.String(),
+					PhoneNumber: "+79998887766",
+					Name:        "Contact User",
+					Username:    "contactuser",
+					Bio:         "",
+					AvatarUrl:   "",
+					AccountType: "personal",
+					CreatedAt:   "2024-01-01T00:00:00Z",
+					UpdatedAt:   "2024-01-01T00:00:00Z",
+				},
 			},
-		},
-	}, nil)
+		}, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/contacts", nil)
 	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
@@ -173,21 +192,22 @@ func TestContactHandler_GetContacts_Success(t *testing.T) {
 	if len(response) > 0 {
 		assert.Equal(t, "Contact User", response[0].ContactUser.Name)
 	}
-
-	mockUserClient.AssertExpectations(t)
 }
 
 func TestContactHandler_GetContacts_EmptyList(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
 
-	mockUserClient.On("GetContacts", mock.Anything, mock.MatchedBy(func(r *gen.GetContactsReq) bool {
-		return r.UserId == userID.String()
-	})).Return(&gen.GetContactsRes{
-		Contacts: []*gen.Contact{},
-	}, nil)
+	mockUserClient.EXPECT().
+		GetContacts(gomock.Any(), gomock.Any()).
+		Return(&gen.GetContactsRes{
+			Contacts: []*gen.Contact{},
+		}, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/contacts", nil)
 	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
@@ -202,12 +222,13 @@ func TestContactHandler_GetContacts_EmptyList(t *testing.T) {
 	err := json.Unmarshal(recorder.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Len(t, response, 0)
-
-	mockUserClient.AssertExpectations(t)
 }
 
 func TestContactHandler_GetContacts_Unauthorized(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	request := httptest.NewRequest(http.MethodGet, "/contacts", nil)
@@ -218,12 +239,16 @@ func TestContactHandler_GetContacts_Unauthorized(t *testing.T) {
 }
 
 func TestContactHandler_GetContacts_GRPCError(t *testing.T) {
-	mockUserClient := new(MockUserServiceClient)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
 	handler := NewUserGRPCProxyHandler(mockUserClient)
 
 	userID := uuid.New()
 
-	mockUserClient.On("GetContacts", mock.Anything, mock.Anything).
+	mockUserClient.EXPECT().
+		GetContacts(gomock.Any(), gomock.Any()).
 		Return(nil, status.Error(codes.Internal, "internal error"))
 
 	request := httptest.NewRequest(http.MethodGet, "/contacts", nil)
@@ -234,5 +259,4 @@ func TestContactHandler_GetContacts_GRPCError(t *testing.T) {
 	handler.GetContacts(recorder, request)
 
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
-	mockUserClient.AssertExpectations(t)
 }

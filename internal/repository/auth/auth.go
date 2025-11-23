@@ -9,6 +9,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/pgxinterface"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -30,10 +31,17 @@ const (
 )
 
 type AuthRepository struct {
-	db *pgxpool.Pool
+	db pgxinterface.PgxPool
 }
 
-func New(db *pgxpool.Pool) *AuthRepository {
+func New(db pgxinterface.PgxPool) *AuthRepository {
+	return &AuthRepository{
+		db: db,
+	}
+}
+
+// NewWithPool создает репозиторий с конкретным типом *pgxpool.Pool
+func NewWithPool(db *pgxpool.Pool) *AuthRepository {
 	return &AuthRepository{
 		db: db,
 	}
@@ -52,7 +60,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 
 	logger.Debugf("starting: %s", query)
 
-	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		queryStatus = "fail"
 		logger.WithError(err).Errorf("db query: %s: begin transaction: status: %s", query, queryStatus)

@@ -9,6 +9,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/pgxinterface"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -57,10 +58,17 @@ const (
 )
 
 type UserRepository struct {
-	db *pgxpool.Pool
+	db pgxinterface.PgxPool
 }
 
-func New(db *pgxpool.Pool) *UserRepository {
+func New(db pgxinterface.PgxPool) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
+// NewWithPool создает репозиторий с конкретным типом *pgxpool.Pool
+func NewWithPool(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{
 		db: db,
 	}

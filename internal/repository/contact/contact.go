@@ -8,6 +8,7 @@ import (
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/contact"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/pgxinterface"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,10 +27,17 @@ const (
 )
 
 type ContactRepository struct {
-	db *pgxpool.Pool
+	db pgxinterface.PgxPool
 }
 
-func New(db *pgxpool.Pool) *ContactRepository {
+func New(db pgxinterface.PgxPool) *ContactRepository {
+	return &ContactRepository{
+		db: db,
+	}
+}
+
+// NewWithPool создает репозиторий с конкретным типом *pgxpool.Pool
+func NewWithPool(db *pgxpool.Pool) *ContactRepository {
 	return &ContactRepository{
 		db: db,
 	}

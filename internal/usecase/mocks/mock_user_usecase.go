@@ -37,10 +37,10 @@ func (m *MockIUserUsecase) EXPECT() *MockIUserUsecaseMockRecorder {
 }
 
 // GetUserAvatars mocks base method.
-func (m *MockIUserUsecase) GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]string, error) {
+func (m *MockIUserUsecase) GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]*string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserAvatars", ctx, userIDs)
-	ret0, _ := ret[0].(map[string]string)
+	ret0, _ := ret[0].(map[string]*string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
