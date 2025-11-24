@@ -142,6 +142,17 @@ func DTOChatsViewToProto(chats []dtoChats.ChatViewInformationDTO) []*gen.Chat {
 	return result
 }
 
+func ProtoSearchChatsResToDTO(res *gen.GetChatsRes) []dtoChats.ChatViewInformationDTO {
+	if res == nil || res.GetChats() == nil {
+		return []dtoChats.ChatViewInformationDTO{}
+	}
+	chats := make([]dtoChats.ChatViewInformationDTO, len(res.GetChats()))
+	for i, chat := range res.GetChats() {
+		chats[i] = ProtoChatToDTO(chat)
+	}
+	return chats
+}
+
 func ProtoChatDetailedToDTO(chat *gen.ChatDetailedInformation) *dtoChats.ChatDetailedInformationDTO {
 	chatID, _ := uuid.Parse(chat.GetId())
 
@@ -574,4 +585,23 @@ func ProtoUploadChatAvatarReqToFileData(in *gen.UploadChatAvatarReq) minio.FileD
 		Data:        in.GetData(),
 		ContentType: in.GetContentType(),
 	}
+}
+
+func ProtoSearchMessagesResToDTO(res *gen.SearchMessagesRes) []dtoMessage.MessageDTO {
+	if res == nil || res.GetMessages() == nil {
+		return []dtoMessage.MessageDTO{}
+	}
+	messages := make([]dtoMessage.MessageDTO, len(res.GetMessages()))
+	for i, msg := range res.GetMessages() {
+		messages[i] = ProtoMessageToDTO(msg)
+	}
+	return messages
+}
+
+func DTOMessagesToProtoMessage(messages []dtoMessage.MessageDTO) []*gen.Message {
+	result := make([]*gen.Message, len(messages))
+	for i, msgDTO := range messages {
+		result[i] = DTOMessageToProto(msgDTO)
+	}
+	return result
 }

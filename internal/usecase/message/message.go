@@ -322,3 +322,30 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, msg dtoMessage.Dele
 
 	return nil
 }
+
+func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error) {
+	const op = "MessageUsecase.GetMessagesBySearch"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	messages, err := uc.messageRepository.SearchMessagesInChat(ctx, userID, chatID, text)
+	if err != nil {
+		logger.WithError(err).Error("failed to search messages")
+		return nil, err
+	}
+
+	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
+	for _, msg := range messages {
+		messagesDTO = append(messagesDTO, dtoMessage.MessageDTO{
+			ID:         msg.ID,
+			SenderID:   msg.UserID,
+			SenderName: msg.UserName,
+			Text:       msg.Text,
+			CreatedAt:  msg.CreatedAt,
+			UpdatedAt:  msg.UpdatedAt,
+			ChatID:     msg.ChatID,
+			Type:       msg.Type,
+		})
+	}
+
+	return messagesDTO, nil
+}

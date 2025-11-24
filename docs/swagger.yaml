@@ -335,6 +335,48 @@ paths:
       summary: Создать новый чат
       tags:
       - chats
+  /chats/{chat_id}/messages/search:
+    get:
+      consumes:
+      - application/json
+      description: Выполняет поиск сообщений в указанном чате по текстовому запросу.
+      parameters:
+      - description: ID чата
+        in: path
+        name: chat_id
+        required: true
+        type: string
+      - description: Текстовый запрос для поиска сообщений
+        in: query
+        name: text
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список найденных сообщений
+          schema:
+            items:
+              $ref: '#/definitions/dto.MessageDTO'
+            type: array
+        "400":
+          description: Некорректный запрос (например, отсутствует текстовый запрос)
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Пользователь не авторизован
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "500":
+          description: Ошибка сервера при поиске сообщений
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - Cookie: []
+      summary: Поиск сообщений в чате
+      tags:
+      - messages
   /chats/{chatId}:
     delete:
       consumes:
@@ -556,7 +598,7 @@ paths:
       summary: Добавить пользователей в чат
       tags:
       - chats
-  /chats/avatars:
+  /chats/avatars/query:
     post:
       consumes:
       - application/json
@@ -623,6 +665,39 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Получить личный диалог с пользователем
+      tags:
+      - chats
+  /chats/search:
+    get:
+      consumes:
+      - application/json
+      description: Позволяет искать чаты по части или полному имени
+      parameters:
+      - description: Имя или часть имени чата для поиска
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список найденных чатов
+          schema:
+            items:
+              $ref: '#/definitions/dto.ChatViewInformationDTO'
+            type: array
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            $ref: '#/definitions/dto.ErrorDTO'
+      security:
+      - ApiKeyAuth: []
+      summary: Поиск чатов по имени
       tags:
       - chats
   /contacts:
@@ -1136,7 +1211,7 @@ paths:
       summary: Получить информацию о пользователе по username
       tags:
       - user
-  /users/avatars:
+  /users/avatars/query:
     post:
       consumes:
       - application/json

@@ -122,7 +122,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/chats/avatars": {
+        "/chats/avatars/query": {
             "post": {
                 "security": [
                     {
@@ -222,6 +222,58 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/search": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет искать чаты по части или полному имени",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Поиск чатов по имени",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Имя или часть имени чата для поиска",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список найденных чатов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ChatViewInformationDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -557,6 +609,71 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/{chat_id}/messages/search": {
+            "get": {
+                "security": [
+                    {
+                        "Cookie": []
+                    }
+                ],
+                "description": "Выполняет поиск сообщений в указанном чате по текстовому запросу.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Поиск сообщений в чате",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID чата",
+                        "name": "chat_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Текстовый запрос для поиска сообщений",
+                        "name": "text",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список найденных сообщений",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.MessageDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос (например, отсутствует текстовый запрос)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера при поиске сообщений",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1309,7 +1426,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/avatars": {
+        "/users/avatars/query": {
             "post": {
                 "security": [
                     {

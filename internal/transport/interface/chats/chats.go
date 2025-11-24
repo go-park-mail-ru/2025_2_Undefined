@@ -19,4 +19,5 @@ type ChatsUsecase interface {
 	UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error
 	GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]*string, error)
 	UploadChatAvatar(ctx context.Context, userID, chatID uuid.UUID, fileData minio.FileData) (string, error)
+	SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]dtoChats.ChatViewInformationDTO, error)
 }

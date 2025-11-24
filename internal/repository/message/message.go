@@ -16,38 +16,43 @@ const (
 						RETURNING id`
 
 	getLastMessagesOfChatsQuery = `
-		WITH latest_avatars AS (
-			SELECT DISTINCT ON (user_id) user_id, attachment_id
-			FROM avatar_user 
-			ORDER BY user_id, created_at DESC
-		)
 		SELECT DISTINCT ON (msg.chat_id)
 			msg.id, msg.chat_id, msg.user_id, usr.name, 
-			la.attachment_id,
 			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
 		FROM message msg
 		JOIN chat_member cm ON cm.chat_id = msg.chat_id
 		JOIN "user" usr ON usr.id = msg.user_id
-		LEFT JOIN latest_avatars la ON la.user_id = msg.user_id
 		WHERE cm.user_id = $1
 		ORDER BY msg.chat_id, msg.created_at DESC`
 
-	getMessagesOfChatQuery = `
-		WITH latest_avatars AS (
-			SELECT DISTINCT ON (user_id) user_id, attachment_id
-			FROM avatar_user 
-			ORDER BY user_id, created_at DESC
-		)
-		SELECT 
+	getLastMessagesOfChatsByIDsQuery = `
+		SELECT DISTINCT ON (msg.chat_id)
 			msg.id, msg.chat_id, msg.user_id, usr.name, 
-			la.attachment_id,
 			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
 		FROM message msg
 		JOIN "user" usr ON usr.id = msg.user_id
-		LEFT JOIN latest_avatars la ON la.user_id = msg.user_id
+		WHERE msg.chat_id = ANY($1)
+		ORDER BY msg.chat_id, msg.created_at DESC`
+
+	getMessagesOfChatQuery = `
+		SELECT 
+			msg.id, msg.chat_id, msg.user_id, usr.name, 
+			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
+		FROM message msg
+		JOIN "user" usr ON usr.id = msg.user_id
 		WHERE chat_id = $1
 		ORDER BY msg.created_at DESC
 		LIMIT $3 OFFSET $2`
+
+	searchMessagesInChatQuery = `
+		SELECT 
+			msg.id, msg.chat_id, msg.user_id, usr.name, 
+			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
+		FROM message msg
+		JOIN chat_member cm ON cm.chat_id = msg.chat_id
+		JOIN "user" usr ON usr.id = msg.user_id
+		WHERE cm.user_id = $1 AND msg.chat_id = $2 AND msg.text ILIKE '%' || $3 || '%'
+		ORDER BY msg.created_at DESC`
 )
 
 type MessageRepository struct {
@@ -119,7 +124,7 @@ func (r *MessageRepository) GetLastMessagesOfChats(ctx context.Context, userId u
 	for rows.Next() {
 		var message modelsMessage.Message
 		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
-			&message.UserAvatarID, &message.Text, &message.CreatedAt, &message.UpdatedAt,
+			&message.Text, &message.CreatedAt, &message.UpdatedAt,
 			&message.Type); err != nil {
 			queryStatus = "fail"
 			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
@@ -160,7 +165,7 @@ func (r *MessageRepository) GetMessagesOfChat(ctx context.Context, chatId uuid.U
 	for rows.Next() {
 		var message modelsMessage.Message
 		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
-			&message.UserAvatarID, &message.Text, &message.CreatedAt, &message.UpdatedAt,
+			&message.Text, &message.CreatedAt, &message.UpdatedAt,
 			&message.Type); err != nil {
 			queryStatus = "fail"
 			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
@@ -255,4 +260,83 @@ func (r *MessageRepository) DeleteMessage(ctx context.Context, messageID uuid.UU
 	}
 
 	return nil
+}
+
+func (r *MessageRepository) GetLastMessagesOfChatsByIDs(ctx context.Context, chatsIDs []uuid.UUID) (map[uuid.UUID]modelsMessage.Message, error) {
+	const op = "MessageRepository.GetLastMessagesOfChatsByIDs"
+	const query = "SELECT last messages by IDs"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chats_ids", chatsIDs)
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
+	rows, err := r.db.Query(ctx, getLastMessagesOfChatsByIDsQuery, chatsIDs)
+	if err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[uuid.UUID]modelsMessage.Message)
+	for rows.Next() {
+		var message modelsMessage.Message
+		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
+			&message.Text, &message.CreatedAt, &message.UpdatedAt,
+			&message.Type); err != nil {
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
+			return nil, err
+		}
+
+		result[message.ChatID] = message
+	}
+
+	return result, nil
+}
+
+func (r *MessageRepository) SearchMessagesInChat(ctx context.Context, userId, chatId uuid.UUID, searchText string) ([]modelsMessage.Message, error) {
+	const op = "MessageRepository.SearchMessagesInChat"
+	const query = "SEARCH messages"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).
+		WithField("user_id", userId.String()).
+		WithField("chat_id", chatId.String()).
+		WithField("search_text", searchText)
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
+	rows, err := r.db.Query(ctx, searchMessagesInChatQuery, userId, chatId, searchText)
+	if err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]modelsMessage.Message, 0)
+	for rows.Next() {
+		var message modelsMessage.Message
+		if err := rows.Scan(&message.ID, &message.ChatID, &message.UserID, &message.UserName,
+			&message.Text, &message.CreatedAt, &message.UpdatedAt,
+			&message.Type); err != nil {
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
+			return nil, err
+		}
+
+		result = append(result, message)
+	}
+
+	return result, nil
 }

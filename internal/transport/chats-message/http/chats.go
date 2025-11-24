@@ -396,7 +396,7 @@ func (h *ChatsGRPCProxyHandler) UpdateChat(w http.ResponseWriter, r *http.Reques
 // @Success      200      {object}  dto.GetAvatarsResponse  "Аватарки чатов"
 // @Failure      400      {object}  dto.ErrorDTO            "Некорректный запрос"
 // @Failure      401      {object}  dto.ErrorDTO            "Неавторизованный доступ"
-// @Router       /chats/avatars [post]
+// @Router       /chats/avatars/query [post]
 func (h *ChatsGRPCProxyHandler) GetChatAvatars(w http.ResponseWriter, r *http.Request) {
 	const op = "ChatsGRPCProxyHandler.GetChatAvatars"
 
@@ -518,4 +518,47 @@ func (h *ChatsGRPCProxyHandler) UploadChatAvatar(w http.ResponseWriter, r *http.
 	}
 
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, map[string]string{"avatar_url": res.AvatarUrl})
+}
+
+// SearchChats ищет чаты по имени
+// @Summary      Поиск чатов по имени
+// @Description  Позволяет искать чаты по части или полному имени
+// @Tags         chats
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        name  query     string  true  "Имя или часть имени чата для поиска"
+// @Success      200   {array}   dto.ChatViewInformationDTO  "Список найденных чатов"
+// @Failure      400   {object}  dto.ErrorDTO                "Некорректный запрос"
+// @Failure      401   {object}  dto.ErrorDTO                "Неавторизованный доступ"
+// @Router       /chats/search [get]
+func (h *ChatsGRPCProxyHandler) SearchChats(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.SearchChats"
+
+	queryValues := r.URL.Query()
+	searchQuery := queryValues.Get("name")
+	if searchQuery == "" {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "name in query is required")
+		return
+	}
+
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	request := &gen.SearchChatsReq{
+		UserId: userID.String(),
+		Name:   searchQuery,
+	}
+
+	response, err := h.chatsClient.SearchChats(r.Context(), request)
+	if err != nil {
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+
+	dtoChats := mappers.ProtoSearchChatsResToDTO(response)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoChats)
 }

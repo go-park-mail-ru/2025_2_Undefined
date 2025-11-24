@@ -30,6 +30,7 @@ const (
 	ChatService_RemoveUserFromChat_FullMethodName = "/chats.ChatService/RemoveUserFromChat"
 	ChatService_GetChatAvatars_FullMethodName     = "/chats.ChatService/GetChatAvatars"
 	ChatService_UploadChatAvatar_FullMethodName   = "/chats.ChatService/UploadChatAvatar"
+	ChatService_SearchChats_FullMethodName        = "/chats.ChatService/SearchChats"
 )
 
 // ChatServiceClient is the client API for ChatService service.
@@ -48,6 +49,7 @@ type ChatServiceClient interface {
 	RemoveUserFromChat(ctx context.Context, in *RemoveUserFromChatReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetChatAvatars(ctx context.Context, in *GetChatAvatarsReq, opts ...grpc.CallOption) (*GetChatAvatarsRes, error)
 	UploadChatAvatar(ctx context.Context, in *UploadChatAvatarReq, opts ...grpc.CallOption) (*UploadChatAvatarRes, error)
+	SearchChats(ctx context.Context, in *SearchChatsReq, opts ...grpc.CallOption) (*GetChatsRes, error)
 }
 
 type chatServiceClient struct {
@@ -158,6 +160,16 @@ func (c *chatServiceClient) UploadChatAvatar(ctx context.Context, in *UploadChat
 	return out, nil
 }
 
+func (c *chatServiceClient) SearchChats(ctx context.Context, in *SearchChatsReq, opts ...grpc.CallOption) (*GetChatsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChatsRes)
+	err := c.cc.Invoke(ctx, ChatService_SearchChats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChatServiceServer is the server API for ChatService service.
 // All implementations must embed UnimplementedChatServiceServer
 // for forward compatibility.
@@ -174,6 +186,7 @@ type ChatServiceServer interface {
 	RemoveUserFromChat(context.Context, *RemoveUserFromChatReq) (*emptypb.Empty, error)
 	GetChatAvatars(context.Context, *GetChatAvatarsReq) (*GetChatAvatarsRes, error)
 	UploadChatAvatar(context.Context, *UploadChatAvatarReq) (*UploadChatAvatarRes, error)
+	SearchChats(context.Context, *SearchChatsReq) (*GetChatsRes, error)
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -213,6 +226,9 @@ func (UnimplementedChatServiceServer) GetChatAvatars(context.Context, *GetChatAv
 }
 func (UnimplementedChatServiceServer) UploadChatAvatar(context.Context, *UploadChatAvatarReq) (*UploadChatAvatarRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UploadChatAvatar not implemented")
+}
+func (UnimplementedChatServiceServer) SearchChats(context.Context, *SearchChatsReq) (*GetChatsRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchChats not implemented")
 }
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 func (UnimplementedChatServiceServer) testEmbeddedByValue()                     {}
@@ -415,6 +431,24 @@ func _ChatService_UploadChatAvatar_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChatService_SearchChats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchChatsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServiceServer).SearchChats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatService_SearchChats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServiceServer).SearchChats(ctx, req.(*SearchChatsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -462,6 +496,10 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "UploadChatAvatar",
 			Handler:    _ChatService_UploadChatAvatar_Handler,
 		},
+		{
+			MethodName: "SearchChats",
+			Handler:    _ChatService_SearchChats_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "chats.proto",
@@ -470,6 +508,7 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 const (
 	MessageService_StreamMessagesForUser_FullMethodName = "/chats.MessageService/StreamMessagesForUser"
 	MessageService_HandleSendMessage_FullMethodName     = "/chats.MessageService/HandleSendMessage"
+	MessageService_SearchMessages_FullMethodName        = "/chats.MessageService/SearchMessages"
 )
 
 // MessageServiceClient is the client API for MessageService service.
@@ -478,6 +517,7 @@ const (
 type MessageServiceClient interface {
 	StreamMessagesForUser(ctx context.Context, in *StreamMessagesForUserReq, opts ...grpc.CallOption) (grpc.ServerStreamingClient[MessageEventRes], error)
 	HandleSendMessage(ctx context.Context, in *MessageEventReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SearchMessages(ctx context.Context, in *SearchMessagesReq, opts ...grpc.CallOption) (*SearchMessagesRes, error)
 }
 
 type messageServiceClient struct {
@@ -517,12 +557,23 @@ func (c *messageServiceClient) HandleSendMessage(ctx context.Context, in *Messag
 	return out, nil
 }
 
+func (c *messageServiceClient) SearchMessages(ctx context.Context, in *SearchMessagesReq, opts ...grpc.CallOption) (*SearchMessagesRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchMessagesRes)
+	err := c.cc.Invoke(ctx, MessageService_SearchMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MessageServiceServer is the server API for MessageService service.
 // All implementations must embed UnimplementedMessageServiceServer
 // for forward compatibility.
 type MessageServiceServer interface {
 	StreamMessagesForUser(*StreamMessagesForUserReq, grpc.ServerStreamingServer[MessageEventRes]) error
 	HandleSendMessage(context.Context, *MessageEventReq) (*emptypb.Empty, error)
+	SearchMessages(context.Context, *SearchMessagesReq) (*SearchMessagesRes, error)
 	mustEmbedUnimplementedMessageServiceServer()
 }
 
@@ -538,6 +589,9 @@ func (UnimplementedMessageServiceServer) StreamMessagesForUser(*StreamMessagesFo
 }
 func (UnimplementedMessageServiceServer) HandleSendMessage(context.Context, *MessageEventReq) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HandleSendMessage not implemented")
+}
+func (UnimplementedMessageServiceServer) SearchMessages(context.Context, *SearchMessagesReq) (*SearchMessagesRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchMessages not implemented")
 }
 func (UnimplementedMessageServiceServer) mustEmbedUnimplementedMessageServiceServer() {}
 func (UnimplementedMessageServiceServer) testEmbeddedByValue()                        {}
@@ -589,6 +643,24 @@ func _MessageService_HandleSendMessage_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MessageService_SearchMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchMessagesReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessageServiceServer).SearchMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MessageService_SearchMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessageServiceServer).SearchMessages(ctx, req.(*SearchMessagesReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MessageService_ServiceDesc is the grpc.ServiceDesc for MessageService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -599,6 +671,10 @@ var MessageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HandleSendMessage",
 			Handler:    _MessageService_HandleSendMessage_Handler,
+		},
+		{
+			MethodName: "SearchMessages",
+			Handler:    _MessageService_SearchMessages_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

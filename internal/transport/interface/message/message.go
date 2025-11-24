@@ -12,6 +12,7 @@ type MessageUsecase interface {
 	AddMessage(ctx context.Context, message dtoMessage.CreateMessageDTO, userID uuid.UUID) error
 	EditMessage(ctx context.Context, message dtoMessage.EditMessageDTO, userID uuid.UUID) error
 	DeleteMessage(ctx context.Context, message dtoMessage.DeleteMessageDTO, userID uuid.UUID) error
-	SubscribeConnectionToChats(ctx context.Context, connectionID, userID uuid.UUID, chatsDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.WebSocketMessageDTO
+	SubscribeConnectionToChats(ctx context.Context, connectionID uuid.UUID, userID uuid.UUID, chatsDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.WebSocketMessageDTO
 	SubscribeUsersOnChat(ctx context.Context, chatID uuid.UUID, members []dtoChats.AddChatMemberDTO) error
+	GetMessagesBySearch(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error)
 }
