@@ -103,6 +103,59 @@ func (h *UserGRPCProxyHandler) GetContacts(w http.ResponseWriter, r *http.Reques
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, contacts)
 }
 
+// SearchContacts выполняет поиск контактов через gRPC
+// @Summary      Поиск контактов
+// @Description  Возвращает список контактов текущего пользователя, отфильтрованных по поисковому запросу (имя или username)
+// @Tags         contacts
+// @Accept       json
+// @Produce      json
+// @Param        query  query     string  true  "Поисковый запрос"
+// @Success      200   {array}   dto.GetContactsDTO      "Список найденных контактов"
+// @Failure      400   {object}  dto.ErrorDTO   		 "Неверный запрос"
+// @Failure      401   {object}  dto.ErrorDTO   		 "Неавторизованный доступ"
+// @Failure      500   {object}  dto.ErrorDTO 			 "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /contacts/search [get]
+func (h *UserGRPCProxyHandler) SearchContacts(w http.ResponseWriter, r *http.Request) {
+	const op = "UserGRPCProxyHandler.SearchContacts"
+
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	query := r.URL.Query().Get("query")
+	if query == "" {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "query parameter is required")
+		return
+	}
+
+	res, err := h.userClient.SearchContacts(r.Context(), &gen.SearchContactsReq{
+		UserId: userID.String(),
+		Query:  query,
+	})
+	if err != nil {
+		grpcUtils.HandleGRPCError(r.Context(), op, w, err)
+		return
+	}
+
+	contacts := make([]*ContactDTO.GetContactsDTO, 0)
+	for _, c := range res.Contacts {
+		createdAt, _ := time.Parse(time.RFC3339, c.CreatedAt)
+		updatedAt, _ := time.Parse(time.RFC3339, c.UpdatedAt)
+
+		contacts = append(contacts, &ContactDTO.GetContactsDTO{
+			UserID:      userID,
+			ContactUser: mapProtoUserToDTO(convertContactToUser(c)),
+			CreatedAt:   createdAt,
+			UpdatedAt:   updatedAt,
+		})
+	}
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, contacts)
+}
+
 func convertContactToUser(contact *gen.Contact) *gen.User {
 	return &gen.User{
 		Id:          contact.Id,

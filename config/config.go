@@ -13,14 +13,15 @@ import (
 )
 
 type Config struct {
-	DBConfig         *DBConfig
-	ServerConfig     *ServerConfig
-	SessionConfig    *SessionConfig
-	CSRFConfig       *CSRFConfig
-	MigrationsConfig *MigrationsConfig
-	RedisConfig      *RedisConfig
-	MinioConfig      *MinioConfig
-	GRPCConfig       *GRPCConfig
+	DBConfig            *DBConfig
+	ServerConfig        *ServerConfig
+	SessionConfig       *SessionConfig
+	CSRFConfig          *CSRFConfig
+	MigrationsConfig    *MigrationsConfig
+	RedisConfig         *RedisConfig
+	MinioConfig         *MinioConfig
+	GRPCConfig          *GRPCConfig
+	ElasticsearchConfig *ElasticsearchConfig
 }
 
 type DBConfig struct {
@@ -78,6 +79,13 @@ type GRPCConfig struct {
 	ChatsServicePort string
 }
 
+type ElasticsearchConfig struct {
+	URL           string
+	ContactsIndex string
+	Username      string
+	Password      string
+}
+
 func NewConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("error loading .env file: %v", err)
@@ -123,15 +131,21 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	elasticsearchConfig, err := newElasticsearchConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
-		DBConfig:         dbConfig,
-		ServerConfig:     serverConfig,
-		SessionConfig:    sessionConfig,
-		CSRFConfig:       csrfConfig,
-		MigrationsConfig: migrationsConfig,
-		RedisConfig:      redisConfig,
-		MinioConfig:      minioConfig,
-		GRPCConfig:       grpcConfig,
+		DBConfig:            dbConfig,
+		ServerConfig:        serverConfig,
+		SessionConfig:       sessionConfig,
+		CSRFConfig:          csrfConfig,
+		MigrationsConfig:    migrationsConfig,
+		RedisConfig:         redisConfig,
+		MinioConfig:         minioConfig,
+		GRPCConfig:          grpcConfig,
+		ElasticsearchConfig: elasticsearchConfig,
 	}, nil
 }
 
@@ -337,5 +351,34 @@ func newGRPCConfig() (*GRPCConfig, error) {
 		UserServicePort:  userServicePort,
 		ChatsServiceAddr: chatsServiceAddr,
 		ChatsServicePort: chatsServicePort,
+	}, nil
+}
+
+func newElasticsearchConfig() (*ElasticsearchConfig, error) {
+	url := os.Getenv("ELASTICSEARCH_URL")
+	if url == "" {
+		url = "http://localhost:9200" // default
+	}
+
+	contactsIndex := os.Getenv("ELASTICSEARCH_CONTACTS_INDEX")
+	if contactsIndex == "" {
+		contactsIndex = "contacts" // default
+	}
+
+	username := os.Getenv("ELASTICSEARCH_USERNAME")
+	if username == "" {
+		username = "admin" // default
+	}
+
+	password := os.Getenv("ELASTICSEARCH_PASSWORD")
+	if password == "" {
+		password = "" // default - no auth
+	}
+
+	return &ElasticsearchConfig{
+		URL:           url,
+		ContactsIndex: contactsIndex,
+		Username:      username,
+		Password:      password,
 	}, nil
 }

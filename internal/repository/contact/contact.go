@@ -24,6 +24,10 @@ const (
 		SELECT user_id, contact_user_id, created_at, updated_at
 		FROM contact
 		WHERE user_id = $1`
+
+	getAllContactsQuery = `
+		SELECT user_id, contact_user_id, created_at, updated_at
+		FROM contact`
 )
 
 type ContactRepository struct {
@@ -121,5 +125,48 @@ func (r *ContactRepository) GetContactsByUserID(ctx context.Context, user_id uui
 		return nil, err
 	}
 
+	return contacts, nil
+}
+
+func (r *ContactRepository) GetAllContacts(ctx context.Context) ([]*models.Contact, error) {
+	const op = "ContactRepository.GetAllContacts"
+	const query = "SELECT all contacts"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
+	rows, err := r.db.Query(ctx, getAllContactsQuery)
+	if err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contacts []*models.Contact
+	for rows.Next() {
+		var contact models.Contact
+		err := rows.Scan(&contact.UserID, &contact.ContactUserID, &contact.CreatedAt, &contact.UpdatedAt)
+		if err != nil {
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
+			return nil, err
+		}
+		contacts = append(contacts, &contact)
+	}
+
+	if err = rows.Err(); err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: rows iteration error: status: %s", query, queryStatus)
+		return nil, err
+	}
+
+	logger.Infof("retrieved %d contacts for reindexing", len(contacts))
 	return contacts, nil
 }

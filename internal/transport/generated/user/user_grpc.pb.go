@@ -27,6 +27,7 @@ const (
 	UserService_UploadUserAvatar_FullMethodName  = "/user.UserService/UploadUserAvatar"
 	UserService_CreateContact_FullMethodName     = "/user.UserService/CreateContact"
 	UserService_GetContacts_FullMethodName       = "/user.UserService/GetContacts"
+	UserService_SearchContacts_FullMethodName    = "/user.UserService/SearchContacts"
 	UserService_GetUserAvatars_FullMethodName    = "/user.UserService/GetUserAvatars"
 )
 
@@ -43,6 +44,7 @@ type UserServiceClient interface {
 	UploadUserAvatar(ctx context.Context, in *UploadUserAvatarReq, opts ...grpc.CallOption) (*UploadUserAvatarRes, error)
 	CreateContact(ctx context.Context, in *CreateContactReq, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetContacts(ctx context.Context, in *GetContactsReq, opts ...grpc.CallOption) (*GetContactsRes, error)
+	SearchContacts(ctx context.Context, in *SearchContactsReq, opts ...grpc.CallOption) (*SearchContactsRes, error)
 	GetUserAvatars(ctx context.Context, in *GetUserAvatarsReq, opts ...grpc.CallOption) (*GetUserAvatarsRes, error)
 }
 
@@ -124,6 +126,16 @@ func (c *userServiceClient) GetContacts(ctx context.Context, in *GetContactsReq,
 	return out, nil
 }
 
+func (c *userServiceClient) SearchContacts(ctx context.Context, in *SearchContactsReq, opts ...grpc.CallOption) (*SearchContactsRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchContactsRes)
+	err := c.cc.Invoke(ctx, UserService_SearchContacts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userServiceClient) GetUserAvatars(ctx context.Context, in *GetUserAvatarsReq, opts ...grpc.CallOption) (*GetUserAvatarsRes, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetUserAvatarsRes)
@@ -147,6 +159,7 @@ type UserServiceServer interface {
 	UploadUserAvatar(context.Context, *UploadUserAvatarReq) (*UploadUserAvatarRes, error)
 	CreateContact(context.Context, *CreateContactReq) (*emptypb.Empty, error)
 	GetContacts(context.Context, *GetContactsReq) (*GetContactsRes, error)
+	SearchContacts(context.Context, *SearchContactsReq) (*SearchContactsRes, error)
 	GetUserAvatars(context.Context, *GetUserAvatarsReq) (*GetUserAvatarsRes, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
@@ -178,6 +191,9 @@ func (UnimplementedUserServiceServer) CreateContact(context.Context, *CreateCont
 }
 func (UnimplementedUserServiceServer) GetContacts(context.Context, *GetContactsReq) (*GetContactsRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetContacts not implemented")
+}
+func (UnimplementedUserServiceServer) SearchContacts(context.Context, *SearchContactsReq) (*SearchContactsRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchContacts not implemented")
 }
 func (UnimplementedUserServiceServer) GetUserAvatars(context.Context, *GetUserAvatarsReq) (*GetUserAvatarsRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserAvatars not implemented")
@@ -329,6 +345,24 @@ func _UserService_GetContacts_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_SearchContacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchContactsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).SearchContacts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_SearchContacts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).SearchContacts(ctx, req.(*SearchContactsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_GetUserAvatars_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetUserAvatarsReq)
 	if err := dec(in); err != nil {
@@ -381,6 +415,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetContacts",
 			Handler:    _UserService_GetContacts_Handler,
+		},
+		{
+			MethodName: "SearchContacts",
+			Handler:    _UserService_SearchContacts_Handler,
 		},
 		{
 			MethodName: "GetUserAvatars",
