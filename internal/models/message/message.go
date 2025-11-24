@@ -15,7 +15,7 @@ type Message struct {
 	ID        uuid.UUID
 	ChatID    uuid.UUID
 	UserID    *uuid.UUID
-	UserName  string
+	UserName  *string
 	Text      string
 	CreatedAt time.Time
 	UpdatedAt *time.Time

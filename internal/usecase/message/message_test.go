@@ -189,12 +189,13 @@ func TestMessageUsecase_SubscribeUsersOnChat_Success(t *testing.T) {
 		Name: "Test Group",
 	}
 
+	userName := "Test User"
 	messages := []modelsMessage.Message{
 		{
 			ID:        messageID,
 			ChatID:    chatID,
 			UserID:    &userID,
-			UserName:  "Test User",
+			UserName:  &userName,
 			Text:      "Last message",
 			CreatedAt: time.Now(),
 			Type:      "text",

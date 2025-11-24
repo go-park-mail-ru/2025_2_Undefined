@@ -56,11 +56,18 @@ func ProtoMessageToDTO(msg *gen.Message) dtoMessage.MessageDTO {
 	senderID := parseOptionalUUID(msg.SenderId)
 	createdAt, _ := time.Parse(time.RFC3339, msg.GetCreatedAt())
 
+	var senderName *string
+	if msg.GetSenderName() == "" {
+		senderName = nil
+	} else {
+		senderName = &msg.SenderName
+	}
+
 	return dtoMessage.MessageDTO{
 		ID:         msgID,
 		ChatID:     chatID,
 		SenderID:   senderID,
-		SenderName: msg.GetSenderName(),
+		SenderName: senderName,
 		Text:       msg.GetText(),
 		CreatedAt:  createdAt,
 		UpdatedAt:  nil, // Protobuf Message не имеет updated_at
@@ -69,11 +76,18 @@ func ProtoMessageToDTO(msg *gen.Message) dtoMessage.MessageDTO {
 }
 
 func DTOMessageToProto(msgDTO dtoMessage.MessageDTO) *gen.Message {
+	var senderName string
+	if msgDTO.SenderID == nil {
+		senderName = ""
+	} else {
+		senderName = *msgDTO.SenderName
+	}
+
 	return &gen.Message{
 		Id:         msgDTO.ID.String(),
 		ChatId:     msgDTO.ChatID.String(),
 		SenderId:   uuidToStringPtr(msgDTO.SenderID),
-		SenderName: msgDTO.SenderName,
+		SenderName: senderName,
 		Text:       msgDTO.Text,
 		CreatedAt:  msgDTO.CreatedAt.Format(time.RFC3339),
 		Type:       msgDTO.Type,

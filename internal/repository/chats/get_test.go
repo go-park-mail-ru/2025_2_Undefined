@@ -217,6 +217,7 @@ func TestChatsRepository_GetChatAvatars_Success(t *testing.T) {
 
 	repo := NewChatsRepository(mock)
 
+	userID := uuid.New()
 	chatID1 := uuid.New()
 	chatID2 := uuid.New()
 	avatarID1 := uuid.New()
@@ -228,11 +229,11 @@ func TestChatsRepository_GetChatAvatars_Success(t *testing.T) {
 		AddRow(chatID2, avatarID2)
 
 	mock.ExpectQuery(getChatAvatarsQuery).
-		WithArgs(chatIDs).
+		WithArgs(userID, chatIDs).
 		WillReturnRows(rows)
 
 	ctx := context.Background()
-	avatars, err := repo.GetChatAvatars(ctx, chatIDs)
+	avatars, err := repo.GetChatAvatars(ctx, userID, chatIDs)
 
 	assert.NoError(t, err)
 	assert.Len(t, avatars, 2)
@@ -250,8 +251,9 @@ func TestChatsRepository_GetChatAvatars_EmptyInput(t *testing.T) {
 
 	repo := NewChatsRepository(mock)
 
+	userID := uuid.New()
 	ctx := context.Background()
-	avatars, err := repo.GetChatAvatars(ctx, []uuid.UUID{})
+	avatars, err := repo.GetChatAvatars(ctx, userID, []uuid.UUID{})
 
 	assert.NoError(t, err)
 	assert.Empty(t, avatars)

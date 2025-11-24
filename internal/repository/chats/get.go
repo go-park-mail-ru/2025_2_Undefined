@@ -121,7 +121,7 @@ func (r *ChatsRepository) GetUserInfo(ctx context.Context, userId, chatId uuid.U
 	return userInfo, nil
 }
 
-func (r *ChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]uuid.UUID, error) {
+func (r *ChatsRepository) GetChatAvatars(ctx context.Context, userId uuid.UUID, chatIDs []uuid.UUID) (map[string]uuid.UUID, error) {
 	const op = "ChatsRepository.GetChatAvatars"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_ids_count", len(chatIDs))
@@ -134,7 +134,7 @@ func (r *ChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUI
 
 	logger.WithField("chat_ids", chatIDs).Debug("Querying chat avatars with IDs")
 
-	rows, err := r.db.Query(ctx, getChatAvatarsQuery, chatIDs)
+	rows, err := r.db.Query(ctx, getChatAvatarsQuery, userId, chatIDs)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: get chat avatars query")
 		return nil, err

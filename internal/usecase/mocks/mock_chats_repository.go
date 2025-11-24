@@ -95,18 +95,18 @@ func (mr *MockChatsRepositoryMockRecorder) GetChat(ctx, chatID interface{}) *gom
 }
 
 // GetChatAvatars mocks base method.
-func (m *MockChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]uuid.UUID, error) {
+func (m *MockChatsRepository) GetChatAvatars(ctx context.Context, userId uuid.UUID, chatIDs []uuid.UUID) (map[string]uuid.UUID, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetChatAvatars", ctx, chatIDs)
+	ret := m.ctrl.Call(m, "GetChatAvatars", ctx, userId, chatIDs)
 	ret0, _ := ret[0].(map[string]uuid.UUID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetChatAvatars indicates an expected call of GetChatAvatars.
-func (mr *MockChatsRepositoryMockRecorder) GetChatAvatars(ctx, chatIDs interface{}) *gomock.Call {
+func (mr *MockChatsRepositoryMockRecorder) GetChatAvatars(ctx, userId, chatIDs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChatAvatars", reflect.TypeOf((*MockChatsRepository)(nil).GetChatAvatars), ctx, chatIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChatAvatars", reflect.TypeOf((*MockChatsRepository)(nil).GetChatAvatars), ctx, userId, chatIDs)
 }
 
 // GetChats mocks base method.

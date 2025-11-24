@@ -400,6 +400,12 @@ func (h *ChatsGRPCProxyHandler) UpdateChat(w http.ResponseWriter, r *http.Reques
 func (h *ChatsGRPCProxyHandler) GetChatAvatars(w http.ResponseWriter, r *http.Request) {
 	const op = "ChatsGRPCProxyHandler.GetChatAvatars"
 
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
 	var req dtoUtils.GetAvatarsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendError(r.Context(), op, w, http.StatusBadRequest, err.Error())
@@ -419,7 +425,10 @@ func (h *ChatsGRPCProxyHandler) GetChatAvatars(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	request := &gen.GetChatAvatarsReq{ChatIds: req.IDs}
+	request := &gen.GetChatAvatarsReq{
+		UserId:  userID.String(),
+		ChatIds: req.IDs,
+	}
 
 	response, err := h.chatsClient.GetChatAvatars(r.Context(), request)
 	if err != nil {
