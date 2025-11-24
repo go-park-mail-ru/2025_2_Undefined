@@ -106,15 +106,16 @@ func NewApp(conf *config.Config) (*App, error) {
 
 	chatRouter := protectedRouter.PathPrefix("/chats").Subrouter()
 	{
+		chatRouter.HandleFunc("/dialog/{user_id}", chatsHandler.GetUsersDialog).Methods(http.MethodGet)
+		chatRouter.HandleFunc("/avatars/query", chatsHandler.GetChatAvatars).Methods(http.MethodPost)
+		chatRouter.HandleFunc("/{chat_id}/avatar", chatsHandler.UploadChatAvatar).Methods(http.MethodPost)
+		chatRouter.HandleFunc("/search", chatsHandler.SearchChats).Methods(http.MethodGet)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.GetInformationAboutChat).Methods(http.MethodGet)
 		chatRouter.HandleFunc("", chatsHandler.GetChats).Methods(http.MethodGet)
 		chatRouter.HandleFunc("", chatsHandler.PostChats).Methods(http.MethodPost)
 		chatRouter.HandleFunc("/{chat_id}/members", chatsHandler.AddUsersToChat).Methods(http.MethodPatch)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.DeleteChat).Methods(http.MethodDelete)
 		chatRouter.HandleFunc("/{chat_id}", chatsHandler.UpdateChat).Methods(http.MethodPatch)
-		chatRouter.HandleFunc("/dialog/{user_id}", chatsHandler.GetUsersDialog).Methods(http.MethodGet)
-		chatRouter.HandleFunc("/avatars/query", chatsHandler.GetChatAvatars).Methods(http.MethodPost)
-		chatRouter.HandleFunc("/{chat_id}/avatar", chatsHandler.UploadChatAvatar).Methods(http.MethodPost)
 	}
 
 	userRouter := protectedRouter.PathPrefix("").Subrouter()
@@ -137,6 +138,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
 		messageRouter.HandleFunc("/message/ws", chatsHandler.HandleMessages)
+		messageRouter.HandleFunc("/chats/{chat_id}/messages/search", chatsHandler.SearchMessages).Methods(http.MethodGet)
 	}
 
 	contactRouter := protectedRouter.PathPrefix("/contacts").Subrouter()

@@ -141,6 +141,21 @@ func (mr *MockChatsUsecaseMockRecorder) GetUsersDialog(ctx, user1ID, user2ID int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersDialog", reflect.TypeOf((*MockChatsUsecase)(nil).GetUsersDialog), ctx, user1ID, user2ID)
 }
 
+// SearchChats mocks base method.
+func (m *MockChatsUsecase) SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]dto.ChatViewInformationDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchChats", ctx, userID, name)
+	ret0, _ := ret[0].([]dto.ChatViewInformationDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchChats indicates an expected call of SearchChats.
+func (mr *MockChatsUsecaseMockRecorder) SearchChats(ctx, userID, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchChats", reflect.TypeOf((*MockChatsUsecase)(nil).SearchChats), ctx, userID, name)
+}
+
 // UpdateChat mocks base method.
 func (m *MockChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
 	m.ctrl.T.Helper()

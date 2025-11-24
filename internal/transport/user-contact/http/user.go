@@ -248,7 +248,7 @@ func (h *UserGRPCProxyHandler) UploadUserAvatar(w http.ResponseWriter, r *http.R
 // @Success      200      {object}  dto.GetAvatarsResponse  "Аватарки пользователей"
 // @Failure      400      {object}  dto.ErrorDTO            "Некорректный запрос"
 // @Failure      401      {object}  dto.ErrorDTO            "Неавторизованный доступ"
-// @Router       /users/avatars [post]
+// @Router       /users/avatars/query [post]
 func (h *UserGRPCProxyHandler) GetUserAvatars(w http.ResponseWriter, r *http.Request) {
 	const op = "UserGRPCProxyHandler.GetUserAvatars"
 

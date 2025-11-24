@@ -143,3 +143,34 @@ func (h *MessageGRPCHandler) editMessage(ctx context.Context, userID uuid.UUID, 
 func (h *MessageGRPCHandler) deleteMessage(ctx context.Context, userID uuid.UUID, message dtoMessage.DeleteMessageDTO) error {
 	return h.messageUsecase.DeleteMessage(ctx, message, userID)
 }
+
+func (h *MessageGRPCHandler) SearchMessages(ctx context.Context, in *gen.SearchMessagesReq) (*gen.SearchMessagesRes, error) {
+	const op = "MessageGRPCHandler.SearchMessages"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	userID, err := uuid.Parse(in.GetUserId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing userId: %s", in.GetUserId())
+		return nil, status.Error(codes.InvalidArgument, "wrong user id format")
+	}
+
+	chatID, err := uuid.Parse(in.GetChatId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing chatId: %s", in.GetChatId())
+		return nil, status.Error(codes.InvalidArgument, "wrong chat id format")
+	}
+
+	textQuery := in.GetText()
+
+	messagesDTO, err := h.messageUsecase.GetMessagesBySearch(ctx, userID, chatID, textQuery)
+	if err != nil {
+		logger.WithError(err).Error("Failed to search messages")
+		return nil, status.Error(codes.Internal, "can't search messages")
+	}
+
+	protoMessages := mappers.DTOMessagesToProto(messagesDTO)
+
+	return &gen.SearchMessagesRes{
+		Messages: protoMessages,
+	}, nil
+}

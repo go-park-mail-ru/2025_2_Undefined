@@ -65,4 +65,10 @@ const (
 	insertChatAvatarInAvatarChatTableQuery = `
 		INSERT INTO avatar_chat (chat_id, attachment_id)
 		VALUES ($1, $2)`
+
+	searchChatsQuery = `
+		SELECT c.id, c.chat_type::text, c.name, c.description 
+		FROM chat c
+		JOIN chat_member cm ON cm.chat_id = c.id
+		WHERE cm.user_id = $1 AND c.name ILIKE '%' || $2 || '%'`
 )

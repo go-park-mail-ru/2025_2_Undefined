@@ -1496,6 +1496,162 @@ func (x *GetChatAvatarsRes) GetAvatars() map[string]string {
 	return nil
 }
 
+type SearchChatsReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchChatsReq) Reset() {
+	*x = SearchChatsReq{}
+	mi := &file_chats_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchChatsReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchChatsReq) ProtoMessage() {}
+
+func (x *SearchChatsReq) ProtoReflect() protoreflect.Message {
+	mi := &file_chats_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchChatsReq.ProtoReflect.Descriptor instead.
+func (*SearchChatsReq) Descriptor() ([]byte, []int) {
+	return file_chats_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SearchChatsReq) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SearchChatsReq) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type SearchMessagesReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ChatId        string                 `protobuf:"bytes,2,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchMessagesReq) Reset() {
+	*x = SearchMessagesReq{}
+	mi := &file_chats_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchMessagesReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchMessagesReq) ProtoMessage() {}
+
+func (x *SearchMessagesReq) ProtoReflect() protoreflect.Message {
+	mi := &file_chats_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchMessagesReq.ProtoReflect.Descriptor instead.
+func (*SearchMessagesReq) Descriptor() ([]byte, []int) {
+	return file_chats_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *SearchMessagesReq) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *SearchMessagesReq) GetChatId() string {
+	if x != nil {
+		return x.ChatId
+	}
+	return ""
+}
+
+func (x *SearchMessagesReq) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type SearchMessagesRes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*Message             `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchMessagesRes) Reset() {
+	*x = SearchMessagesRes{}
+	mi := &file_chats_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchMessagesRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchMessagesRes) ProtoMessage() {}
+
+func (x *SearchMessagesRes) ProtoReflect() protoreflect.Message {
+	mi := &file_chats_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchMessagesRes.ProtoReflect.Descriptor instead.
+func (*SearchMessagesRes) Descriptor() ([]byte, []int) {
+	return file_chats_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SearchMessagesRes) GetMessages() []*Message {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
 type UploadChatAvatarReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1509,7 +1665,7 @@ type UploadChatAvatarReq struct {
 
 func (x *UploadChatAvatarReq) Reset() {
 	*x = UploadChatAvatarReq{}
-	mi := &file_chats_proto_msgTypes[23]
+	mi := &file_chats_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1521,7 +1677,7 @@ func (x *UploadChatAvatarReq) String() string {
 func (*UploadChatAvatarReq) ProtoMessage() {}
 
 func (x *UploadChatAvatarReq) ProtoReflect() protoreflect.Message {
-	mi := &file_chats_proto_msgTypes[23]
+	mi := &file_chats_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1534,7 +1690,7 @@ func (x *UploadChatAvatarReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadChatAvatarReq.ProtoReflect.Descriptor instead.
 func (*UploadChatAvatarReq) Descriptor() ([]byte, []int) {
-	return file_chats_proto_rawDescGZIP(), []int{23}
+	return file_chats_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UploadChatAvatarReq) GetUserId() string {
@@ -1581,7 +1737,7 @@ type UploadChatAvatarRes struct {
 
 func (x *UploadChatAvatarRes) Reset() {
 	*x = UploadChatAvatarRes{}
-	mi := &file_chats_proto_msgTypes[24]
+	mi := &file_chats_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1593,7 +1749,7 @@ func (x *UploadChatAvatarRes) String() string {
 func (*UploadChatAvatarRes) ProtoMessage() {}
 
 func (x *UploadChatAvatarRes) ProtoReflect() protoreflect.Message {
-	mi := &file_chats_proto_msgTypes[24]
+	mi := &file_chats_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1606,7 +1762,7 @@ func (x *UploadChatAvatarRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadChatAvatarRes.ProtoReflect.Descriptor instead.
 func (*UploadChatAvatarRes) Descriptor() ([]byte, []int) {
-	return file_chats_proto_rawDescGZIP(), []int{24}
+	return file_chats_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UploadChatAvatarRes) GetAvatarUrl() string {
@@ -1738,7 +1894,16 @@ const file_chats_proto_rawDesc = "" +
 	"\aavatars\x18\x01 \x03(\v2%.chats.GetChatAvatarsRes.AvatarsEntryR\aavatars\x1a:\n" +
 	"\fAvatarsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9a\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
+	"\x0eSearchChatsReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"Y\n" +
+	"\x11SearchMessagesReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\achat_id\x18\x02 \x01(\tR\x06chatId\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\"?\n" +
+	"\x11SearchMessagesRes\x12*\n" +
+	"\bmessages\x18\x01 \x03(\v2\x0e.chats.MessageR\bmessages\"\x9a\x01\n" +
 	"\x13UploadChatAvatarReq\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\achat_id\x18\x02 \x01(\tR\x06chatId\x12\x12\n" +
@@ -1747,7 +1912,7 @@ const file_chats_proto_rawDesc = "" +
 	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\"4\n" +
 	"\x13UploadChatAvatarRes\x12\x1d\n" +
 	"\n" +
-	"avatar_url\x18\x01 \x01(\tR\tavatarUrl2\x80\x05\n" +
+	"avatar_url\x18\x01 \x01(\tR\tavatarUrl2\xba\x05\n" +
 	"\vChatService\x122\n" +
 	"\bGetChats\x12\x12.chats.GetChatsReq\x1a\x12.chats.GetChatsRes\x12<\n" +
 	"\aGetChat\x12\x11.chats.GetChatReq\x1a\x1e.chats.ChatDetailedInformation\x128\n" +
@@ -1761,10 +1926,12 @@ const file_chats_proto_rawDesc = "" +
 	"\rAddUserToChat\x12\x17.chats.AddUserToChatReq\x1a\x16.google.protobuf.Empty\x12J\n" +
 	"\x12RemoveUserFromChat\x12\x1c.chats.RemoveUserFromChatReq\x1a\x16.google.protobuf.Empty\x12D\n" +
 	"\x0eGetChatAvatars\x12\x18.chats.GetChatAvatarsReq\x1a\x18.chats.GetChatAvatarsRes\x12J\n" +
-	"\x10UploadChatAvatar\x12\x1a.chats.UploadChatAvatarReq\x1a\x1a.chats.UploadChatAvatarRes2\xa9\x01\n" +
+	"\x10UploadChatAvatar\x12\x1a.chats.UploadChatAvatarReq\x1a\x1a.chats.UploadChatAvatarRes\x128\n" +
+	"\vSearchChats\x12\x15.chats.SearchChatsReq\x1a\x12.chats.GetChatsRes2\xef\x01\n" +
 	"\x0eMessageService\x12R\n" +
 	"\x15StreamMessagesForUser\x12\x1f.chats.StreamMessagesForUserReq\x1a\x16.chats.MessageEventRes0\x01\x12C\n" +
-	"\x11HandleSendMessage\x12\x16.chats.MessageEventReq\x1a\x16.google.protobuf.EmptyBPZNgithub.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chatsb\x06proto3"
+	"\x11HandleSendMessage\x12\x16.chats.MessageEventReq\x1a\x16.google.protobuf.Empty\x12D\n" +
+	"\x0eSearchMessages\x12\x18.chats.SearchMessagesReq\x1a\x18.chats.SearchMessagesResBPZNgithub.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chatsb\x06proto3"
 
 var (
 	file_chats_proto_rawDescOnce sync.Once
@@ -1778,7 +1945,7 @@ func file_chats_proto_rawDescGZIP() []byte {
 	return file_chats_proto_rawDescData
 }
 
-var file_chats_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_chats_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_chats_proto_goTypes = []any{
 	(*Chat)(nil),                     // 0: chats.Chat
 	(*UserInfoChat)(nil),             // 1: chats.UserInfoChat
@@ -1803,11 +1970,14 @@ var file_chats_proto_goTypes = []any{
 	(*StreamMessagesForUserReq)(nil), // 20: chats.StreamMessagesForUserReq
 	(*GetChatAvatarsReq)(nil),        // 21: chats.GetChatAvatarsReq
 	(*GetChatAvatarsRes)(nil),        // 22: chats.GetChatAvatarsRes
-	(*UploadChatAvatarReq)(nil),      // 23: chats.UploadChatAvatarReq
-	(*UploadChatAvatarRes)(nil),      // 24: chats.UploadChatAvatarRes
-	nil,                              // 25: chats.GetChatAvatarsRes.AvatarsEntry
-	(*timestamppb.Timestamp)(nil),    // 26: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),            // 27: google.protobuf.Empty
+	(*SearchChatsReq)(nil),           // 23: chats.SearchChatsReq
+	(*SearchMessagesReq)(nil),        // 24: chats.SearchMessagesReq
+	(*SearchMessagesRes)(nil),        // 25: chats.SearchMessagesRes
+	(*UploadChatAvatarReq)(nil),      // 26: chats.UploadChatAvatarReq
+	(*UploadChatAvatarRes)(nil),      // 27: chats.UploadChatAvatarRes
+	nil,                              // 28: chats.GetChatAvatarsRes.AvatarsEntry
+	(*timestamppb.Timestamp)(nil),    // 29: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),            // 30: google.protobuf.Empty
 }
 var file_chats_proto_depIdxs = []int32{
 	16, // 0: chats.Chat.last_message:type_name -> chats.Message
@@ -1824,37 +1994,42 @@ var file_chats_proto_depIdxs = []int32{
 	17, // 11: chats.MessageEventRes.edit_chat_message:type_name -> chats.EditMessage
 	18, // 12: chats.MessageEventRes.delete_chat_message:type_name -> chats.DeleteMessage
 	19, // 13: chats.MessageEventRes.user_joined:type_name -> chats.UserJoined
-	26, // 14: chats.EditMessage.updated_at:type_name -> google.protobuf.Timestamp
-	25, // 15: chats.GetChatAvatarsRes.avatars:type_name -> chats.GetChatAvatarsRes.AvatarsEntry
-	3,  // 16: chats.ChatService.GetChats:input_type -> chats.GetChatsReq
-	5,  // 17: chats.ChatService.GetChat:input_type -> chats.GetChatReq
-	6,  // 18: chats.ChatService.GetUsersDialog:input_type -> chats.GetUsersDialogReq
-	8,  // 19: chats.ChatService.CreateChat:input_type -> chats.CreateChatReq
-	10, // 20: chats.ChatService.UpdateChat:input_type -> chats.UpdateChatReq
-	5,  // 21: chats.ChatService.DeleteChat:input_type -> chats.GetChatReq
-	11, // 22: chats.ChatService.AddUserToChat:input_type -> chats.AddUserToChatReq
-	12, // 23: chats.ChatService.RemoveUserFromChat:input_type -> chats.RemoveUserFromChatReq
-	21, // 24: chats.ChatService.GetChatAvatars:input_type -> chats.GetChatAvatarsReq
-	23, // 25: chats.ChatService.UploadChatAvatar:input_type -> chats.UploadChatAvatarReq
-	20, // 26: chats.MessageService.StreamMessagesForUser:input_type -> chats.StreamMessagesForUserReq
-	13, // 27: chats.MessageService.HandleSendMessage:input_type -> chats.MessageEventReq
-	4,  // 28: chats.ChatService.GetChats:output_type -> chats.GetChatsRes
-	2,  // 29: chats.ChatService.GetChat:output_type -> chats.ChatDetailedInformation
-	9,  // 30: chats.ChatService.GetUsersDialog:output_type -> chats.IdRes
-	9,  // 31: chats.ChatService.CreateChat:output_type -> chats.IdRes
-	27, // 32: chats.ChatService.UpdateChat:output_type -> google.protobuf.Empty
-	27, // 33: chats.ChatService.DeleteChat:output_type -> google.protobuf.Empty
-	27, // 34: chats.ChatService.AddUserToChat:output_type -> google.protobuf.Empty
-	27, // 35: chats.ChatService.RemoveUserFromChat:output_type -> google.protobuf.Empty
-	22, // 36: chats.ChatService.GetChatAvatars:output_type -> chats.GetChatAvatarsRes
-	24, // 37: chats.ChatService.UploadChatAvatar:output_type -> chats.UploadChatAvatarRes
-	14, // 38: chats.MessageService.StreamMessagesForUser:output_type -> chats.MessageEventRes
-	27, // 39: chats.MessageService.HandleSendMessage:output_type -> google.protobuf.Empty
-	28, // [28:40] is the sub-list for method output_type
-	16, // [16:28] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	29, // 14: chats.EditMessage.updated_at:type_name -> google.protobuf.Timestamp
+	28, // 15: chats.GetChatAvatarsRes.avatars:type_name -> chats.GetChatAvatarsRes.AvatarsEntry
+	16, // 16: chats.SearchMessagesRes.messages:type_name -> chats.Message
+	3,  // 17: chats.ChatService.GetChats:input_type -> chats.GetChatsReq
+	5,  // 18: chats.ChatService.GetChat:input_type -> chats.GetChatReq
+	6,  // 19: chats.ChatService.GetUsersDialog:input_type -> chats.GetUsersDialogReq
+	8,  // 20: chats.ChatService.CreateChat:input_type -> chats.CreateChatReq
+	10, // 21: chats.ChatService.UpdateChat:input_type -> chats.UpdateChatReq
+	5,  // 22: chats.ChatService.DeleteChat:input_type -> chats.GetChatReq
+	11, // 23: chats.ChatService.AddUserToChat:input_type -> chats.AddUserToChatReq
+	12, // 24: chats.ChatService.RemoveUserFromChat:input_type -> chats.RemoveUserFromChatReq
+	21, // 25: chats.ChatService.GetChatAvatars:input_type -> chats.GetChatAvatarsReq
+	26, // 26: chats.ChatService.UploadChatAvatar:input_type -> chats.UploadChatAvatarReq
+	23, // 27: chats.ChatService.SearchChats:input_type -> chats.SearchChatsReq
+	20, // 28: chats.MessageService.StreamMessagesForUser:input_type -> chats.StreamMessagesForUserReq
+	13, // 29: chats.MessageService.HandleSendMessage:input_type -> chats.MessageEventReq
+	24, // 30: chats.MessageService.SearchMessages:input_type -> chats.SearchMessagesReq
+	4,  // 31: chats.ChatService.GetChats:output_type -> chats.GetChatsRes
+	2,  // 32: chats.ChatService.GetChat:output_type -> chats.ChatDetailedInformation
+	9,  // 33: chats.ChatService.GetUsersDialog:output_type -> chats.IdRes
+	9,  // 34: chats.ChatService.CreateChat:output_type -> chats.IdRes
+	30, // 35: chats.ChatService.UpdateChat:output_type -> google.protobuf.Empty
+	30, // 36: chats.ChatService.DeleteChat:output_type -> google.protobuf.Empty
+	30, // 37: chats.ChatService.AddUserToChat:output_type -> google.protobuf.Empty
+	30, // 38: chats.ChatService.RemoveUserFromChat:output_type -> google.protobuf.Empty
+	22, // 39: chats.ChatService.GetChatAvatars:output_type -> chats.GetChatAvatarsRes
+	27, // 40: chats.ChatService.UploadChatAvatar:output_type -> chats.UploadChatAvatarRes
+	4,  // 41: chats.ChatService.SearchChats:output_type -> chats.GetChatsRes
+	14, // 42: chats.MessageService.StreamMessagesForUser:output_type -> chats.MessageEventRes
+	30, // 43: chats.MessageService.HandleSendMessage:output_type -> google.protobuf.Empty
+	25, // 44: chats.MessageService.SearchMessages:output_type -> chats.SearchMessagesRes
+	31, // [31:45] is the sub-list for method output_type
+	17, // [17:31] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_chats_proto_init() }
@@ -1885,7 +2060,7 @@ func file_chats_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chats_proto_rawDesc), len(file_chats_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

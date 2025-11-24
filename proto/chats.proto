@@ -149,6 +149,21 @@ message GetChatAvatarsRes {
     map<string, string> avatars = 1; // chat_id -> avatar_url
 }
 
+message SearchChatsReq {
+    string user_id = 1;
+    string name = 2;
+}
+
+message SearchMessagesReq {
+    string user_id = 1;
+    string chat_id = 2;
+    string text = 3;
+}
+
+message SearchMessagesRes{
+    repeated Message messages = 1;
+}
+
 // Сервисы
 service ChatService {
     rpc GetChats(GetChatsReq) returns (GetChatsRes);
@@ -161,6 +176,7 @@ service ChatService {
     rpc RemoveUserFromChat(RemoveUserFromChatReq) returns (google.protobuf.Empty);
     rpc GetChatAvatars(GetChatAvatarsReq) returns (GetChatAvatarsRes);
     rpc UploadChatAvatar(UploadChatAvatarReq) returns (UploadChatAvatarRes);
+    rpc SearchChats(SearchChatsReq) returns (GetChatsRes);
 }
 
 message UploadChatAvatarReq {
@@ -178,4 +194,5 @@ message UploadChatAvatarRes {
 service MessageService {
     rpc StreamMessagesForUser(StreamMessagesForUserReq) returns (stream MessageEventRes);
     rpc HandleSendMessage(MessageEventReq) returns (google.protobuf.Empty);
+    rpc SearchMessages(SearchMessagesReq) returns (SearchMessagesRes);
 }

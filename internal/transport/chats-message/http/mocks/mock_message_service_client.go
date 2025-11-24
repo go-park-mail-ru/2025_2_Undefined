@@ -76,3 +76,16 @@ func (mr *MockMessageServiceClientMockRecorder) StreamMessagesForUser(arg0, arg1
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StreamMessagesForUser", reflect.TypeOf((*MockMessageServiceClient)(nil).StreamMessagesForUser), varargs...)
 }
+
+// SearchMessages mocks base method.
+func (m *MockMessageServiceClient) SearchMessages(arg0 context.Context, arg1 *chats.SearchMessagesReq, arg2 ...grpc.CallOption) (*chats.SearchMessagesRes, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SearchMessages", varargs...)
+	ret0, _ := ret[0].(*chats.SearchMessagesRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}

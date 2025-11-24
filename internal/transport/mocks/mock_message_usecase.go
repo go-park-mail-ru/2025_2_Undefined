@@ -79,6 +79,21 @@ func (mr *MockMessageUsecaseMockRecorder) EditMessage(ctx, message, userID inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditMessage", reflect.TypeOf((*MockMessageUsecase)(nil).EditMessage), ctx, message, userID)
 }
 
+// SearchMessages mocks base method.
+func (m *MockMessageUsecase) SearchMessages(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dto0.MessageDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchMessages", ctx, userID, chatID, text)
+	ret0, _ := ret[0].([]dto0.MessageDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchMessages indicates an expected call of SearchMessages.
+func (mr *MockMessageUsecaseMockRecorder) SearchMessages(ctx, userID, chatID, text interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMessages", reflect.TypeOf((*MockMessageUsecase)(nil).SearchMessages), ctx, userID, chatID, text)
+}
+
 // SubscribeConnectionToChats mocks base method.
 func (m *MockMessageUsecase) SubscribeConnectionToChats(ctx context.Context, connectionID, userID uuid.UUID, chatsDTO []dto.ChatViewInformationDTO) <-chan dto0.WebSocketMessageDTO {
 	m.ctrl.T.Helper()

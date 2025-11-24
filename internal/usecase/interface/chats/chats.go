@@ -20,4 +20,5 @@ type ChatsRepository interface {
 	UpdateChat(ctx context.Context, userID, chatID uuid.UUID, name, description string) error
 	GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]uuid.UUID, error)
 	UpdateChatAvatar(ctx context.Context, chatID uuid.UUID, attachmentID uuid.UUID, fileSize int64) error
+	SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]modelsChats.Chat, error)
 }

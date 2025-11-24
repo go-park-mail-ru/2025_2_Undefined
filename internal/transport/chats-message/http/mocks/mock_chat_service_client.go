@@ -197,6 +197,26 @@ func (mr *MockChatServiceClientMockRecorder) RemoveUserFromChat(arg0, arg1 inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveUserFromChat", reflect.TypeOf((*MockChatServiceClient)(nil).RemoveUserFromChat), varargs...)
 }
 
+// SearchChats mocks base method.
+func (m *MockChatServiceClient) SearchChats(arg0 context.Context, arg1 *chats.SearchChatsReq, arg2 ...grpc.CallOption) (*chats.GetChatsRes, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SearchChats", varargs...)
+	ret0, _ := ret[0].(*chats.GetChatsRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchChats indicates an expected call of SearchChats.
+func (mr *MockChatServiceClientMockRecorder) SearchChats(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchChats", reflect.TypeOf((*MockChatServiceClient)(nil).SearchChats), varargs...)
+}
+
 // UpdateChat mocks base method.
 func (m *MockChatServiceClient) UpdateChat(arg0 context.Context, arg1 *chats.UpdateChatReq, arg2 ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()

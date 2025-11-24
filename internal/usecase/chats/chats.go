@@ -388,3 +388,52 @@ func (uc *ChatsUsecase) UploadChatAvatar(ctx context.Context, userID, chatID uui
 	logger.Info("Chat avatar uploaded successfully")
 	return avatarURL, nil
 }
+
+func (uc *ChatsUsecase) SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]dtoChats.ChatViewInformationDTO, error) {
+	const op = "ChatsUsecase.SearchChats"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	chats, err := uc.chatsRepo.SearchChats(ctx, userID, name)
+	if err != nil {
+		logger.WithError(err).Errorf("Failed to search chats for user %s with name query '%s'", userID, name)
+		return nil, err
+	}
+
+	if len(chats) == 0 {
+		return []dtoChats.ChatViewInformationDTO{}, nil
+	}
+
+	chatsIDs := make([]uuid.UUID, len(chats))
+	for i, chat := range chats {
+		chatsIDs[i] = chat.ID
+	}
+
+	lastMessages, err := uc.messageRepo.GetLastMessagesOfChatsByIDs(ctx, chatsIDs)
+	if err != nil {
+		logger.WithError(err).Errorf("Failed to get last messages for searched chats for user %s", userID)
+		return nil, err
+	}
+
+	result := make([]dtoChats.ChatViewInformationDTO, len(chats))
+	for i, chat := range chats {
+		lastMessage := lastMessages[chat.ID]
+		result[i] = dtoChats.ChatViewInformationDTO{
+			ID:   chat.ID,
+			Name: chat.Name,
+			Type: chat.Type,
+			LastMessage: dtoMessage.MessageDTO{
+				ID:         lastMessage.ID,
+				SenderID:   lastMessage.UserID,
+				SenderName: lastMessage.UserName,
+				Text:       lastMessage.Text,
+				CreatedAt:  lastMessage.CreatedAt,
+				UpdatedAt:  lastMessage.UpdatedAt,
+				ChatID:     lastMessage.ChatID,
+				Type:       lastMessage.Type,
+			},
+		}
+	}
+
+	return result, nil
+}

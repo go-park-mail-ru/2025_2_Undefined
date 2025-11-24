@@ -177,7 +177,6 @@ func TestMessageUsecase_SubscribeUsersOnChat_Success(t *testing.T) {
 	chatID := uuid.New()
 	userID := uuid.New()
 	messageID := uuid.New()
-	avatarID := uuid.New()
 	connectionID := uuid.New()
 
 	members := []dtoChats.AddChatMemberDTO{
@@ -192,14 +191,13 @@ func TestMessageUsecase_SubscribeUsersOnChat_Success(t *testing.T) {
 
 	messages := []modelsMessage.Message{
 		{
-			ID:           messageID,
-			ChatID:       chatID,
-			UserID:       &userID,
-			UserName:     "Test User",
-			UserAvatarID: &avatarID,
-			Text:         "Last message",
-			CreatedAt:    time.Now(),
-			Type:         "text",
+			ID:        messageID,
+			ChatID:    chatID,
+			UserID:    &userID,
+			UserName:  "Test User",
+			Text:      "Last message",
+			CreatedAt: time.Now(),
+			Type:      "text",
 		},
 	}
 

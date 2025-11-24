@@ -16,7 +16,9 @@ import (
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -226,4 +228,60 @@ func shouldCloseConnection(err error) bool {
 	}
 
 	return websocket.IsUnexpectedCloseError(err)
+}
+
+// SearchMessages выполняет поиск сообщений в чате по текстовому запросу
+// @Summary      Поиск сообщений в чате
+// @Description  Выполняет поиск сообщений в указанном чате по текстовому запросу.
+// @Tags         messages
+// @Accept       json
+// @Produce      json
+// @Security     Cookie
+// @Param        chat_id  path      string  true  "ID чата"
+// @Param        text     query     string  true  "Текстовый запрос для поиска сообщений"
+// @Success      200      {array}   dto.MessageDTO  "Список найденных сообщений"
+// @Failure      400      {object}  dto.ErrorDTO    "Некорректный запрос (например, отсутствует текстовый запрос)"
+// @Failure      401      {object}  dto.ErrorDTO    "Пользователь не авторизован"
+// @Failure      500      {object}  dto.ErrorDTO    "Ошибка сервера при поиске сообщений"
+// @Router       /chats/{chat_id}/messages/search [get]
+func (h *ChatsGRPCProxyHandler) SearchMessages(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.SearchMessages"
+
+	vars := mux.Vars(r)
+	chatIDStr := vars["chat_id"]
+
+	chatID, err := uuid.Parse(chatIDStr)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "bad format chat_id in query")
+		return
+	}
+
+	queryValues := r.URL.Query()
+	textQuery := queryValues.Get("text")
+	if textQuery == "" {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "text in query is required")
+		return
+	}
+
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	protoReq := &gen.SearchMessagesReq{
+		UserId: userID.String(),
+		ChatId: chatID.String(),
+		Text:   textQuery,
+	}
+
+	protoRes, err := h.messageClient.SearchMessages(r.Context(), protoReq)
+	if err != nil {
+		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to search messages")
+		return
+	}
+
+	dtoRes := mappers.ProtoSearchMessagesResToDTO(protoRes)
+
+	response.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoRes)
 }

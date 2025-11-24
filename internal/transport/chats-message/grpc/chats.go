@@ -299,3 +299,28 @@ func (h *ChatsGRPCHandler) UploadChatAvatar(ctx context.Context, in *gen.UploadC
 
 	return response, nil
 }
+
+func (h *ChatsGRPCHandler) SearchChats(ctx context.Context, in *gen.SearchChatsReq) (*gen.GetChatsRes, error) {
+	const op = "ChatsGRPCHandler.SearchChats"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	userID, err := uuid.Parse(in.GetUserId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing userId: %s", in.GetUserId())
+		return nil, status.Error(codes.InvalidArgument, "wrong user id format")
+	}
+
+	nameQuery := in.GetName()
+
+	chatsDTO, err := h.chatsUsecase.SearchChats(ctx, userID, nameQuery)
+	if err != nil {
+		logger.WithError(err).Error("Failed to search chats")
+		return nil, status.Error(codes.Internal, "can't search chats")
+	}
+
+	response := &gen.GetChatsRes{
+		Chats: mappers.DTOChatsViewToProto(chatsDTO),
+	}
+
+	return response, nil
+}

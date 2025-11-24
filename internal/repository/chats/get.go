@@ -160,3 +160,31 @@ func (r *ChatsRepository) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUI
 	logger.WithField("avatars_count", len(result)).WithField("result", result).Info("Database operation completed successfully: chat avatars retrieved")
 	return result, nil
 }
+
+func (r *ChatsRepository) SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]modelsChats.Chat, error) {
+	const op = "ChatsRepository.SearchChats"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userID.String())
+	logger.Debug("Starting database operation: search chats")
+
+	rows, err := r.db.Query(ctx, searchChatsQuery, userID, name)
+	if err != nil {
+		logger.WithError(err).Error("Database operation failed: search chats query")
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]modelsChats.Chat, 0)
+	for rows.Next() {
+		var chat modelsChats.Chat
+		if err := rows.Scan(&chat.ID, &chat.Type, &chat.Name, &chat.Description); err != nil {
+			logger.WithError(err).Error("Database operation failed: scan chat row")
+			return nil, err
+		}
+
+		result = append(result, chat)
+	}
+
+	logger.WithField("chats_count", len(result)).Info("Database operation completed successfully: chats searched")
+	return result, nil
+}
