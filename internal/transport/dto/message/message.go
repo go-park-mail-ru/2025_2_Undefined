@@ -9,7 +9,7 @@ import (
 type MessageDTO struct {
 	ID         uuid.UUID  `json:"id" swaggertype:"string" format:"uuid"`
 	SenderID   *uuid.UUID `json:"sender_id" swaggertype:"string" format:"uuid"`
-	SenderName string     `json:"sender_name" swaggertype:"string"`
+	SenderName *string    `json:"sender_name" swaggertype:"string"`
 	Text       string     `json:"text"`
 	CreatedAt  time.Time  `json:"created_at" swaggertype:"string" format:"date-time"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty" swaggertype:"string" format:"date-time"`

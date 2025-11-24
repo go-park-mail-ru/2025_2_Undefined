@@ -240,6 +240,13 @@ func (h *ChatsGRPCHandler) GetChatAvatars(ctx context.Context, in *gen.GetChatAv
 	const op = "ChatsGRPCHandler.GetChatAvatars"
 	logger := domains.GetLogger(ctx).WithField("operation", op)
 
+	userIDStr := in.GetUserId()
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing userId: %s", userIDStr)
+		return nil, status.Error(codes.InvalidArgument, "wrong user id format")
+	}
+
 	chatIDStrings := in.GetChatIds()
 	if len(chatIDStrings) == 0 {
 		logger.Debug("No chat IDs provided, returning empty response")
@@ -256,7 +263,7 @@ func (h *ChatsGRPCHandler) GetChatAvatars(ctx context.Context, in *gen.GetChatAv
 		chatIDs = append(chatIDs, chatID)
 	}
 
-	avatars, err := h.chatsUsecase.GetChatAvatars(ctx, chatIDs)
+	avatars, err := h.chatsUsecase.GetChatAvatars(ctx, userID, chatIDs)
 	if err != nil {
 		logger.WithError(err).Error("error getting chat avatars")
 		return nil, status.Error(codes.Internal, err.Error())

@@ -1410,7 +1410,8 @@ func (x *StreamMessagesForUserReq) GetUserId() string {
 
 type GetChatAvatarsReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ChatIds       []string               `protobuf:"bytes,1,rep,name=chat_ids,json=chatIds,proto3" json:"chat_ids,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ChatIds       []string               `protobuf:"bytes,2,rep,name=chat_ids,json=chatIds,proto3" json:"chat_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1443,6 +1444,13 @@ func (x *GetChatAvatarsReq) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetChatAvatarsReq.ProtoReflect.Descriptor instead.
 func (*GetChatAvatarsReq) Descriptor() ([]byte, []int) {
 	return file_chats_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetChatAvatarsReq) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
 }
 
 func (x *GetChatAvatarsReq) GetChatIds() []string {
@@ -1887,9 +1895,10 @@ const file_chats_proto_rawDesc = "" +
 	"\achat_id\x18\x01 \x01(\tR\x06chatId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"3\n" +
 	"\x18StreamMessagesForUserReq\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\".\n" +
-	"\x11GetChatAvatarsReq\x12\x19\n" +
-	"\bchat_ids\x18\x01 \x03(\tR\achatIds\"\x90\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"G\n" +
+	"\x11GetChatAvatarsReq\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
+	"\bchat_ids\x18\x02 \x03(\tR\achatIds\"\x90\x01\n" +
 	"\x11GetChatAvatarsRes\x12?\n" +
 	"\aavatars\x18\x01 \x03(\v2%.chats.GetChatAvatarsRes.AvatarsEntryR\aavatars\x1a:\n" +
 	"\fAvatarsEntry\x12\x10\n" +

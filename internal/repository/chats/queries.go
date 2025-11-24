@@ -46,17 +46,38 @@ const (
 	updateChatQuery = `UPDATE chat SET name = $1, description = $2 WHERE id = $3`
 
 	getChatAvatarsQuery = `
-		WITH latest_avatars AS (
+		WITH latest_chat_avatars AS (
 			SELECT DISTINCT ON (ac.chat_id) 
 				ac.chat_id, 
 				a.id as attachment_id
 			FROM avatar_chat ac
 			JOIN attachment a ON ac.attachment_id = a.id
-			WHERE ac.chat_id = ANY($1)
+			WHERE ac.chat_id = ANY($2)
 			ORDER BY ac.chat_id, ac.created_at DESC
+		),
+		latest_user_avatars AS (
+			SELECT DISTINCT ON (au.user_id) 
+				au.user_id,
+				a.id as attachment_id
+			FROM avatar_user au
+			JOIN attachment a ON au.attachment_id = a.id
+			ORDER BY au.user_id, au.created_at DESC
+		),
+		dialog_avatars AS (
+			SELECT 
+				c.id as chat_id,
+				lua.attachment_id
+			FROM chat c
+			JOIN chat_member cm ON cm.chat_id = c.id
+			JOIN latest_user_avatars lua ON lua.user_id = cm.user_id
+			WHERE c.chat_type = 'dialog' 
+			  AND c.id = ANY($2)
+			  AND cm.user_id != $1
 		)
-		SELECT chat_id, attachment_id 
-		FROM latest_avatars`
+		SELECT chat_id, attachment_id FROM latest_chat_avatars
+		WHERE chat_id NOT IN (SELECT chat_id FROM dialog_avatars)
+		UNION ALL
+		SELECT chat_id, attachment_id FROM dialog_avatars`
 
 	insertChatAvatarInAttachmentTableQuery = `
 		INSERT INTO attachment (id, file_name, file_size, content_disposition)

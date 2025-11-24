@@ -79,19 +79,19 @@ func (mr *MockMessageUsecaseMockRecorder) EditMessage(ctx, message, userID inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditMessage", reflect.TypeOf((*MockMessageUsecase)(nil).EditMessage), ctx, message, userID)
 }
 
-// SearchMessages mocks base method.
-func (m *MockMessageUsecase) SearchMessages(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dto0.MessageDTO, error) {
+// GetMessagesBySearch mocks base method.
+func (m *MockMessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dto0.MessageDTO, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchMessages", ctx, userID, chatID, text)
+	ret := m.ctrl.Call(m, "GetMessagesBySearch", ctx, userID, chatID, text)
 	ret0, _ := ret[0].([]dto0.MessageDTO)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SearchMessages indicates an expected call of SearchMessages.
-func (mr *MockMessageUsecaseMockRecorder) SearchMessages(ctx, userID, chatID, text interface{}) *gomock.Call {
+// GetMessagesBySearch indicates an expected call of GetMessagesBySearch.
+func (mr *MockMessageUsecaseMockRecorder) GetMessagesBySearch(ctx, userID, chatID, text interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMessages", reflect.TypeOf((*MockMessageUsecase)(nil).SearchMessages), ctx, userID, chatID, text)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessagesBySearch", reflect.TypeOf((*MockMessageUsecase)(nil).GetMessagesBySearch), ctx, userID, chatID, text)
 }
 
 // SubscribeConnectionToChats mocks base method.

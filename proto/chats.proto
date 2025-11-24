@@ -142,7 +142,8 @@ message StreamMessagesForUserReq{
 }
 
 message GetChatAvatarsReq {
-    repeated string chat_ids = 1;
+    string user_id = 1;
+    repeated string chat_ids = 2;
 }
 
 message GetChatAvatarsRes {

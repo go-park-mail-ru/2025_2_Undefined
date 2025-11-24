@@ -21,7 +21,7 @@ const (
 			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
 		FROM message msg
 		JOIN chat_member cm ON cm.chat_id = msg.chat_id
-		JOIN "user" usr ON usr.id = msg.user_id
+		LEFT JOIN "user" usr ON usr.id = msg.user_id
 		WHERE cm.user_id = $1
 		ORDER BY msg.chat_id, msg.created_at DESC`
 
@@ -106,8 +106,9 @@ func (r *MessageRepository) GetLastMessagesOfChats(ctx context.Context, userId u
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("user_id", userId.String())
 
 	queryStatus := "success"
+	count := 0
 	defer func() {
-		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+		logger.Debugf("db query: %s: status: %s, count: %d", query, queryStatus, count)
 	}()
 
 	logger.Debugf("starting: %s", query)
@@ -133,6 +134,8 @@ func (r *MessageRepository) GetLastMessagesOfChats(ctx context.Context, userId u
 
 		result = append(result, message)
 	}
+
+	count = len(result)
 
 	return result, nil
 }

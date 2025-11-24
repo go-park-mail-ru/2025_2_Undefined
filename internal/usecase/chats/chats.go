@@ -317,7 +317,7 @@ func (uc *ChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID
 	return uc.chatsRepo.UpdateChat(ctx, userId, chatId, name, description)
 }
 
-func (uc *ChatsUsecase) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID) (map[string]*string, error) {
+func (uc *ChatsUsecase) GetChatAvatars(ctx context.Context, userId uuid.UUID, chatIDs []uuid.UUID) (map[string]*string, error) {
 	const op = "ChatsUsecase.GetChatAvatars"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_ids_count", len(chatIDs))
@@ -329,7 +329,7 @@ func (uc *ChatsUsecase) GetChatAvatars(ctx context.Context, chatIDs []uuid.UUID)
 		avatars[chatID.String()] = nil
 	}
 
-	avatarsIDs, err := uc.chatsRepo.GetChatAvatars(ctx, chatIDs)
+	avatarsIDs, err := uc.chatsRepo.GetChatAvatars(ctx, userId, chatIDs)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get chat avatars from repository")
 		return nil, err

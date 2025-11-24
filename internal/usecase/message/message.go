@@ -116,7 +116,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 	msgDTO := dtoMessage.MessageDTO{
 		ID:         msgID,
 		SenderID:   &user.ID,
-		SenderName: user.Name,
+		SenderName: &user.Name,
 		Text:       msg.Text,
 		CreatedAt:  msg.CreatedAt,
 		UpdatedAt:  nil,
