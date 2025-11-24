@@ -78,10 +78,14 @@ start-background:
 	docker compose up --build -d
 
 logs:
-	docker-compose logs -f auth-service app
+	docker-compose logs -f
 
 stop:
 	docker compose stop
+
+all-clear:
+	docker compose down
+	docker compose down -v
 
 clear: 
 	@echo "Остановка приложения и очистка БД..."

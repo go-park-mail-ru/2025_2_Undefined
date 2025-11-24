@@ -96,3 +96,47 @@ func (h *UserGRPCHandler) GetContacts(ctx context.Context, req *gen.GetContactsR
 		Contacts: grpcContacts,
 	}, nil
 }
+
+func (h *UserGRPCHandler) SearchContacts(ctx context.Context, req *gen.SearchContactsReq) (*gen.SearchContactsRes, error) {
+	const op = "UserGRPCHandler.SearchContacts"
+	logger := domains.GetLogger(ctx).WithField("op", op)
+
+	userID, err := uuid.Parse(req.UserId)
+	if err != nil {
+		logger.WithError(err).Error("invalid user ID")
+		return nil, status.Error(codes.InvalidArgument, "invalid user ID")
+	}
+
+	if req.Query == "" {
+		return &gen.SearchContactsRes{Contacts: []*gen.Contact{}}, nil
+	}
+
+	contacts, err := h.contactUC.SearchContacts(ctx, userID, req.Query)
+	if err != nil {
+		logger.WithError(err).Error("failed to search contacts")
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	var grpcContacts []*gen.Contact
+	for _, c := range contacts {
+		bio := ""
+		if c.ContactUser.Bio != nil {
+			bio = *c.ContactUser.Bio
+		}
+
+		grpcContacts = append(grpcContacts, &gen.Contact{
+			Id:          c.ContactUser.ID.String(),
+			PhoneNumber: c.ContactUser.PhoneNumber,
+			Name:        c.ContactUser.Name,
+			Username:    c.ContactUser.Username,
+			Bio:         bio,
+			AccountType: c.ContactUser.AccountType,
+			CreatedAt:   c.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:   c.UpdatedAt.Format(time.RFC3339),
+		})
+	}
+
+	return &gen.SearchContactsRes{
+		Contacts: grpcContacts,
+	}, nil
+}

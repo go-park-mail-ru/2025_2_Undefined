@@ -157,6 +157,26 @@ func (mr *MockUserServiceClientMockRecorder) GetUserByUsername(arg0, arg1 interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByUsername", reflect.TypeOf((*MockUserServiceClient)(nil).GetUserByUsername), varargs...)
 }
 
+// SearchContacts mocks base method.
+func (m *MockUserServiceClient) SearchContacts(arg0 context.Context, arg1 *user.SearchContactsReq, arg2 ...grpc.CallOption) (*user.SearchContactsRes, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SearchContacts", varargs...)
+	ret0, _ := ret[0].(*user.SearchContactsRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchContacts indicates an expected call of SearchContacts.
+func (mr *MockUserServiceClientMockRecorder) SearchContacts(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchContacts", reflect.TypeOf((*MockUserServiceClient)(nil).SearchContacts), varargs...)
+}
+
 // UpdateUserInfo mocks base method.
 func (m *MockUserServiceClient) UpdateUserInfo(arg0 context.Context, arg1 *user.UpdateUserInfoReq, arg2 ...grpc.CallOption) (*emptypb.Empty, error) {
 	m.ctrl.T.Helper()

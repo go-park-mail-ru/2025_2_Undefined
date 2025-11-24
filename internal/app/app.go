@@ -143,6 +143,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	{
 		contactRouter.HandleFunc("", userHandler.CreateContact).Methods(http.MethodPost)
 		contactRouter.HandleFunc("", userHandler.GetContacts).Methods(http.MethodGet)
+		contactRouter.HandleFunc("/search", userHandler.SearchContacts).Methods(http.MethodGet)
 	}
 
 	// Swagger

@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: db
+      POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
       AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
@@ -41,15 +41,19 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: db
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
       POSTGRES_PORT: ${POSTGRES_PORT}
       MINIO_PORT: ${MINIO_PORT}
-      MINIO_HOST: minio
+      MINIO_HOST: ${MINIO_HOST:-minio}
       MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_USE_SSL: ${MINIO_USE_SSL}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-https://elasticsearch:9200}
+      ELASTICSEARCH_CONTACTS_INDEX: ${ELASTICSEARCH_CONTACTS_INDEX:-contacts}
+      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-admin}
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD}
     ports:
       - "${USER_GRPC_PORT}:${USER_GRPC_PORT}"
     volumes:
@@ -59,6 +63,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      elasticsearch:
+        condition: service_healthy
     networks:
       gramm-network:
         aliases:
@@ -74,10 +80,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: db
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
       POSTGRES_PORT: ${POSTGRES_PORT}
       MINIO_PORT: ${MINIO_PORT}
-      MINIO_HOST: minio
+      MINIO_HOST: ${MINIO_HOST:-minio}
       MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
       MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
@@ -104,9 +110,19 @@ services:
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
-      AUTH_SERVICE_ADDR: auth-service:50051
-      USER_SERVICE_ADDR: user-service:50052
-      CHATS_SERVICE_ADDR: chats-service:50053
+      AUTH_SERVICE_ADDR: ${AUTH_SERVICE_ADDR}
+      USER_SERVICE_ADDR: ${USER_SERVICE_ADDR}
+      CHATS_SERVICE_ADDR: ${CHATS_SERVICE_ADDR}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SESSION_SIGNATURE: ${SESSION_SIGNATURE}
+      CSRF_SECRET: ${CSRF_SECRET}
+      CSRF_TIMEOUT: ${CSRF_TIMEOUT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
     depends_on:
       db:
         condition: service_healthy
@@ -173,6 +189,29 @@ services:
     networks:
       - gramm-network
 
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:-opensearchproject/opensearch:2.11.0}
+    container_name: gramm_elasticsearch
+    environment:
+      - discovery.type=${ELASTICSEARCH_DISCOVERY_TYPE:-single-node}
+      - plugins.security.disabled=${ELASTICSEARCH_SECURITY_DISABLED:-false}
+      - OPENSEARCH_JAVA_OPTS=${ELASTICSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
+      - DISABLE_INSTALL_DEMO_CONFIG=${ELASTICSEARCH_DISABLE_DEMO_CONFIG:-false}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${ELASTICSEARCH_ADMIN_PASSWORD}
+      - bootstrap.memory_lock=true
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/opensearch/data
+    networks:
+      - gramm-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -k -u admin:${ELASTICSEARCH_ADMIN_PASSWORD} https://localhost:9200/_cluster/health || exit 1"]
+      interval: ${ELASTICSEARCH_HEALTHCHECK_INTERVAL:-10s}
+      timeout: ${ELASTICSEARCH_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${ELASTICSEARCH_HEALTHCHECK_RETRIES:-5}
+    restart: unless-stopped
+
 networks:
   gramm-network:
     driver: bridge
@@ -181,3 +220,4 @@ volumes:
   postgres_data:
   auth_redis_data:
   minio_data:
+  elasticsearch_data:

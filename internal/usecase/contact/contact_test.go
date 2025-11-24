@@ -22,7 +22,7 @@ func TestContactUsecase_CreateContact_Success(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -52,7 +52,7 @@ func TestContactUsecase_CreateContact_UserNotFound(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -76,7 +76,7 @@ func TestContactUsecase_CreateContact_RepositoryError(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -107,7 +107,7 @@ func TestContactUsecase_GetContacts_Success(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -151,7 +151,7 @@ func TestContactUsecase_GetContacts_NoContacts(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -171,7 +171,7 @@ func TestContactUsecase_GetContacts_RepositoryError(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()
@@ -192,7 +192,7 @@ func TestContactUsecase_GetContacts_UserNotFound(t *testing.T) {
 	mockContactRepo := mocks.NewMockContactRepository(ctrl)
 	mockUserRepo := mocks.NewMockUserRepository(ctrl)
 	mockFileStorage := mocks.NewMockFileStorage(ctrl)
-	uc := New(mockContactRepo, mockUserRepo, mockFileStorage)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
 
 	ctx := context.Background()
 	userID := uuid.New()

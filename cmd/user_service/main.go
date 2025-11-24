@@ -9,6 +9,8 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	contactRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/contact"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/elasticsearch"
+	contactES "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/elasticsearch/contact"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	userRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
@@ -39,11 +41,38 @@ func main() {
 		logger.WithError(err).Fatal("failed to connect to minio")
 	}
 
+	var contactSearchRepo *contactES.ContactSearchRepository
+	esClient, err := elasticsearch.NewClient(
+		conf.ElasticsearchConfig.URL,
+		conf.ElasticsearchConfig.ContactsIndex,
+		conf.ElasticsearchConfig.Username,
+		conf.ElasticsearchConfig.Password,
+	)
+	if err != nil {
+		logger.WithError(err).Warn("failed to connect to elasticsearch, search will be disabled")
+		contactSearchRepo = nil
+	} else {
+		contactSearchRepo = contactES.NewContactSearchRepository(esClient.GetClient(), conf.ElasticsearchConfig.ContactsIndex)
+		if err := contactSearchRepo.CreateIndex(ctx); err != nil {
+			logger.WithError(err).Warn("failed to create elasticsearch index")
+		}
+	}
+
 	userRepository := userRepo.New(db)
 	contactRepository := contactRepo.New(db)
 
 	userUsecaseInstance := userUsecase.New(userRepository, minioClient)
-	contactUsecaseInstance := contactUsecase.New(contactRepository, userRepository, minioClient)
+	contactUsecaseInstance := contactUsecase.New(contactRepository, userRepository, minioClient, contactSearchRepo)
+
+	// Переиндексация существующих контактов в Elasticsearch
+	if contactSearchRepo != nil {
+		logger.Info("reindexing existing contacts to elasticsearch")
+		if err := contactUsecaseInstance.ReindexAllContacts(ctx); err != nil {
+			logger.WithError(err).Warn("failed to reindex contacts, search may be incomplete")
+		} else {
+			logger.Info("contacts reindexed successfully")
+		}
+	}
 
 	userGRPCHandler := grpcHandler.NewUserGRPCHandler(userUsecaseInstance, contactUsecaseInstance)
 

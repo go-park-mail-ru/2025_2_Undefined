@@ -64,3 +64,32 @@ func (mr *MockIContactUsecaseMockRecorder) GetContacts(ctx, userID interface{}) 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContacts", reflect.TypeOf((*MockIContactUsecase)(nil).GetContacts), ctx, userID)
 }
+
+// ReindexAllContacts mocks base method.
+func (m *MockIContactUsecase) ReindexAllContacts(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReindexAllContacts", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReindexAllContacts indicates an expected call of ReindexAllContacts.
+func (mr *MockIContactUsecaseMockRecorder) ReindexAllContacts(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReindexAllContacts", reflect.TypeOf((*MockIContactUsecase)(nil).ReindexAllContacts), ctx)
+}
+
+// SearchContacts mocks base method.
+func (m *MockIContactUsecase) SearchContacts(ctx context.Context, userID uuid.UUID, query string) ([]*dto.GetContactsDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchContacts", ctx, userID, query)
+	ret0, _ := ret[0].([]*dto.GetContactsDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchContacts indicates an expected call of SearchContacts.
+func (mr *MockIContactUsecaseMockRecorder) SearchContacts(ctx, userID, query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchContacts", reflect.TypeOf((*MockIContactUsecase)(nil).SearchContacts), ctx, userID, query)
+}

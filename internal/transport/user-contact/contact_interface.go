@@ -11,4 +11,6 @@ import (
 type IContactUsecase interface {
 	CreateContact(ctx context.Context, req *ContactDTO.PostContactDTO, userID uuid.UUID) error
 	GetContacts(ctx context.Context, userID uuid.UUID) ([]*ContactDTO.GetContactsDTO, error)
+	SearchContacts(ctx context.Context, userID uuid.UUID, query string) ([]*ContactDTO.GetContactsDTO, error)
+	ReindexAllContacts(ctx context.Context) error
 }
