@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/config"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -14,9 +15,11 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	userRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	grpcHandler "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/grpc"
 	contactUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/contact"
 	userUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/user"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
@@ -82,7 +85,18 @@ func main() {
 		logger.WithError(err).Fatal("failed to listen")
 	}
 
-	grpcServer := grpc.NewServer()
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		metricsAddr := ":" + conf.MetricsConfig.Port
+		logger.Info(fmt.Sprintf("User metrics server is running on %s", metricsAddr))
+		if err := http.ListenAndServe(metricsAddr, nil); err != nil {
+			logger.WithError(err).Error("failed to start metrics server")
+		}
+	}()
+
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(middleware.UnaryServerInterceptor()),
+	)
 	gen.RegisterUserServiceServer(grpcServer, userGRPCHandler)
 
 	logger.Info(fmt.Sprintf("User gRPC server is running on %s", grpcListenAddr))

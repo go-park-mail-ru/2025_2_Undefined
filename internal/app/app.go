@@ -14,6 +14,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 
@@ -90,6 +91,9 @@ func NewApp(conf *config.Config) (*App, error) {
 	router.Use(func(next http.Handler) http.Handler {
 		return middleware.AccessLogMiddleware(logger, next)
 	})
+	router.Use(middleware.PrometheusMiddleware)
+
+	router.Handle("/metrics", promhttp.Handler())
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 
@@ -162,6 +166,16 @@ func (a *App) Run() {
 	const op = "App.Run"
 	ctx := context.Background()
 	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	go func() {
+		metricsRouter := http.NewServeMux()
+		metricsRouter.Handle("/metrics", promhttp.Handler())
+		metricsAddr := ":" + a.conf.MetricsConfig.Port
+		logger.Infof("Metrics server starting on port %s", metricsAddr)
+		if err := http.ListenAndServe(metricsAddr, metricsRouter); err != nil {
+			logger.WithError(err).Error("Metrics server failed to start")
+		}
+	}()
 
 	server := &http.Server{
 		Addr:    ":" + a.conf.ServerConfig.Port,
