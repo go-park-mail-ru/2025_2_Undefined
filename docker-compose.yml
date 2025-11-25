@@ -238,9 +238,9 @@ services:
     image: grafana/grafana:latest
     container_name: gramm_grafana
     ports:
-      - "${GRAFANA_PORT}:{GRAFANA_PORT}"
+      - "${GRAFANA_PORT}:${GRAFANA_PORT}"
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin} 
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_INSTALL_PLUGINS=
     volumes:
