@@ -17,19 +17,19 @@ scrape_configs:
 
   - job_name: 'auth-service'
     static_configs:
-      - targets: ['auth-service:9101']
+      - targets: ['auth-service:2112']
         labels:
           service: 'auth-service'
 
   - job_name: 'user-service'
     static_configs:
-      - targets: ['user-service:9102']
+      - targets: ['user-service:2112']
         labels:
           service: 'user-service'
 
   - job_name: 'chats-service'
     static_configs:
-      - targets: ['chats-service:9103']
+      - targets: ['chats-service:2112']
         labels:
           service: 'chats-service'
 
