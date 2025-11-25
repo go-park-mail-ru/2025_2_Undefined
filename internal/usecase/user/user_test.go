@@ -280,3 +280,129 @@ func TestUserUsecase_UploadUserAvatar_UpdateError(t *testing.T) {
 	assert.Empty(t, result)
 	assert.Contains(t, err.Error(), "database error")
 }
+
+func TestUserUsecase_UpdateUserInfo_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockRepo, mockFileStorage)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	name := "New Name"
+	username := "new_username"
+	bio := "New bio"
+
+	mockRepo.EXPECT().UpdateUserInfo(ctx, userID, &name, &username, &bio).Return(nil)
+
+	err := uc.UpdateUserInfo(ctx, userID, &name, &username, &bio)
+
+	assert.NoError(t, err)
+}
+
+func TestUserUsecase_UpdateUserInfo_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockRepo, mockFileStorage)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	name := "New Name"
+
+	mockRepo.EXPECT().UpdateUserInfo(ctx, userID, &name, nil, nil).Return(errors.New("database error"))
+
+	err := uc.UpdateUserInfo(ctx, userID, &name, nil, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database error")
+}
+
+func TestUserUsecase_GetUserAvatars_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockRepo, mockFileStorage)
+
+	ctx := context.Background()
+	userID1 := uuid.New()
+	userID2 := uuid.New()
+	userIDs := []uuid.UUID{userID1, userID2}
+
+	attachmentID1 := uuid.New()
+	attachmentID2 := uuid.New()
+	avatarsIDs := map[string]uuid.UUID{
+		userID1.String(): attachmentID1,
+		userID2.String(): attachmentID2,
+	}
+
+	url1 := "https://example.com/avatar1.jpg"
+	url2 := "https://example.com/avatar2.jpg"
+
+	mockRepo.EXPECT().GetUserAvatars(ctx, userIDs).Return(avatarsIDs, nil)
+	mockFileStorage.EXPECT().GetOne(ctx, &attachmentID1).Return(url1, nil)
+	mockFileStorage.EXPECT().GetOne(ctx, &attachmentID2).Return(url2, nil)
+
+	result, err := uc.GetUserAvatars(ctx, userIDs)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 2)
+	assert.NotNil(t, result[userID1.String()])
+	assert.NotNil(t, result[userID2.String()])
+	assert.Equal(t, url1, *result[userID1.String()])
+	assert.Equal(t, url2, *result[userID2.String()])
+}
+
+func TestUserUsecase_GetUserAvatars_RepositoryError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockRepo, mockFileStorage)
+
+	ctx := context.Background()
+	userIDs := []uuid.UUID{uuid.New(), uuid.New()}
+
+	mockRepo.EXPECT().GetUserAvatars(ctx, userIDs).Return(nil, errors.New("database error"))
+
+	result, err := uc.GetUserAvatars(ctx, userIDs)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "database error")
+}
+
+func TestUserUsecase_GetUserAvatars_FileStorageError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockRepo, mockFileStorage)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	userIDs := []uuid.UUID{userID}
+
+	attachmentID := uuid.New()
+	avatarsIDs := map[string]uuid.UUID{
+		userID.String(): attachmentID,
+	}
+
+	mockRepo.EXPECT().GetUserAvatars(ctx, userIDs).Return(avatarsIDs, nil)
+	mockFileStorage.EXPECT().GetOne(ctx, &attachmentID).Return("", errors.New("storage error"))
+
+	result, err := uc.GetUserAvatars(ctx, userIDs)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Nil(t, result[userID.String()])
+}

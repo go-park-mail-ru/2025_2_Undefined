@@ -216,3 +216,108 @@ func TestContactUsecase_GetContacts_UserNotFound(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "user not found")
 }
+
+func TestContactUsecase_SearchContacts_EmptyQuery(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContactRepo := mocks.NewMockContactRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
+
+	ctx := context.Background()
+	userID := uuid.New()
+
+	result, err := uc.SearchContacts(ctx, userID, "")
+
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestContactUsecase_SearchContacts_NoESClient(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContactRepo := mocks.NewMockContactRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
+
+	ctx := context.Background()
+	userID := uuid.New()
+
+	result, err := uc.SearchContacts(ctx, userID, "test query")
+
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestContactUsecase_ReindexAllContacts_NoESClient(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContactRepo := mocks.NewMockContactRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
+
+	ctx := context.Background()
+
+	err := uc.ReindexAllContacts(ctx)
+
+	assert.NoError(t, err)
+}
+
+func TestContactUsecase_GetContacts_DatabaseError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContactRepo := mocks.NewMockContactRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
+
+	ctx := context.Background()
+	userID := uuid.New()
+
+	mockContactRepo.EXPECT().GetContactsByUserID(ctx, userID).Return(nil, errors.New("database error"))
+
+	result, err := uc.GetContacts(ctx, userID)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "database error")
+}
+
+func TestContactUsecase_GetContacts_UserRepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContactRepo := mocks.NewMockContactRepository(ctrl)
+	mockUserRepo := mocks.NewMockUserRepository(ctrl)
+	mockFileStorage := mocks.NewMockFileStorage(ctrl)
+	uc := New(mockContactRepo, mockUserRepo, mockFileStorage, nil)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	contactUserID := uuid.New()
+
+	contacts := []*ContactModels.Contact{
+		{
+			UserID:        userID,
+			ContactUserID: contactUserID,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		},
+	}
+
+	mockContactRepo.EXPECT().GetContactsByUserID(ctx, userID).Return(contacts, nil)
+	mockUserRepo.EXPECT().GetUserByID(ctx, contactUserID).Return(nil, errors.New("user not found"))
+
+	result, err := uc.GetContacts(ctx, userID)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "user not found")
+}

@@ -236,3 +236,133 @@ func TestSessionUsecase_UpdateSession_RepositoryError(t *testing.T) {
 	assert.Contains(t, err.Error(), "session not found")
 	mockRepo.AssertExpectations(t)
 }
+
+func TestSessionUsecase_DeleteSession_Success(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	sessionID := uuid.New()
+
+	session := &models.Session{
+		ID:     sessionID,
+		UserID: userID,
+	}
+
+	mockRepo.On("GetSession", ctx, sessionID).Return(session, nil)
+	mockRepo.On("DeleteSession", ctx, sessionID).Return(nil)
+
+	err := uc.DeleteSession(ctx, userID, sessionID)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSessionUsecase_DeleteSession_NilUserID(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	sessionID := uuid.New()
+
+	err := uc.DeleteSession(ctx, uuid.Nil, sessionID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user ID is required")
+}
+
+func TestSessionUsecase_DeleteSession_NilSessionID(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	userID := uuid.New()
+
+	err := uc.DeleteSession(ctx, userID, uuid.Nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session ID is required")
+}
+
+func TestSessionUsecase_DeleteSession_SessionBelongsToDifferentUser(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	sessionID := uuid.New()
+	differentUserID := uuid.New()
+
+	session := &models.Session{
+		ID:     sessionID,
+		UserID: differentUserID,
+	}
+
+	mockRepo.On("GetSession", ctx, sessionID).Return(session, nil)
+
+	err := uc.DeleteSession(ctx, userID, sessionID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session does not belong to user")
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSessionUsecase_DeleteAllSessionWithoutCurrent_Success(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	currentSessionID := uuid.New()
+
+	mockRepo.On("DeleteAllSessionWithoutCurrent", ctx, userID, currentSessionID).Return(nil)
+
+	err := uc.DeleteAllSessionWithoutCurrent(ctx, userID, currentSessionID)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSessionUsecase_DeleteAllSessionWithoutCurrent_NilSessionID(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	userID := uuid.New()
+
+	err := uc.DeleteAllSessionWithoutCurrent(ctx, userID, uuid.Nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session ID is required")
+}
+
+func TestSessionUsecase_DeleteAllSessionWithoutCurrent_NilUserID(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	currentSessionID := uuid.New()
+
+	err := uc.DeleteAllSessionWithoutCurrent(ctx, uuid.Nil, currentSessionID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user ID is required")
+}
+
+func TestSessionUsecase_DeleteAllSessionWithoutCurrent_RepositoryError(t *testing.T) {
+	mockRepo := new(MockSessionRepository)
+	uc := New(mockRepo)
+
+	ctx := context.Background()
+	userID := uuid.New()
+	currentSessionID := uuid.New()
+
+	mockRepo.On("DeleteAllSessionWithoutCurrent", ctx, userID, currentSessionID).Return(errors.New("redis error"))
+
+	err := uc.DeleteAllSessionWithoutCurrent(ctx, userID, currentSessionID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "redis error")
+	mockRepo.AssertExpectations(t)
+}

@@ -10,6 +10,7 @@ import (
 	UserModels "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -379,5 +380,133 @@ func TestUserRepository_GetUsersNames_ScanError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_UpdateUserInfo_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherRegexp))
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	userID := uuid.New()
+	name := "Updated Name"
+	username := "updated_user"
+	bio := "Updated bio"
+
+	mock.ExpectExec(`UPDATE "user" SET name = \$1, username = \$2, description = \$3 WHERE id = \$4`).
+		WithArgs(name, username, bio, userID).
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+
+	err = repo.UpdateUserInfo(ctx, userID, &name, &username, &bio)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_UpdateUserInfo_NoFieldsToUpdate(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherRegexp))
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	userID := uuid.New()
+
+	err = repo.UpdateUserInfo(ctx, userID, nil, nil, nil)
+
+	assert.Error(t, err)
+	assert.Equal(t, "no fields to update", err.Error())
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_UpdateUserInfo_DuplicateKey(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherRegexp))
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	userID := uuid.New()
+	username := "existing_user"
+
+	pgErr := &pgconn.PgError{Code: "23505", Message: "duplicate key value"}
+	mock.ExpectExec(`UPDATE "user" SET username = \$1 WHERE id = \$2`).
+		WithArgs(username, userID).
+		WillReturnError(pgErr)
+
+	err = repo.UpdateUserInfo(ctx, userID, nil, &username, nil)
+
+	assert.Error(t, err)
+	assert.Equal(t, errs.ErrIsDuplicateKey, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_UpdateUserInfo_UserNotUpdated(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherRegexp))
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	userID := uuid.New()
+	name := "New Name"
+
+	mock.ExpectExec(`UPDATE "user" SET name = \$1 WHERE id = \$2`).
+		WithArgs(name, userID).
+		WillReturnResult(pgxmock.NewResult("UPDATE", 0))
+
+	err = repo.UpdateUserInfo(ctx, userID, &name, nil, nil)
+
+	assert.Error(t, err)
+	assert.Equal(t, "user not updated", err.Error())
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_GetUserAvatars_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	userIDs := []uuid.UUID{uuid.New(), uuid.New()}
+	avatarIDs := []uuid.UUID{uuid.New(), uuid.New()}
+
+	rows := pgxmock.NewRows([]string{"user_id", "attachment_id"}).
+		AddRow(userIDs[0], avatarIDs[0]).
+		AddRow(userIDs[1], avatarIDs[1])
+
+	mock.ExpectQuery(`WITH latest_avatars AS`).
+		WithArgs(userIDs).
+		WillReturnRows(rows)
+
+	result, err := repo.GetUserAvatars(ctx, userIDs)
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	assert.Equal(t, avatarIDs[0], result[userIDs[0].String()])
+	assert.Equal(t, avatarIDs[1], result[userIDs[1].String()])
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_GetUserAvatars_EmptyList(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	result, err := repo.GetUserAvatars(ctx, []uuid.UUID{})
+
+	assert.NoError(t, err)
+	assert.Empty(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

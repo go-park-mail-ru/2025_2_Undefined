@@ -449,3 +449,139 @@ func TestGRPCAddUsersToChat_Unauthorized(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
+
+func TestGRPCGetChatAvatars_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mocks.NewMockChatServiceClient(ctrl)
+	mockMessageClient := mocks.NewMockMessageServiceClient(ctrl)
+	handler := NewChatsGRPCProxyHandler(mockClient, mockMessageClient)
+
+	chatID := uuid.New()
+	userID := uuid.New()
+
+	expectedResponse := &gen.GetChatAvatarsRes{
+		Avatars: map[string]string{
+			chatID.String(): "avatar1.jpg",
+		},
+	}
+
+	mockClient.EXPECT().
+		GetChatAvatars(gomock.Any(), &gen.GetChatAvatarsReq{
+			UserId:  userID.String(),
+			ChatIds: []string{chatID.String()},
+		}).
+		Return(expectedResponse, nil)
+
+	requestBody := map[string]interface{}{
+		"ids": []string{chatID.String()},
+	}
+	body, _ := json.Marshal(requestBody)
+	request := httptest.NewRequest(http.MethodPost, "/chats/avatars", bytes.NewBuffer(body))
+	request.Header.Set("Content-Type", "application/json")
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.GetChatAvatars(recorder, request)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+}
+
+func TestGRPCGetChatAvatars_InvalidUUID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mocks.NewMockChatServiceClient(ctrl)
+	mockMessageClient := mocks.NewMockMessageServiceClient(ctrl)
+	handler := NewChatsGRPCProxyHandler(mockClient, mockMessageClient)
+
+	userID := uuid.New()
+
+	request := httptest.NewRequest(http.MethodGet, "/chats/invalid-uuid/avatars", nil)
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.GetChatAvatars(recorder, request)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestGRPCSearchChats_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mocks.NewMockChatServiceClient(ctrl)
+	mockMessageClient := mocks.NewMockMessageServiceClient(ctrl)
+	handler := NewChatsGRPCProxyHandler(mockClient, mockMessageClient)
+
+	userID := uuid.New()
+	chatID := uuid.New()
+	messageID := uuid.New()
+
+	expectedResponse := &gen.GetChatsRes{
+		Chats: []*gen.Chat{
+			{
+				Id:   chatID.String(),
+				Name: "Test Chat",
+				Type: "group",
+				LastMessage: &gen.Message{
+					Id:        messageID.String(),
+					ChatId:    chatID.String(),
+					Text:      "Hello",
+					CreatedAt: "2024-01-01T00:00:00Z",
+				},
+			},
+		},
+	}
+
+	mockClient.EXPECT().
+		SearchChats(gomock.Any(), gomock.Any()).
+		Return(expectedResponse, nil)
+
+	request := httptest.NewRequest(http.MethodGet, "/chats/search?name=test", nil)
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.SearchChats(recorder, request)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+}
+
+func TestGRPCSearchChats_EmptyQuery(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mocks.NewMockChatServiceClient(ctrl)
+	mockMessageClient := mocks.NewMockMessageServiceClient(ctrl)
+	handler := NewChatsGRPCProxyHandler(mockClient, mockMessageClient)
+
+	userID := uuid.New()
+
+	request := httptest.NewRequest(http.MethodGet, "/chats/search", nil)
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.SearchChats(recorder, request)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestGRPCSearchChats_Unauthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockClient := mocks.NewMockChatServiceClient(ctrl)
+	mockMessageClient := mocks.NewMockMessageServiceClient(ctrl)
+	handler := NewChatsGRPCProxyHandler(mockClient, mockMessageClient)
+
+	request := httptest.NewRequest(http.MethodGet, "/chats/search?name=test", nil)
+	recorder := httptest.NewRecorder()
+	handler.SearchChats(recorder, request)
+
+	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
+}

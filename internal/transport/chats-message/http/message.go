@@ -51,28 +51,108 @@ var upgrader = websocket.Upgrader{
 // HandleMessages устанавливает WebSocket соединение для обмена сообщениями
 // @Summary      Установить WebSocket соединение для сообщений
 // @Description  Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.
-// @Description  После установки соединения клиент может отправлять сообщения в формате CreateMessageDTO
-// @Description  и получать уведомления о новых сообщениях в формате MessageDTO.
 // @Description
 // @Description  **Протокол WebSocket:**
 // @Description
-// @Description  **Отправка сообщения (клиент → сервер):**
+// @Description  **1. Создание нового сообщения (клиент → сервер):**
 // @Description  ```json
 // @Description  {
-// @Description    "text": "Текст сообщения",
-// @Description    "created_at": "2025-01-15T10:30:00Z",
-// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+// @Description    "type": "new_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "text": "Текст сообщения",
+// @Description      "created_at": "2025-01-15T10:30:00Z",
+// @Description      "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+// @Description    }
 // @Description  }
 // @Description  ```
 // @Description
-// @Description  **Получение сообщения (сервер → клиент):**
+// @Description  **2. Редактирование сообщения (клиент → сервер):**
 // @Description  ```json
 // @Description  {
-// @Description    "sender_name": "Имя отправителя",
-// @Description    "sender_avatar": "https://example.com/avatar.jpg",
-// @Description    "text": "Текст сообщения",
-// @Description    "created_at": "2025-01-15T10:30:00Z",
-// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000"
+// @Description    "type": "edit_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "id": "456e4567-e89b-12d3-a456-426614174001",
+// @Description      "text": "Обновленный текст",
+// @Description      "updated_at": "2025-01-15T10:35:00Z" // По желанию
+// @Description    }
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **3. Удаление сообщения (клиент → сервер):**
+// @Description  ```json
+// @Description  {
+// @Description    "type": "delete_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "id": "456e4567-e89b-12d3-a456-426614174001"
+// @Description    }
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **Получение событий (сервер → клиент):**
+// @Description
+// @Description  **Новое сообщение:**
+// @Description  ```json
+// @Description  {
+// @Description    "type": "new_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "id": "789e4567-e89b-12d3-a456-426614174002",
+// @Description      "sender_id": "321e4567-e89b-12d3-a456-426614174003",
+// @Description      "sender_name": "Иван Иванов",
+// @Description      "text": "Текст сообщения",
+// @Description      "created_at": "2025-01-15T10:30:00Z",
+// @Description      "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description      "type": "user"
+// @Description    }
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **Редактирование сообщения:**
+// @Description  ```json
+// @Description  {
+// @Description    "type": "edit_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "id": "456e4567-e89b-12d3-a456-426614174001",
+// @Description      "text": "Обновленный текст",
+// @Description      "updated_at": "2025-01-15T10:35:00Z"
+// @Description    }
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **Удаление сообщения:**
+// @Description  ```json
+// @Description  {
+// @Description    "type": "delete_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "id": "456e4567-e89b-12d3-a456-426614174001"
+// @Description    }
+// @Description  }
+// @Description  ```
+// @Description
+// @Description  **Создан новый чат:**
+// @Description  ```json
+// @Description  {
+// @Description    "type": "chat_created",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "type": "dialog | group | channel",
+// @Description    "value": {
+// @Description      "id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description      "name": "Название чата",
+// @Description      "last_message": {
+// @Description          "id": "789e4567-e89b-12d3-a456-426614174002",
+// @Description           "sender_id": "321e4567-e89b-12d3-a456-426614174003",
+// @Description           "sender_name": "Иван Иванов",
+// @Description           "text": "Текст сообщения",
+// @Description           "created_at": "2025-01-15T10:30:00Z",
+// @Description           "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description           "type": "user"
+// @Description           }
+// @Description    }
 // @Description  }
 // @Description  ```
 // @Description

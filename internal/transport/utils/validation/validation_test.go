@@ -261,3 +261,48 @@ func TestValidateName(t *testing.T) {
 		})
 	}
 }
+
+func TestValidImageType(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		want        bool
+	}{
+		{"valid jpeg", "image/jpeg", true},
+		{"valid jpg", "image/jpg", true},
+		{"valid png", "image/png", true},
+		{"invalid gif", "image/gif", false},
+		{"invalid text", "text/plain", false},
+		{"empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidImageType(tt.contentType); got != tt.want {
+				t.Errorf("ValidImageType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetFileExtensionFromContentType(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		want        string
+	}{
+		{"jpeg", "image/jpeg", ".jpg"},
+		{"jpg", "image/jpg", ".jpg"},
+		{"png", "image/png", ".png"},
+		{"unknown", "image/gif", ""},
+		{"empty", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetFileExtensionFromContentType(tt.contentType); got != tt.want {
+				t.Errorf("GetFileExtensionFromContentType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
