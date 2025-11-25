@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'gramm-monitor'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'app'
+    static_configs:
+      - targets: ['app:2112']
+        labels:
+          service: 'app'
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:2112']
+        labels:
+          service: 'auth-service'
+
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:2112']
+        labels:
+          service: 'user-service'
+
+  - job_name: 'chats-service'
+    static_configs:
+      - targets: ['chats-service:2112']
+        labels:
+          service: 'chats-service'
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'

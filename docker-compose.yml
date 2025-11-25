@@ -19,6 +19,7 @@ services:
       CSRF_TIMEOUT: ${CSRF_TIMEOUT}
     ports:
       - "${AUTH_GRPC_PORT}:${AUTH_GRPC_PORT}"
+      - "${AUTH_METRICS_PORT:-9101}:2112"
     volumes:
       - ./.env:/app/.env
     depends_on:
@@ -56,6 +57,7 @@ services:
       ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD}
     ports:
       - "${USER_GRPC_PORT}:${USER_GRPC_PORT}"
+      - "${USER_METRICS_PORT:-9102}:2112"
     volumes:
       - ./.env:/app/.env
     depends_on:
@@ -91,6 +93,7 @@ services:
       MINIO_USE_SSL: ${MINIO_USE_SSL}
     ports:
       - "${CHATS_GRPC_PORT}:${CHATS_GRPC_PORT}"
+      - "${CHATS_METRICS_PORT:-9103}:2112"
     volumes:
       - ./.env:/app/.env
     depends_on:
@@ -109,6 +112,7 @@ services:
     container_name: gramm_app
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+      - "${APP_METRICS_PORT:-2112}:2112"
     environment:
       AUTH_SERVICE_ADDR: ${AUTH_SERVICE_ADDR}
       USER_SERVICE_ADDR: ${USER_SERVICE_ADDR}
@@ -212,6 +216,61 @@ services:
       retries: ${ELASTICSEARCH_HEALTHCHECK_RETRIES:-5}
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gramm_prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - gramm-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gramm_grafana
+    ports:
+      - "${GRAFANA_PORT}:{GRAFANA_PORT}"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - gramm-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: gramm_node_exporter
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - gramm-network
+    restart: unless-stopped
+
 networks:
   gramm-network:
     driver: bridge
@@ -221,3 +280,5 @@ volumes:
   auth_redis_data:
   minio_data:
   elasticsearch_data:
+  prometheus_data:
+  grafana_data:

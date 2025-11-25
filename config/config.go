@@ -22,6 +22,7 @@ type Config struct {
 	MinioConfig         *MinioConfig
 	GRPCConfig          *GRPCConfig
 	ElasticsearchConfig *ElasticsearchConfig
+	MetricsConfig       *MetricsConfig
 }
 
 type DBConfig struct {
@@ -86,6 +87,10 @@ type ElasticsearchConfig struct {
 	Password      string
 }
 
+type MetricsConfig struct {
+	Port string
+}
+
 func NewConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("error loading .env file: %v", err)
@@ -136,6 +141,8 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	metricsConfig := newMetricsConfig()
+
 	return &Config{
 		DBConfig:            dbConfig,
 		ServerConfig:        serverConfig,
@@ -146,6 +153,7 @@ func NewConfig() (*Config, error) {
 		MinioConfig:         minioConfig,
 		GRPCConfig:          grpcConfig,
 		ElasticsearchConfig: elasticsearchConfig,
+		MetricsConfig:       metricsConfig,
 	}, nil
 }
 
@@ -381,4 +389,15 @@ func newElasticsearchConfig() (*ElasticsearchConfig, error) {
 		Username:      username,
 		Password:      password,
 	}, nil
+}
+
+func newMetricsConfig() *MetricsConfig {
+	port := os.Getenv("METRICS_PORT")
+	if port == "" {
+		port = "2112" // default
+	}
+
+	return &MetricsConfig{
+		Port: port,
+	}
 }
