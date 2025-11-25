@@ -27,8 +27,6 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/migrate .
 COPY --from=builder /app/db/migrations ./db/migrations
 COPY --from=builder /app/config.yml .
-COPY --from=builder /app/deploy/grafana ./deploy/grafana
-COPY --from=builder /app/deploy/prometheus ./deploy/prometheus
 
 EXPOSE 8080
 
