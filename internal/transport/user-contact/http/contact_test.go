@@ -260,3 +260,98 @@ func TestContactHandler_GetContacts_GRPCError(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
 }
+
+func TestContactHandler_SearchContacts_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
+	handler := NewUserGRPCProxyHandler(mockUserClient)
+
+	userID := uuid.New()
+	contactID := uuid.New()
+
+	mockUserClient.EXPECT().
+		SearchContacts(gomock.Any(), &gen.SearchContactsReq{
+			UserId: userID.String(),
+			Query:  "test",
+		}).
+		Return(&gen.SearchContactsRes{
+			Contacts: []*gen.Contact{
+				{
+					Id:          contactID.String(),
+					PhoneNumber: "+79998887766",
+					Name:        "Test Contact",
+					Username:    "testcontact",
+					AccountType: "personal",
+					CreatedAt:   "2024-01-01T00:00:00Z",
+					UpdatedAt:   "2024-01-01T00:00:00Z",
+				},
+			},
+		}, nil)
+
+	request := httptest.NewRequest(http.MethodGet, "/contacts/search?query=test", nil)
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.SearchContacts(recorder, request)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+}
+
+func TestContactHandler_SearchContacts_Unauthorized(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
+	handler := NewUserGRPCProxyHandler(mockUserClient)
+
+	request := httptest.NewRequest(http.MethodGet, "/contacts/search?query=test", nil)
+	recorder := httptest.NewRecorder()
+	handler.SearchContacts(recorder, request)
+
+	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
+}
+
+func TestContactHandler_SearchContacts_EmptyQuery(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
+	handler := NewUserGRPCProxyHandler(mockUserClient)
+
+	userID := uuid.New()
+
+	request := httptest.NewRequest(http.MethodGet, "/contacts/search", nil)
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.SearchContacts(recorder, request)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+}
+
+func TestContactHandler_SearchContacts_GRPCError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockUserClient := mocks.NewMockUserServiceClient(ctrl)
+	handler := NewUserGRPCProxyHandler(mockUserClient)
+
+	userID := uuid.New()
+
+	mockUserClient.EXPECT().
+		SearchContacts(gomock.Any(), gomock.Any()).
+		Return(nil, status.Error(codes.Internal, "internal error"))
+
+	request := httptest.NewRequest(http.MethodGet, "/contacts/search?query=test", nil)
+	ctx := context.WithValue(request.Context(), domains.UserIDKey{}, userID.String())
+	request = request.WithContext(ctx)
+
+	recorder := httptest.NewRecorder()
+	handler.SearchContacts(recorder, request)
+
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+}

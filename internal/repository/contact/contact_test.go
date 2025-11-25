@@ -250,3 +250,56 @@ func TestContactRepository_GetContactsByUserID_RowsError(t *testing.T) {
 	assert.Equal(t, fmt.Errorf("connection error"), err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestContactRepository_GetAllContacts_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	userID1 := uuid.New()
+	contactUserID1 := uuid.New()
+	userID2 := uuid.New()
+	contactUserID2 := uuid.New()
+	createdAt := time.Now()
+	updatedAt := time.Now()
+
+	rows := pgxmock.NewRows([]string{"user_id", "contact_user_id", "created_at", "updated_at"}).
+		AddRow(userID1, contactUserID1, createdAt, updatedAt).
+		AddRow(userID2, contactUserID2, createdAt, updatedAt)
+
+	mock.ExpectQuery(`SELECT user_id, contact_user_id, created_at, updated_at
+		FROM contact`).
+		WillReturnRows(rows)
+
+	contacts, err := repo.GetAllContacts(ctx)
+
+	assert.NoError(t, err)
+	assert.Len(t, contacts, 2)
+	assert.Equal(t, userID1, contacts[0].UserID)
+	assert.Equal(t, contactUserID1, contacts[0].ContactUserID)
+	assert.Equal(t, userID2, contacts[1].UserID)
+	assert.Equal(t, contactUserID2, contacts[1].ContactUserID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestContactRepository_GetAllContacts_QueryError(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
+	assert.NoError(t, err)
+	defer mock.Close()
+
+	repo := New(mock)
+	ctx := context.Background()
+
+	mock.ExpectQuery(`SELECT user_id, contact_user_id, created_at, updated_at
+		FROM contact`).
+		WillReturnError(fmt.Errorf("database error"))
+
+	contacts, err := repo.GetAllContacts(ctx)
+
+	assert.Error(t, err)
+	assert.Nil(t, contacts)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
