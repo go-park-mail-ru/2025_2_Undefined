@@ -180,7 +180,7 @@ func (h *ChatsGRPCProxyHandler) HandleMessages(w http.ResponseWriter, r *http.Re
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "Failed to upgrade to WebSocket")
+		response.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer conn.Close()
