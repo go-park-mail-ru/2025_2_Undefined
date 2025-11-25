@@ -83,7 +83,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.VM_KEY }}
-          source: "docker-compose.yml,./deploy/grafana,./deploy/prometheus"
+          source: "docker-compose.yml,./deploy/grafana/,./deploy/prometheus/"
           target: "/home/ubuntu/app"
           recursive: true
           overwrite: true
