@@ -92,14 +92,15 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.VM_KEY }}
-          envs: DOCKER_HUB_LOGIN, IMAGE_NAME
+          envs: DOCKER_HUB_LOGIN, IMAGE_NAME, IMAGE_NAME_AUTH, IMAGE_NAME_USER, IMAGE_NAME_CHATS
           script: |
             echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u $DOCKER_HUB_LOGIN --password-stdin
-            cd app && docker compose down
+            cd app 
+            docker compose down
             docker system prune -af
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME:latest
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_AUTH:latest
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_USER:latest
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_CHATS:latest
-            cd app && docker compose up -d
+            docker compose up -d
         
