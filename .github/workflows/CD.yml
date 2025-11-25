@@ -85,7 +85,6 @@ jobs:
           key: ${{ secrets.VM_KEY }}
           source: "docker-compose.yml,./deploy/grafana/,./deploy/prometheus/"
           target: "/home/ubuntu/app"
-          recursive: true
           overwrite: true
       - name: deploy
         uses: appleboy/ssh-action@v1.2.2
@@ -96,7 +95,7 @@ jobs:
           envs: DOCKER_HUB_LOGIN, IMAGE_NAME
           script: |
             echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u $DOCKER_HUB_LOGIN --password-stdin
-            docker compose down
+            cd app && docker compose down
             docker system prune -af
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME:latest
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_AUTH:latest
