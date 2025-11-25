@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -67,21 +68,20 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 
 func PrometheusMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/ws") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
-
 		wrapped := newResponseWriter(w)
-
 		next.ServeHTTP(wrapped, r)
-
 		duration := time.Since(start).Seconds()
-
 		status := strconv.Itoa(wrapped.statusCode)
 		method := r.Method
 		path := r.URL.Path
-
 		httpRequestsTotal.WithLabelValues(method, path, status).Inc()
 		httpRequestDuration.WithLabelValues(method, path, status).Observe(duration)
-
 		if wrapped.statusCode >= 400 {
 			httpErrorsTotal.WithLabelValues(method, path, status).Inc()
 		}
