@@ -85,6 +85,8 @@ jobs:
           key: ${{ secrets.VM_KEY }}
           source: "docker-compose.yml,./deploy/grafana,./deploy/prometheus"
           target: "/home/ubuntu/app"
+          recursive: true
+          overwrite: true
       - name: deploy
         uses: appleboy/ssh-action@v1.2.2
         with: 
