@@ -30,7 +30,7 @@ const (
 			msg.id, msg.chat_id, msg.user_id, usr.name, 
 			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
 		FROM message msg
-		JOIN "user" usr ON usr.id = msg.user_id
+		LEFT JOIN "user" usr ON usr.id = msg.user_id
 		WHERE msg.chat_id = ANY($1)
 		ORDER BY msg.chat_id, msg.created_at DESC`
 
@@ -39,7 +39,7 @@ const (
 			msg.id, msg.chat_id, msg.user_id, usr.name, 
 			msg.text, msg.created_at, msg.updated_at, msg.message_type::text
 		FROM message msg
-		JOIN "user" usr ON usr.id = msg.user_id
+		LEFT JOIN "user" usr ON usr.id = msg.user_id
 		WHERE chat_id = $1
 		ORDER BY msg.created_at DESC
 		LIMIT $3 OFFSET $2`

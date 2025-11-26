@@ -197,7 +197,7 @@ func TestCreateChat_Error(t *testing.T) {
 func TestAddUsersToChat_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	service, mockChatsRepo, mockMessageRepo, mockUserRepo, _ := createTestHandler(ctrl)
+	service, mockChatsRepo, _, _, _ := createTestHandler(ctrl)
 
 	chatID := uuid.New()
 	adminUserID := uuid.New()
@@ -221,22 +221,6 @@ func TestAddUsersToChat_Success(t *testing.T) {
 	mockChatsRepo.EXPECT().
 		InsertUsersToChat(gomock.Any(), chatID, expectedUsersInfo).
 		Return(nil)
-
-	// В реальной логике usecase после вставки участников мы получаем информацию о чате
-	// и добавляем системные сообщения для групп. Мокируем эти вызовы здесь.
-	mockChatsRepo.EXPECT().
-		GetChat(gomock.Any(), chatID).
-		Return(&modelsChats.Chat{Type: modelsChats.ChatTypeGroup}, nil)
-
-	usersIDs := []uuid.UUID{userID1, userID2}
-	mockUserRepo.EXPECT().
-		GetUsersNames(gomock.Any(), usersIDs).
-		Return([]string{"User1", "User2"}, nil)
-
-	mockMessageRepo.EXPECT().
-		InsertMessage(gomock.Any(), gomock.Any()).
-		Return(uuid.New(), nil).
-		Times(2)
 
 	err := service.AddUsersToChat(context.Background(), chatID, adminUserID, users)
 

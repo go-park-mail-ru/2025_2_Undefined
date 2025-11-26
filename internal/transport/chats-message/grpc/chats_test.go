@@ -115,6 +115,10 @@ func (m *MockMessageUsecase) GetMessagesBySearch(ctx context.Context, userID uui
 	return args.Get(0).([]dtoMessage.MessageDTO), args.Error(1)
 }
 
+func (m *MockMessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+	return nil
+}
+
 func setupContext() context.Context {
 	ctx := context.Background()
 	_ = domains.GetLogger(ctx)

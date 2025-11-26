@@ -124,15 +124,13 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		Type:       modelsMessage.MessageTypeUser,
 	}
 
-	select {
-	case uc.distributeChannel <- dtoMessage.WebSocketMessageDTO{
+	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
 		Type:   dtoMessage.WebSocketMessageTypeNewChatMessage,
 		ChatID: msg.ChatId,
 		Value:  msgDTO,
-	}:
-		// Всё ок :-)
-	case <-time.After(10 * time.Second):
-		return errs.ErrServiceIsOverloaded
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -269,15 +267,13 @@ func (uc *MessageUsecase) EditMessage(ctx context.Context, msg dtoMessage.EditMe
 		return err
 	}
 
-	select {
-	case uc.distributeChannel <- dtoMessage.WebSocketMessageDTO{
+	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
 		Type:   dtoMessage.WebSocketMessageTypeEditChatMessage,
 		ChatID: message.ChatID,
 		Value:  msg,
-	}:
-		// Всё ок :-)
-	case <-time.After(10 * time.Second):
-		return errs.ErrServiceIsOverloaded
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -309,15 +305,13 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, msg dtoMessage.Dele
 		return err
 	}
 
-	select {
-	case uc.distributeChannel <- dtoMessage.WebSocketMessageDTO{
+	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
 		Type:   dtoMessage.WebSocketMessageTypeDeleteChatMessage,
 		ChatID: message.ChatID,
 		Value:  msg,
-	}:
-		// Всё ок :-)
-	case <-time.After(10 * time.Second):
-		return errs.ErrServiceIsOverloaded
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -348,4 +342,64 @@ func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatI
 	}
 
 	return messagesDTO, nil
+}
+
+func (uc *MessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+	chat, err := uc.chatsRepository.GetChat(ctx, chatID)
+	if err != nil {
+		return err
+	}
+
+	if chat.Type == modelsChats.ChatTypeGroup {
+		usersIDs := make([]uuid.UUID, len(users))
+		for i, user := range users {
+			usersIDs[i] = user.UserId
+		}
+
+		usersNames, err := uc.userRepository.GetUsersNames(ctx, usersIDs)
+		if err != nil {
+			return err
+		}
+
+		for i := range users {
+			messageID, err := uc.messageRepository.InsertMessage(ctx, modelsMessage.CreateMessage{
+				ChatID:    chatID,
+				UserID:    &users[i].UserId,
+				Text:      fmt.Sprintf("Пользователь %s вступил в группу", usersNames[i]),
+				Type:      modelsMessage.MessageTypeSystem,
+				CreatedAt: time.Now(),
+			})
+
+			if err != nil {
+				return err
+			}
+
+			now := time.Now()
+
+			uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
+				Type:   dtoMessage.WebSocketMessageTypeNewChatMessage,
+				ChatID: chatID,
+				Value: dtoMessage.MessageDTO{
+					ID:        messageID,
+					SenderID:  &users[i].UserId,
+					Text:      fmt.Sprintf("Пользователь %s вступил в группу", usersNames[i]),
+					CreatedAt: now,
+					UpdatedAt: &now,
+					ChatID:    chatID,
+					Type:      modelsMessage.MessageTypeSystem,
+				},
+			})
+		}
+	}
+	return nil
+}
+
+func (uc *MessageUsecase) sendWebsocketMessage(msg dtoMessage.WebSocketMessageDTO) error {
+	select {
+	case uc.distributeChannel <- msg:
+		// Всё ок :-)
+		return nil
+	case <-time.After(10 * time.Second):
+		return errs.ErrServiceIsOverloaded
+	}
 }
