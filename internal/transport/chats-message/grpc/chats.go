@@ -175,6 +175,11 @@ func (h *ChatsGRPCHandler) AddUserToChat(ctx context.Context, in *gen.AddUserToC
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	err = h.messageUsecase.AddMessageJoinUsers(ctx, chatID, membersDTO)
+	if err != nil {
+		logger.WithError(err).Warningf("error sending messages about adding users to chat %s: %v", chatID, err)
+	}
+
 	return &emptypb.Empty{}, nil
 }
 

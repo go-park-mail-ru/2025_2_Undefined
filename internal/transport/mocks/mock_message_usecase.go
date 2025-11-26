@@ -51,6 +51,20 @@ func (mr *MockMessageUsecaseMockRecorder) AddMessage(ctx, message, userID interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessage", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessage), ctx, message, userID)
 }
 
+// AddMessageJoinUsers mocks base method.
+func (m *MockMessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dto.AddChatMemberDTO) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddMessageJoinUsers", ctx, chatID, users)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddMessageJoinUsers indicates an expected call of AddMessageJoinUsers.
+func (mr *MockMessageUsecaseMockRecorder) AddMessageJoinUsers(ctx, chatID, users interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessageJoinUsers", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessageJoinUsers), ctx, chatID, users)
+}
+
 // DeleteMessage mocks base method.
 func (m *MockMessageUsecase) DeleteMessage(ctx context.Context, message dto0.DeleteMessageDTO, userID uuid.UUID) error {
 	m.ctrl.T.Helper()

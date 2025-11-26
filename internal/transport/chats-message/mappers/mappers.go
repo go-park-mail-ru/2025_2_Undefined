@@ -80,7 +80,11 @@ func DTOMessageToProto(msgDTO dtoMessage.MessageDTO) *gen.Message {
 	if msgDTO.SenderID == nil {
 		senderName = ""
 	} else {
-		senderName = *msgDTO.SenderName
+		if msgDTO.SenderName == nil {
+			senderName = ""
+		} else {
+			senderName = *msgDTO.SenderName
+		}
 	}
 
 	return &gen.Message{
