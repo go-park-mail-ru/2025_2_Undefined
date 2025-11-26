@@ -171,8 +171,12 @@ func (h *ChatsGRPCHandler) AddUserToChat(ctx context.Context, in *gen.AddUserToC
 
 	err = h.chatsUsecase.AddUsersToChat(ctx, chatID, userID, membersDTO)
 	if err != nil {
-		logger.WithError(err).Errorf("error adding users to chat %s: %v", chatID, err)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		logger.WithError(err).Warningf("error add messages about adding users to chat %s: %v", chatID, err)
+	}
+
+	err = h.messageUsecase.SubscribeUsersOnChat(ctx, chatID, membersDTO)
+	if err != nil {
+		logger.WithError(err).Warn("can't subscribe joined users to chat")
 	}
 
 	err = h.messageUsecase.AddMessageJoinUsers(ctx, chatID, membersDTO)
