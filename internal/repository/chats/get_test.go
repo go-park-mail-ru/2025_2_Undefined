@@ -2,34 +2,33 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestChatsRepository_GetChats_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	userID := uuid.New()
 	chatID1 := uuid.New()
 	chatID2 := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"id", "chat_type", "name", "description"}).
-		AddRow(chatID1.String(), "dialog", "Chat 1", "Description 1").
-		AddRow(chatID2.String(), "group", "Chat 2", "Description 2")
+	rows := pgxmock.NewRows([]string{"id", "chat_type", "name", "description"}).
+		AddRow(chatID1, "dialog", "Chat 1", "Description 1").
+		AddRow(chatID2, "group", "Chat 2", "Description 2")
 
-	mock.ExpectQuery(regexp.QuoteMeta(getChatsQuery)).
+	mock.ExpectQuery(getChatsQuery).
 		WithArgs(userID).
 		WillReturnRows(rows)
 
@@ -46,16 +45,16 @@ func TestChatsRepository_GetChats_Success(t *testing.T) {
 }
 
 func TestChatsRepository_GetChats_Error(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 	userID := uuid.New()
 
-	mock.ExpectQuery(regexp.QuoteMeta(getChatsQuery)).
+	mock.ExpectQuery(getChatsQuery).
 		WithArgs(userID).
 		WillReturnError(fmt.Errorf("database error"))
 
@@ -68,20 +67,20 @@ func TestChatsRepository_GetChats_Error(t *testing.T) {
 }
 
 func TestChatsRepository_GetChat_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	chatID := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"id", "chat_type", "name", "description"}).
-		AddRow(chatID.String(), "group", "Test Chat", "Test Description")
+	rows := pgxmock.NewRows([]string{"id", "chat_type", "name", "description"}).
+		AddRow(chatID, "group", "Test Chat", "Test Description")
 
-	mock.ExpectQuery(regexp.QuoteMeta(getChatQuery)).
+	mock.ExpectQuery(getChatQuery).
 		WithArgs(chatID).
 		WillReturnRows(rows)
 
@@ -98,47 +97,47 @@ func TestChatsRepository_GetChat_Success(t *testing.T) {
 }
 
 func TestChatsRepository_GetChat_NotFound(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	chatID := uuid.New()
 
-	mock.ExpectQuery(regexp.QuoteMeta(getChatQuery)).
+	mock.ExpectQuery(getChatQuery).
 		WithArgs(chatID).
-		WillReturnError(sql.ErrNoRows)
+		WillReturnError(pgx.ErrNoRows)
 
 	ctx := context.Background()
 	chat, err := repo.GetChat(ctx, chatID)
 
 	assert.Error(t, err)
 	assert.Nil(t, chat)
-	assert.Equal(t, sql.ErrNoRows, err)
+	assert.Equal(t, pgx.ErrNoRows, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestChatsRepository_GetUsersOfChat_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	chatID := uuid.New()
 	userID1 := uuid.New()
 	userID2 := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"user_id", "chat_id", "name", "attachment_id", "chat_member_role"}).
-		AddRow(userID1.String(), chatID.String(), "User 1", nil, "admin").
-		AddRow(userID2.String(), chatID.String(), "User 2", nil, "member")
+	rows := pgxmock.NewRows([]string{"user_id", "chat_id", "name", "chat_member_role"}).
+		AddRow(userID1, chatID, "User 1", "admin").
+		AddRow(userID2, chatID, "User 2", "member")
 
-	mock.ExpectQuery(regexp.QuoteMeta(getUsersOfChat)).
+	mock.ExpectQuery(getUsersOfChat).
 		WithArgs(chatID).
 		WillReturnRows(rows)
 
@@ -154,21 +153,21 @@ func TestChatsRepository_GetUsersOfChat_Success(t *testing.T) {
 }
 
 func TestChatsRepository_GetUserInfo_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	userID := uuid.New()
 	chatID := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"user_id", "chat_id", "name", "attachment_id", "chat_member_role"}).
-		AddRow(userID.String(), chatID.String(), "John Doe", nil, "admin")
+	rows := pgxmock.NewRows([]string{"user_id", "chat_id", "name", "chat_member_role"}).
+		AddRow(userID, chatID, "John Doe", "admin")
 
-	mock.ExpectQuery(regexp.QuoteMeta(getUserInfo)).
+	mock.ExpectQuery(getUserInfo).
 		WithArgs(userID, chatID).
 		WillReturnRows(rows)
 
@@ -185,26 +184,78 @@ func TestChatsRepository_GetUserInfo_Success(t *testing.T) {
 }
 
 func TestChatsRepository_GetUsersDialog_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	user1ID := uuid.New()
 	user2ID := uuid.New()
 	expectedChatID := uuid.New()
 
-	mock.ExpectQuery(regexp.QuoteMeta(getUsersDialogQuery)).
+	mock.ExpectQuery(getUsersDialogQuery).
 		WithArgs(user1ID, user2ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(expectedChatID.String()))
+		WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(expectedChatID))
 
 	ctx := context.Background()
 	chatID, err := repo.GetUsersDialog(ctx, user1ID, user2ID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedChatID, chatID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestChatsRepository_GetChatAvatars_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("failed to create pgxmock pool: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewChatsRepository(mock)
+
+	userID := uuid.New()
+	chatID1 := uuid.New()
+	chatID2 := uuid.New()
+	avatarID1 := uuid.New()
+	avatarID2 := uuid.New()
+	chatIDs := []uuid.UUID{chatID1, chatID2}
+
+	rows := pgxmock.NewRows([]string{"chat_id", "attachment_id"}).
+		AddRow(chatID1, avatarID1).
+		AddRow(chatID2, avatarID2)
+
+	mock.ExpectQuery(getChatAvatarsQuery).
+		WithArgs(userID, chatIDs).
+		WillReturnRows(rows)
+
+	ctx := context.Background()
+	avatars, err := repo.GetChatAvatars(ctx, userID, chatIDs)
+
+	assert.NoError(t, err)
+	assert.Len(t, avatars, 2)
+	assert.Equal(t, avatarID1, avatars[chatID1.String()])
+	assert.Equal(t, avatarID2, avatars[chatID2.String()])
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestChatsRepository_GetChatAvatars_EmptyInput(t *testing.T) {
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("failed to create pgxmock pool: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewChatsRepository(mock)
+
+	userID := uuid.New()
+	ctx := context.Background()
+	avatars, err := repo.GetChatAvatars(ctx, userID, []uuid.UUID{})
+
+	assert.NoError(t, err)
+	assert.Empty(t, avatars)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

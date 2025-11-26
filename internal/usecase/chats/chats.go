@@ -2,8 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -17,6 +15,8 @@ import (
 	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
 	"github.com/google/uuid"
+
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 )
 
 type ChatsUsecase struct {
@@ -59,9 +59,8 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 	result := make([]dtoChats.ChatViewInformationDTO, 0, len(chats))
 	for _, chat := range chats {
 		chatName := chat.Name
-		chatAvatarUrl := ""
 
-		// Для диалогов определяем имя собеседника и аватарку
+		// Для диалогов определяем имя собеседника
 		if chat.Type == modelsChats.ChatTypeDialog {
 			users, err := uc.chatsRepo.GetUsersOfChat(ctx, chat.ID)
 			if err != nil {
@@ -71,11 +70,6 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 				for _, user := range users {
 					if user.UserID != userId {
 						chatName = user.UserName
-						chatAvatarUrl, err = uc.fileStorage.GetOne(ctx, user.UserAvatarID)
-						if err != nil {
-							logger.Warningf("could not get user avatar for dialog %s: %v", chat.ID, err)
-						}
-
 						break
 					}
 				}
@@ -83,27 +77,21 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 		}
 
 		chatDTO := dtoChats.ChatViewInformationDTO{
-			ID:        chat.ID,
-			Name:      chatName,
-			Type:      chat.Type,
-			AvatarURL: chatAvatarUrl,
+			ID:   chat.ID,
+			Name: chatName,
+			Type: chat.Type,
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
-			avatarURL, err := uc.fileStorage.GetOne(ctx, lastMsg.UserAvatarID)
-			if err != nil {
-				logger.Warningf("could not get avatar URL for user %s: %v", lastMsg.UserID, err)
-				avatarURL = ""
-			}
-
 			chatDTO.LastMessage = dtoMessage.MessageDTO{
-				SenderID:        lastMsg.UserID,
-				SenderName:      lastMsg.UserName,
-				Text:            lastMsg.Text,
-				CreatedAt:       lastMsg.CreatedAt,
-				SenderAvatarURL: avatarURL,
-				ChatId:          lastMsg.ChatID,
-				Type:            lastMsg.Type,
+				ID:         lastMsg.ID,
+				SenderID:   lastMsg.UserID,
+				SenderName: lastMsg.UserName,
+				Text:       lastMsg.Text,
+				CreatedAt:  lastMsg.CreatedAt,
+				UpdatedAt:  lastMsg.UpdatedAt,
+				ChatID:     lastMsg.ChatID,
+				Type:       lastMsg.Type,
 			}
 		}
 
@@ -117,6 +105,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 	const op = "ChatsUsecase.GetInformationAboutChat"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
+	defer logger.Debugf("Succesfull get information about chat: %s", chatID)
 
 	chat, err := uc.chatsRepo.GetChat(ctx, chatID)
 	if err != nil {
@@ -152,36 +141,24 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
-		avatarURL, err := uc.fileStorage.GetOne(ctx, message.UserAvatarID)
-		if err != nil {
-			logger.Warningf("could not get avatar URL for user %s: %v", message.UserID, err)
-			avatarURL = ""
-		}
-
 		messagesDTO[i] = dtoMessage.MessageDTO{
-			SenderID:        message.UserID,
-			SenderName:      message.UserName,
-			Text:            message.Text,
-			CreatedAt:       message.CreatedAt,
-			SenderAvatarURL: avatarURL,
-			ChatId:          message.ChatID,
-			Type:            message.Type,
+			ID:         message.ID,
+			SenderID:   message.UserID,
+			SenderName: message.UserName,
+			Text:       message.Text,
+			CreatedAt:  message.CreatedAt,
+			UpdatedAt:  message.UpdatedAt,
+			ChatID:     message.ChatID,
+			Type:       message.Type,
 		}
 	}
 
 	usersDTO := make([]dtoChats.UserInfoChatDTO, len(users))
 	for i, user := range users {
-		avatarURL, err := uc.fileStorage.GetOne(ctx, user.UserAvatarID)
-		if err != nil {
-			logger.Warningf("could not get avatar URL for user %s: %v", user.UserID, err)
-			avatarURL = ""
-		}
-
 		usersDTO[i] = dtoChats.UserInfoChatDTO{
-			UserId:     user.UserID,
-			UserName:   user.UserName,
-			UserAvatar: avatarURL,
-			Role:       user.Role,
+			UserId:   user.UserID,
+			UserName: user.UserName,
+			Role:     user.Role,
 		}
 	}
 
@@ -199,7 +176,6 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 		isPrivate = true
 	}
 
-	avatarURL := ""
 	// Определяем название чата
 	chatName := chat.Name
 	if chat.Type == modelsChats.ChatTypeDialog {
@@ -207,7 +183,6 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 		for _, user := range usersDTO {
 			if user.UserId != userID {
 				chatName = user.UserName
-				avatarURL = user.UserAvatar
 				break
 			}
 		}
@@ -224,7 +199,6 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 		Members:     usersDTO,
 		Messages:    messagesDTO,
 		Description: chat.Description,
-		AvatarURL:   avatarURL,
 	}
 
 	return result, nil
@@ -288,48 +262,18 @@ func (uc *ChatsUsecase) AddUsersToChat(ctx context.Context, chatID, userID uuid.
 	}
 
 	usersInfo := make([]modelsChats.UserInfo, len(users))
-	usersIDs := make([]uuid.UUID, len(users))
 	for i, user := range users {
 		usersInfo[i] = modelsChats.UserInfo{
 			UserID: user.UserId,
 			ChatID: chatID,
 			Role:   user.Role,
 		}
-
-		usersIDs[i] = user.UserId
 	}
 
 	err = uc.chatsRepo.InsertUsersToChat(ctx, chatID, usersInfo)
 	if err != nil {
 		return err
 	}
-
-	chat, err := uc.chatsRepo.GetChat(ctx, chatID)
-	if err != nil {
-		return err
-	}
-
-	if chat.Type == modelsChats.ChatTypeGroup {
-		usersNames, err := uc.usersRepo.GetUsersNames(ctx, usersIDs)
-		if err != nil {
-			return err
-		}
-
-		for i := range users {
-			_, err = uc.messageRepo.InsertMessage(ctx, modelsMessage.CreateMessage{
-				ChatID:    chatID,
-				UserID:    &users[i].UserId,
-				Text:      fmt.Sprintf("Пользователь %s вступил в группу", usersNames[i]),
-				Type:      modelsMessage.MessageTypeSystem,
-				CreatedAt: time.Now(),
-			})
-
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -339,4 +283,125 @@ func (uc *ChatsUsecase) DeleteChat(ctx context.Context, userId, chatId uuid.UUID
 
 func (uc *ChatsUsecase) UpdateChat(ctx context.Context, userId, chatId uuid.UUID, name, description string) error {
 	return uc.chatsRepo.UpdateChat(ctx, userId, chatId, name, description)
+}
+
+func (uc *ChatsUsecase) GetChatAvatars(ctx context.Context, userId uuid.UUID, chatIDs []uuid.UUID) (map[string]*string, error) {
+	const op = "ChatsUsecase.GetChatAvatars"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("chat_ids_count", len(chatIDs))
+	logger.Debug("Starting usecase operation: get chat avatars")
+
+	// Инициализируем карту для всех запрошенных ID со значением nil
+	avatars := make(map[string]*string, len(chatIDs))
+	for _, chatID := range chatIDs {
+		avatars[chatID.String()] = nil
+	}
+
+	avatarsIDs, err := uc.chatsRepo.GetChatAvatars(ctx, userId, chatIDs)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get chat avatars from repository")
+		return nil, err
+	}
+
+	logger.WithField("avatars_count", len(avatarsIDs)).Debug("Got avatar IDs from repository")
+	for chatID, attachmentID := range avatarsIDs {
+		logger.WithField("chat_id", chatID).WithField("attachment_id", attachmentID.String()).Debug("Getting URL from file storage")
+		url, err := uc.fileStorage.GetOne(ctx, &attachmentID)
+		if err != nil {
+			logger.WithError(err).WithField("chat_id", chatID).WithField("attachment_id", attachmentID.String()).Error("Failed to get URL from file storage")
+			avatars[chatID] = nil
+		} else {
+			logger.WithField("chat_id", chatID).WithField("url", url).Debug("Got URL from file storage")
+			u := url
+			avatars[chatID] = &u
+		}
+	}
+
+	logger.WithField("avatars_count", len(avatars)).Info("Usecase operation completed successfully: chat avatars retrieved")
+	return avatars, nil
+}
+
+func (uc *ChatsUsecase) UploadChatAvatar(ctx context.Context, userID, chatID uuid.UUID, fileData minio.FileData) (string, error) {
+	const op = "ChatsUsecase.UploadChatAvatar"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	isAdmin, err := uc.chatsRepo.CheckUserHasRole(ctx, userID, chatID, modelsChats.RoleAdmin)
+	if err != nil {
+		logger.WithError(err).Error("Failed to check user role")
+		return "", err
+	}
+
+	if !isAdmin {
+		logger.Error("User is not admin")
+		return "", errs.ErrNoRights
+	}
+
+	// Генерируем UUID для файла в MinIO
+	attachmentID := uuid.New()
+
+	// Сохраняем файл в MinIO
+	avatarURL, err := uc.fileStorage.CreateOne(ctx, fileData, attachmentID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to save avatar file")
+		return "", err
+	}
+
+	// Сохраняем attachment_id в БД
+	err = uc.chatsRepo.UpdateChatAvatar(ctx, chatID, attachmentID, int64(len(fileData.Data)))
+	if err != nil {
+		logger.WithError(err).Error("Failed to update chat avatar in repository")
+		return "", err
+	}
+
+	logger.Info("Chat avatar uploaded successfully")
+	return avatarURL, nil
+}
+
+func (uc *ChatsUsecase) SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]dtoChats.ChatViewInformationDTO, error) {
+	const op = "ChatsUsecase.SearchChats"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	chats, err := uc.chatsRepo.SearchChats(ctx, userID, name)
+	if err != nil {
+		logger.WithError(err).Errorf("Failed to search chats for user %s with name query '%s'", userID, name)
+		return nil, err
+	}
+
+	if len(chats) == 0 {
+		return []dtoChats.ChatViewInformationDTO{}, nil
+	}
+
+	chatsIDs := make([]uuid.UUID, len(chats))
+	for i, chat := range chats {
+		chatsIDs[i] = chat.ID
+	}
+
+	lastMessages, err := uc.messageRepo.GetLastMessagesOfChatsByIDs(ctx, chatsIDs)
+	if err != nil {
+		logger.WithError(err).Errorf("Failed to get last messages for searched chats for user %s", userID)
+		return nil, err
+	}
+
+	result := make([]dtoChats.ChatViewInformationDTO, len(chats))
+	for i, chat := range chats {
+		lastMessage := lastMessages[chat.ID]
+		result[i] = dtoChats.ChatViewInformationDTO{
+			ID:   chat.ID,
+			Name: chat.Name,
+			Type: chat.Type,
+			LastMessage: dtoMessage.MessageDTO{
+				ID:         lastMessage.ID,
+				SenderID:   lastMessage.UserID,
+				SenderName: lastMessage.UserName,
+				Text:       lastMessage.Text,
+				CreatedAt:  lastMessage.CreatedAt,
+				UpdatedAt:  lastMessage.UpdatedAt,
+				ChatID:     lastMessage.ChatID,
+				Type:       lastMessage.Type,
+			},
+		}
+	}
+
+	return result, nil
 }

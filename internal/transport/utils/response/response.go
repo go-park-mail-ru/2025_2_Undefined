@@ -11,6 +11,8 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	dto "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func SendError(ctx context.Context, op string, w http.ResponseWriter, status int, message string) {
@@ -49,11 +51,6 @@ func SendError(ctx context.Context, op string, w http.ResponseWriter, status int
 // - ErrIsDuplicateKey -> 409 Conflict
 // - ErrRequiredFieldsMissing -> 422 Unprocessable Entity
 // - Все остальные ошибки -> 400 Bad Request (по умолчанию)
-//
-// Преимущества errors.Is() над строковым сравнением:
-// - Работает с wrapped ошибками
-// - Не зависит от изменения текста ошибки
-// - Более производительно и типобезопасно
 func SendErrorWithAutoStatus(ctx context.Context, op string, w http.ResponseWriter, err error) {
 	// 503 Service Unavailable - сервис недоступен или перегружен
 	if errors.Is(err, errs.ErrServiceIsOverloaded) {
@@ -142,5 +139,44 @@ func SendJSONResponse(ctx context.Context, op string, w http.ResponseWriter, sta
 	w.WriteHeader(status)
 	if _, err := w.Write(resp); err != nil {
 		logger.Errorf("failed to write response %s", err.Error())
+	}
+}
+
+func HandleGRPCError(ctx context.Context, w http.ResponseWriter, err error, op string) {
+	logger := domains.GetLogger(ctx)
+	st, ok := status.FromError(err)
+	if !ok {
+		logger.WithError(err).Error(op + ": unexpected error type")
+		SendJSONError(ctx, w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	switch st.Code() {
+	case codes.Unauthenticated:
+		SendJSONError(ctx, w, http.StatusUnauthorized, st.Message())
+	case codes.AlreadyExists:
+		SendJSONError(ctx, w, http.StatusConflict, st.Message())
+	case codes.NotFound:
+		SendJSONError(ctx, w, http.StatusNotFound, st.Message())
+	case codes.InvalidArgument:
+		SendJSONError(ctx, w, http.StatusBadRequest, st.Message())
+	default:
+		logger.WithError(err).Error(op + ": unexpected gRPC status code")
+		SendJSONError(ctx, w, http.StatusInternalServerError, "internal server error")
+	}
+}
+
+func SendJSONError(ctx context.Context, w http.ResponseWriter, statusCode int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	resp, err := json.Marshal(dto.ErrorDTO{Message: message})
+	if err != nil {
+		domains.GetLogger(ctx).Error("failed to marshal response: ", err.Error())
+		return
+	}
+
+	if _, err := w.Write(resp); err != nil {
+		domains.GetLogger(ctx).Error("failed to write response: ", err.Error())
 	}
 }

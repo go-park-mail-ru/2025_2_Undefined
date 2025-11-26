@@ -38,17 +38,74 @@ func (m *MockMessageUsecase) EXPECT() *MockMessageUsecaseMockRecorder {
 }
 
 // AddMessage mocks base method.
-func (m *MockMessageUsecase) AddMessage(ctx context.Context, msg dto0.CreateMessageDTO, userID uuid.UUID) error {
+func (m *MockMessageUsecase) AddMessage(ctx context.Context, message dto0.CreateMessageDTO, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddMessage", ctx, msg, userID)
+	ret := m.ctrl.Call(m, "AddMessage", ctx, message, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddMessage indicates an expected call of AddMessage.
-func (mr *MockMessageUsecaseMockRecorder) AddMessage(ctx, msg, userID interface{}) *gomock.Call {
+func (mr *MockMessageUsecaseMockRecorder) AddMessage(ctx, message, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessage", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessage), ctx, msg, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessage", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessage), ctx, message, userID)
+}
+
+// AddMessageJoinUsers mocks base method.
+func (m *MockMessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dto.AddChatMemberDTO) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddMessageJoinUsers", ctx, chatID, users)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddMessageJoinUsers indicates an expected call of AddMessageJoinUsers.
+func (mr *MockMessageUsecaseMockRecorder) AddMessageJoinUsers(ctx, chatID, users interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMessageJoinUsers", reflect.TypeOf((*MockMessageUsecase)(nil).AddMessageJoinUsers), ctx, chatID, users)
+}
+
+// DeleteMessage mocks base method.
+func (m *MockMessageUsecase) DeleteMessage(ctx context.Context, message dto0.DeleteMessageDTO, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteMessage", ctx, message, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteMessage indicates an expected call of DeleteMessage.
+func (mr *MockMessageUsecaseMockRecorder) DeleteMessage(ctx, message, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMessage", reflect.TypeOf((*MockMessageUsecase)(nil).DeleteMessage), ctx, message, userID)
+}
+
+// EditMessage mocks base method.
+func (m *MockMessageUsecase) EditMessage(ctx context.Context, message dto0.EditMessageDTO, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EditMessage", ctx, message, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EditMessage indicates an expected call of EditMessage.
+func (mr *MockMessageUsecaseMockRecorder) EditMessage(ctx, message, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditMessage", reflect.TypeOf((*MockMessageUsecase)(nil).EditMessage), ctx, message, userID)
+}
+
+// GetMessagesBySearch mocks base method.
+func (m *MockMessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dto0.MessageDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessagesBySearch", ctx, userID, chatID, text)
+	ret0, _ := ret[0].([]dto0.MessageDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMessagesBySearch indicates an expected call of GetMessagesBySearch.
+func (mr *MockMessageUsecaseMockRecorder) GetMessagesBySearch(ctx, userID, chatID, text interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessagesBySearch", reflect.TypeOf((*MockMessageUsecase)(nil).GetMessagesBySearch), ctx, userID, chatID, text)
 }
 
 // SubscribeConnectionToChats mocks base method.

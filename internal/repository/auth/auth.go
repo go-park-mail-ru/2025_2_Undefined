@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -10,8 +9,11 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/user"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/pgxinterface"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -29,10 +31,17 @@ const (
 )
 
 type AuthRepository struct {
-	db *sql.DB
+	db pgxinterface.PgxPool
 }
 
-func New(db *sql.DB) *AuthRepository {
+func New(db pgxinterface.PgxPool) *AuthRepository {
+	return &AuthRepository{
+		db: db,
+	}
+}
+
+// NewWithPool создает репозиторий с конкретным типом *pgxpool.Pool
+func NewWithPool(db *pgxpool.Pool) *AuthRepository {
 	return &AuthRepository{
 		db: db,
 	}
@@ -51,13 +60,13 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 
 	logger.Debugf("starting: %s", query)
 
-	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		queryStatus = "fail"
 		logger.WithError(err).Errorf("db query: %s: begin transaction: status: %s", query, queryStatus)
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	newUsername, err := r.generateUniqueUsername(ctx, tx)
 	if err != nil {
@@ -78,16 +87,16 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 	}
 
 	logger.Debugf("executing: %s with username: %s (length: %d)", query, newUsername, len(newUsername))
-	err = tx.QueryRowContext(ctx, createUserQuery,
+	err = tx.QueryRow(ctx, createUserQuery,
 		user.ID, user.Username, user.Name, user.PhoneNumber, user.PasswordHash, user.AccountType, user.CreatedAt, user.UpdatedAt).
 		Scan(&user.ID, &user.Username, &user.PhoneNumber, &user.AccountType)
 
 	if err != nil {
 		queryStatus = "fail"
 
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			switch pqErr.Code {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
 			case errs.PostgresErrorUniqueViolationCode:
 				logger.WithError(err).Errorf("db query: %s: duplicate key violation: status: %s", query, queryStatus)
 				return nil, errs.ErrIsDuplicateKey
@@ -101,7 +110,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		queryStatus = "fail"
 		logger.WithError(err).Errorf("db query: %s: commit transaction: status: %s", query, queryStatus)
 		return nil, fmt.Errorf("commit transaction: %w", err)
@@ -110,7 +119,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, name string, phone stri
 	return user, nil
 }
 
-func (r *AuthRepository) generateUniqueUsername(ctx context.Context, tx *sql.Tx) (string, error) {
+func (r *AuthRepository) generateUniqueUsername(ctx context.Context, tx pgx.Tx) (string, error) {
 	const op = "AuthRepository.generateUniqueUsername"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
@@ -155,7 +164,7 @@ func (r *AuthRepository) generateTimestampUsername() string {
 	return usernamePrefix + timestampStr
 }
 
-func (r *AuthRepository) checkUsernameExists(ctx context.Context, tx *sql.Tx, username string) (bool, error) {
+func (r *AuthRepository) checkUsernameExists(ctx context.Context, tx pgx.Tx, username string) (bool, error) {
 	const op = "AuthRepository.checkUsernameExists"
 	const query = "CHECK username exists"
 
@@ -167,10 +176,10 @@ func (r *AuthRepository) checkUsernameExists(ctx context.Context, tx *sql.Tx, us
 	}()
 
 	var exists bool
-	err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM "user" WHERE username = $1)`, username).Scan(&exists)
+	err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "user" WHERE username = $1)`, username).Scan(&exists)
 	if err != nil {
 		queryStatus = "fail"
-		logger.WithError(err).Errorf("db query: %s: execution: status: %s", query, queryStatus)
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
 		return false, err
 	}
 

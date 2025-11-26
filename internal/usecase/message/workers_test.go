@@ -78,7 +78,7 @@ func TestMessageUsecase_Distribute_NoListeners(t *testing.T) {
 	case uc.distributeChannel <- dto.WebSocketMessageDTO{
 		Type:   dto.WebSocketMessageTypeNewChatMessage,
 		ChatID: testChatID,
-		Value:  dto.MessageDTO{ChatId: testChatID},
+		Value:  dto.MessageDTO{ChatID: testChatID},
 	}:
 
 	case <-time.After(500 * time.Millisecond):

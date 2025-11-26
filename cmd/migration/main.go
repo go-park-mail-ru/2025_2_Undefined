@@ -24,10 +24,7 @@ func main() {
 		logger.WithError(err).Fatal("Error loading configuration")
 	}
 
-	dsn, err := repository.GetConnectionString(cfg.DBConfig)
-	if err != nil {
-		logger.WithError(err).Fatal("Can't connect to database")
-	}
+	dsn := repository.GetConnectionString(cfg.DBConfig)
 
 	m, err := migrate.New(
 		cfg.MigrationsConfig.Path,

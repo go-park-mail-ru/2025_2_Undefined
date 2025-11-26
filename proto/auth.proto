@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package auth;
+option go_package = "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth";
+
+/* ############### Register ############### */
+message RegisterReq {
+  string phone_number = 1;
+  string password = 2;
+  string name = 3;
+  string device = 4;
+}
+
+message RegisterRes {
+  string session_id = 1;
+  string csrf_token = 2;
+}
+
+/* ############### Login ############### */
+message LoginReq {
+  string phone_number = 1;
+  string password = 2;
+  string device = 3;
+}
+
+message LoginRes {
+  string session_id = 1;
+  string csrf_token = 2;
+}
+
+/* ############### Logout ############### */
+message LogoutReq {
+  string session_id = 1;
+}
+
+/* ############### ValidateSession ############### */
+message ValidateSessionReq {
+  string session_id = 1;
+}
+
+message ValidateSessionRes {
+  bool valid = 1;
+  string user_id = 2;
+}
+
+/* ############### GetSessionsByUserID ############### */
+message GetSessionsByUserIDReq {
+  string user_id = 1;
+}
+
+message Session {
+  string id = 1;
+  string user_id = 2;
+  string device = 3;
+  string created_at = 4;
+  string last_seen = 5;
+}
+
+message GetSessionsByUserIDRes {
+  repeated Session sessions = 1;
+}
+
+/* ############### DeleteSession ############### */
+message DeleteSessionReq {
+  string user_id = 1;
+  string session_id = 2;
+}
+
+/* ############### DeleteAllSessionsExceptCurrent ############### */
+message DeleteAllSessionsExceptCurrentReq {
+  string user_id = 1;
+  string current_session_id = 2;
+}
+
+/* ############### AuthService ############### */
+service AuthService {
+  rpc Register(RegisterReq) returns (RegisterRes);
+  rpc Login(LoginReq) returns (LoginRes);
+  rpc Logout(LogoutReq) returns (google.protobuf.Empty);
+  rpc ValidateSession(ValidateSessionReq) returns (ValidateSessionRes);
+  rpc GetSessionsByUserID(GetSessionsByUserIDReq) returns (GetSessionsByUserIDRes);
+  rpc DeleteSession(DeleteSessionReq) returns (google.protobuf.Empty);
+  rpc DeleteAllSessionsExceptCurrent(DeleteAllSessionsExceptCurrentReq) returns (google.protobuf.Empty);
+}

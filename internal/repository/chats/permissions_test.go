@@ -2,28 +2,27 @@ package repository
 
 import (
 	"context"
-	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestChatsRepository_CheckUserHasRole_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 	userID := uuid.New()
 	chatID := uuid.New()
 
-	mock.ExpectQuery(regexp.QuoteMeta(checkUserRoleQuery)).
+	mock.ExpectQuery(checkUserRoleQuery).
 		WithArgs(userID, chatID, "admin").
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 
 	ctx := context.Background()
 	hasRole, err := repo.CheckUserHasRole(ctx, userID, chatID, "admin")

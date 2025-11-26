@@ -13,13 +13,16 @@ import (
 )
 
 type Config struct {
-	DBConfig         *DBConfig
-	ServerConfig     *ServerConfig
-	SessionConfig    *SessionConfig
-	CSRFConfig       *CSRFConfig
-	MigrationsConfig *MigrationsConfig
-	RedisConfig      *RedisConfig
-	MinioConfig      *MinioConfig
+	DBConfig            *DBConfig
+	ServerConfig        *ServerConfig
+	SessionConfig       *SessionConfig
+	CSRFConfig          *CSRFConfig
+	MigrationsConfig    *MigrationsConfig
+	RedisConfig         *RedisConfig
+	MinioConfig         *MinioConfig
+	GRPCConfig          *GRPCConfig
+	ElasticsearchConfig *ElasticsearchConfig
+	MetricsConfig       *MetricsConfig
 }
 
 type DBConfig struct {
@@ -68,6 +71,26 @@ type MigrationsConfig struct {
 	Path string
 }
 
+type GRPCConfig struct {
+	AuthServiceAddr  string
+	AuthServicePort  string
+	UserServiceAddr  string
+	UserServicePort  string
+	ChatsServiceAddr string
+	ChatsServicePort string
+}
+
+type ElasticsearchConfig struct {
+	URL           string
+	ContactsIndex string
+	Username      string
+	Password      string
+}
+
+type MetricsConfig struct {
+	Port string
+}
+
 func NewConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("error loading .env file: %v", err)
@@ -108,14 +131,29 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	grpcConfig, err := newGRPCConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	elasticsearchConfig, err := newElasticsearchConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	metricsConfig := newMetricsConfig()
+
 	return &Config{
-		DBConfig:         dbConfig,
-		ServerConfig:     serverConfig,
-		SessionConfig:    sessionConfig,
-		CSRFConfig:       csrfConfig,
-		MigrationsConfig: migrationsConfig,
-		RedisConfig:      redisConfig,
-		MinioConfig:      minioConfig,
+		DBConfig:            dbConfig,
+		ServerConfig:        serverConfig,
+		SessionConfig:       sessionConfig,
+		CSRFConfig:          csrfConfig,
+		MigrationsConfig:    migrationsConfig,
+		RedisConfig:         redisConfig,
+		MinioConfig:         minioConfig,
+		GRPCConfig:          grpcConfig,
+		ElasticsearchConfig: elasticsearchConfig,
+		MetricsConfig:       metricsConfig,
 	}, nil
 }
 
@@ -192,6 +230,7 @@ func parseDurationWithDays(s string) (time.Duration, error) {
 
 	return time.ParseDuration(s)
 }
+
 func newCSRFConfig() (*CSRFConfig, error) {
 	secret, secretExists := os.LookupEnv("CSRF_SECRET")
 	if !secretExists {
@@ -280,4 +319,85 @@ func newMinioConfig() (*MinioConfig, error) {
 	logger.Debugf("minio config is %v", cfg)
 
 	return cfg, nil
+}
+
+func newGRPCConfig() (*GRPCConfig, error) {
+	authServiceAddr := os.Getenv("AUTH_SERVICE_ADDR")
+	if authServiceAddr == "" {
+		authServiceAddr = "localhost:50051" // default
+	}
+
+	authServicePort := os.Getenv("AUTH_GRPC_PORT")
+	if authServicePort == "" {
+		authServicePort = "50051" // default порт
+	}
+
+	userServiceAddr := os.Getenv("USER_SERVICE_ADDR")
+	if userServiceAddr == "" {
+		userServiceAddr = "localhost:50052" // default
+	}
+
+	userServicePort := os.Getenv("USER_GRPC_PORT")
+	if userServicePort == "" {
+		userServicePort = "50052" // default порт
+	}
+
+	chatsServiceAddr := os.Getenv("CHATS_SERVICE_ADDR")
+	if chatsServiceAddr == "" {
+		chatsServiceAddr = "localhost:50053" // default
+	}
+
+	chatsServicePort := os.Getenv("CHATS_GRPC_PORT")
+	if chatsServicePort == "" {
+		chatsServicePort = "50053" // default порт
+	}
+
+	return &GRPCConfig{
+		AuthServiceAddr:  authServiceAddr,
+		AuthServicePort:  authServicePort,
+		UserServiceAddr:  userServiceAddr,
+		UserServicePort:  userServicePort,
+		ChatsServiceAddr: chatsServiceAddr,
+		ChatsServicePort: chatsServicePort,
+	}, nil
+}
+
+func newElasticsearchConfig() (*ElasticsearchConfig, error) {
+	url := os.Getenv("ELASTICSEARCH_URL")
+	if url == "" {
+		url = "http://localhost:9200" // default
+	}
+
+	contactsIndex := os.Getenv("ELASTICSEARCH_CONTACTS_INDEX")
+	if contactsIndex == "" {
+		contactsIndex = "contacts" // default
+	}
+
+	username := os.Getenv("ELASTICSEARCH_USERNAME")
+	if username == "" {
+		username = "admin" // default
+	}
+
+	password := os.Getenv("ELASTICSEARCH_PASSWORD")
+	if password == "" {
+		password = "" // default - no auth
+	}
+
+	return &ElasticsearchConfig{
+		URL:           url,
+		ContactsIndex: contactsIndex,
+		Username:      username,
+		Password:      password,
+	}, nil
+}
+
+func newMetricsConfig() *MetricsConfig {
+	port := os.Getenv("METRICS_PORT")
+	if port == "" {
+		port = "2112" // default
+	}
+
+	return &MetricsConfig{
+		Port: port,
+	}
 }

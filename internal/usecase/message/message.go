@@ -96,31 +96,8 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		return err
 	}
 
-	avatar_url, err := uc.fileStorage.GetOne(ctx, user.AvatarID)
-	if err != nil {
-		logger.WithError(err).Warningf("could not get avatar URL for user %s: %v", user.ID, err)
-		avatar_url = ""
-	}
-
-	msgDTO := dtoMessage.MessageDTO{
-		SenderID:        &user.ID,
-		SenderName:      user.Name,
-		SenderAvatarURL: avatar_url,
-		Text:            msg.Text,
-		CreatedAt:       msg.CreatedAt,
-		ChatId:          msg.ChatId,
-		Type:            modelsMessage.MessageTypeUser,
-	}
-
-	select {
-	case uc.distributeChannel <- dtoMessage.WebSocketMessageDTO{
-		Type:   dtoMessage.WebSocketMessageTypeNewChatMessage,
-		ChatID: msg.ChatId,
-		Value:  msgDTO,
-	}:
-		// Всё ок :-)
-	case <-time.After(5 * time.Second):
-		return errs.ErrServiceIsOverloaded
+	if msg.CreatedAt.IsZero() {
+		msg.CreatedAt = time.Now()
 	}
 
 	msgCreateModel := modelsMessage.CreateMessage{
@@ -131,7 +108,27 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		UserID:    &user.ID,
 	}
 
-	_, err = uc.messageRepository.InsertMessage(ctx, msgCreateModel)
+	msgID, err := uc.messageRepository.InsertMessage(ctx, msgCreateModel)
+	if err != nil {
+		return err
+	}
+
+	msgDTO := dtoMessage.MessageDTO{
+		ID:         msgID,
+		SenderID:   &user.ID,
+		SenderName: &user.Name,
+		Text:       msg.Text,
+		CreatedAt:  msg.CreatedAt,
+		UpdatedAt:  nil,
+		ChatID:     msg.ChatId,
+		Type:       modelsMessage.MessageTypeUser,
+	}
+
+	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
+		Type:   dtoMessage.WebSocketMessageTypeNewChatMessage,
+		ChatID: msg.ChatId,
+		Value:  msgDTO,
+	})
 	if err != nil {
 		return err
 	}
@@ -178,11 +175,6 @@ func (uc *MessageUsecase) SubscribeUsersOnChat(ctx context.Context, chatID uuid.
 		return fmt.Errorf("error during getting last message: %w", err)
 	}
 
-	avatarURL, err := uc.fileStorage.GetOne(ctx, lastMessage[0].UserAvatarID)
-	if err != nil {
-		return fmt.Errorf("error during getting avatar of sender last message: %w", err)
-	}
-
 	for _, member := range members {
 		userConnections := uc.listenerMap.AddChatToUserSubscription(member.UserId, chatView.ID)
 		for connectionID, connectionChan := range userConnections {
@@ -194,16 +186,16 @@ func (uc *MessageUsecase) SubscribeUsersOnChat(ctx context.Context, chatID uuid.
 					ID:   chatView.ID,
 					Name: chatView.Name,
 					LastMessage: dtoMessage.MessageDTO{
-						SenderID:        lastMessage[0].UserID,
-						SenderName:      lastMessage[0].UserName,
-						SenderAvatarURL: avatarURL,
-						Text:            lastMessage[0].Text,
-						CreatedAt:       lastMessage[0].CreatedAt,
-						ChatId:          lastMessage[0].ChatID,
-						Type:            lastMessage[0].Type,
+						ID:         lastMessage[0].ID,
+						SenderID:   lastMessage[0].UserID,
+						SenderName: lastMessage[0].UserName,
+						Text:       lastMessage[0].Text,
+						CreatedAt:  lastMessage[0].CreatedAt,
+						UpdatedAt:  lastMessage[0].UpdatedAt,
+						ChatID:     lastMessage[0].ChatID,
+						Type:       lastMessage[0].Type,
 					},
 					Type: chatView.Type,
-					// AvatarURL:   chatView.AvatarURL,
 				},
 			}
 
@@ -249,4 +241,165 @@ func (uc *MessageUsecase) distributeToOutChannel(connectionID uuid.UUID, in <-ch
 
 func (uc *MessageUsecase) Stop() {
 	uc.cancel()
+}
+
+func (uc *MessageUsecase) EditMessage(ctx context.Context, msg dtoMessage.EditMessageDTO, userID uuid.UUID) error {
+	const op = "MessageUsecase.EditMessage"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	message, err := uc.messageRepository.GetMessageByID(ctx, msg.ID)
+	if err != nil {
+		logger.WithError(err).Error("failed to get message")
+		return err
+	}
+
+	if message.UserID == nil || *message.UserID != userID {
+		logger.Warning("user is not the author of the message")
+		return errs.ErrNoRights
+	}
+
+	if msg.UpdatedAt.IsZero() {
+		msg.UpdatedAt = time.Now()
+	}
+
+	if err := uc.messageRepository.UpdateMessage(ctx, msg.ID, msg.Text); err != nil {
+		logger.WithError(err).Error("failed to update message")
+		return err
+	}
+
+	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
+		Type:   dtoMessage.WebSocketMessageTypeEditChatMessage,
+		ChatID: message.ChatID,
+		Value:  msg,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (uc *MessageUsecase) DeleteMessage(ctx context.Context, msg dtoMessage.DeleteMessageDTO, userID uuid.UUID) error {
+	const op = "MessageUsecase.DeleteMessage"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	message, err := uc.messageRepository.GetMessageByID(ctx, msg.ID)
+	if err != nil {
+		logger.WithError(err).Error("failed to get message")
+		return err
+	}
+
+	isAdmin, err := uc.chatsRepository.CheckUserHasRole(ctx, userID, message.ChatID, modelsChats.RoleAdmin)
+	if err != nil {
+		logger.WithError(err).Error("failed to check user role")
+		return err
+	}
+
+	if message.UserID == nil || *message.UserID != userID && !isAdmin {
+		logger.Warning("user is not the author or admin")
+		return errs.ErrNoRights
+	}
+
+	if err := uc.messageRepository.DeleteMessage(ctx, msg.ID); err != nil {
+		logger.WithError(err).Error("failed to delete message")
+		return err
+	}
+
+	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
+		Type:   dtoMessage.WebSocketMessageTypeDeleteChatMessage,
+		ChatID: message.ChatID,
+		Value:  msg,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error) {
+	const op = "MessageUsecase.GetMessagesBySearch"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	messages, err := uc.messageRepository.SearchMessagesInChat(ctx, userID, chatID, text)
+	if err != nil {
+		logger.WithError(err).Error("failed to search messages")
+		return nil, err
+	}
+
+	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
+	for _, msg := range messages {
+		messagesDTO = append(messagesDTO, dtoMessage.MessageDTO{
+			ID:         msg.ID,
+			SenderID:   msg.UserID,
+			SenderName: msg.UserName,
+			Text:       msg.Text,
+			CreatedAt:  msg.CreatedAt,
+			UpdatedAt:  msg.UpdatedAt,
+			ChatID:     msg.ChatID,
+			Type:       msg.Type,
+		})
+	}
+
+	return messagesDTO, nil
+}
+
+func (uc *MessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
+	chat, err := uc.chatsRepository.GetChat(ctx, chatID)
+	if err != nil {
+		return err
+	}
+
+	if chat.Type == modelsChats.ChatTypeGroup {
+		usersIDs := make([]uuid.UUID, len(users))
+		for i, user := range users {
+			usersIDs[i] = user.UserId
+		}
+
+		usersNames, err := uc.userRepository.GetUsersNames(ctx, usersIDs)
+		if err != nil {
+			return err
+		}
+
+		for i := range users {
+			messageID, err := uc.messageRepository.InsertMessage(ctx, modelsMessage.CreateMessage{
+				ChatID:    chatID,
+				UserID:    &users[i].UserId,
+				Text:      fmt.Sprintf("Пользователь %s вступил в группу", usersNames[i]),
+				Type:      modelsMessage.MessageTypeSystem,
+				CreatedAt: time.Now(),
+			})
+
+			if err != nil {
+				return err
+			}
+
+			now := time.Now()
+
+			uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
+				Type:   dtoMessage.WebSocketMessageTypeNewChatMessage,
+				ChatID: chatID,
+				Value: dtoMessage.MessageDTO{
+					ID:        messageID,
+					SenderID:  &users[i].UserId,
+					Text:      fmt.Sprintf("Пользователь %s вступил в группу", usersNames[i]),
+					CreatedAt: now,
+					UpdatedAt: &now,
+					ChatID:    chatID,
+					Type:      modelsMessage.MessageTypeSystem,
+				},
+			})
+		}
+	}
+	return nil
+}
+
+func (uc *MessageUsecase) sendWebsocketMessage(msg dtoMessage.WebSocketMessageDTO) error {
+	select {
+	case uc.distributeChannel <- msg:
+		// Всё ок :-)
+		return nil
+	case <-time.After(10 * time.Second):
+		return errs.ErrServiceIsOverloaded
+	}
 }

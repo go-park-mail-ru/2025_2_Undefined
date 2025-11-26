@@ -21,13 +21,11 @@ type Chat struct {
 	Type        string
 	Name        string
 	Description string
-	AvatarID    *uuid.UUID
 }
 
 type UserInfo struct {
-	UserID       uuid.UUID
-	ChatID       uuid.UUID
-	UserName     string
-	UserAvatarID *uuid.UUID
-	Role         string
+	UserID   uuid.UUID
+	ChatID   uuid.UUID
+	UserName string
+	Role     string
 }

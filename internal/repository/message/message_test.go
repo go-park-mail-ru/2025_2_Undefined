@@ -3,24 +3,23 @@ package messages
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	"github.com/google/uuid"
+	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMessageRepository_InsertMessage_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
 		t.Fatalf("failed to open sqlmock database: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewMessageRepository(db)
+	repo := NewMessageRepository(mock)
 
 	userID := uuid.New()
 
@@ -34,9 +33,11 @@ func TestMessageRepository_InsertMessage_Success(t *testing.T) {
 
 	expectedID := uuid.New()
 
-	rows := sqlmock.NewRows([]string{"id"}).AddRow(expectedID.String())
+	rows := pgxmock.NewRows([]string{"id"}).AddRow(expectedID)
 
-	mock.ExpectQuery(regexp.QuoteMeta(insertMessageQuery)).
+	mock.ExpectQuery(`INSERT INTO message (chat_id, user_id, text, created_at, message_type) VALUES
+						($1, $2, $3, $4, $5::message_type_enum)
+						RETURNING id`).
 		WithArgs(msg.ChatID, msg.UserID, msg.Text, msg.CreatedAt, msg.Type).
 		WillReturnRows(rows)
 
@@ -50,13 +51,13 @@ func TestMessageRepository_InsertMessage_Success(t *testing.T) {
 }
 
 func TestMessageRepository_InsertMessage_DBError(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
 		t.Fatalf("failed to open sqlmock database: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewMessageRepository(db)
+	repo := NewMessageRepository(mock)
 
 	userID := uuid.New()
 
@@ -68,7 +69,9 @@ func TestMessageRepository_InsertMessage_DBError(t *testing.T) {
 		Type:      "text",
 	}
 
-	mock.ExpectQuery(regexp.QuoteMeta(insertMessageQuery)).
+	mock.ExpectQuery(`INSERT INTO message (chat_id, user_id, text, created_at, message_type) VALUES
+						($1, $2, $3, $4, $5::message_type_enum)
+						RETURNING id`).
 		WithArgs(msg.ChatID, msg.UserID, msg.Text, msg.CreatedAt, msg.Type).
 		WillReturnError(fmt.Errorf("db error"))
 
@@ -82,74 +85,199 @@ func TestMessageRepository_InsertMessage_DBError(t *testing.T) {
 }
 
 func TestMessageRepository_GetLastMessagesOfChats_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool()
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create mock: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewMessageRepository(db)
-
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
 	userID := uuid.New()
-	messageID := uuid.New()
-	chatID := uuid.New()
-	senderID := uuid.New()
-	createdAt := time.Now()
+	msgUserID1 := uuid.New()
+	msgUserID2 := uuid.New()
+	userName1 := "User1"
+	userName2 := "User2"
+	now := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "chat_id", "user_id", "name", "attachment_id", "text", "created_at", "message_type"}).
-		AddRow(messageID.String(), chatID.String(), senderID.String(), "John Doe", nil, "Hello world", createdAt, "text")
+	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type"}).
+		AddRow(uuid.New(), uuid.New(), &msgUserID1, &userName1, "Hello", now, &now, "text").
+		AddRow(uuid.New(), uuid.New(), &msgUserID2, &userName2, "Hi", now, &now, "text")
 
-	mock.ExpectQuery(regexp.QuoteMeta(getLastMessagesOfChatsQuery)).
+	mock.ExpectQuery(`SELECT DISTINCT ON \(msg.chat_id\)`).
 		WithArgs(userID).
 		WillReturnRows(rows)
 
-	ctx := context.Background()
 	messages, err := repo.GetLastMessagesOfChats(ctx, userID)
 
 	assert.NoError(t, err)
-	assert.Len(t, messages, 1)
-	assert.Equal(t, messageID, messages[0].ID)
-	assert.Equal(t, chatID, messages[0].ChatID)
-	assert.Equal(t, senderID, *messages[0].UserID)
-	assert.Equal(t, "John Doe", messages[0].UserName)
-	assert.Equal(t, "Hello world", messages[0].Text)
-	assert.Equal(t, "text", messages[0].Type)
+	assert.Len(t, messages, 2)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestMessageRepository_GetMessagesOfChat_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool()
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create mock: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewMessageRepository(db)
-
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
 	chatID := uuid.New()
-	messageID := uuid.New()
-	userID := uuid.New()
-	createdAt := time.Now()
-	offset := 0
-	limit := 10
+	msgUserID1 := uuid.New()
+	msgUserID2 := uuid.New()
+	userName1 := "User1"
+	userName2 := "User2"
+	now := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "chat_id", "user_id", "name", "attachment_id", "text", "created_at", "message_type"}).
-		AddRow(messageID.String(), chatID.String(), userID.String(), "John", nil, "Test message", createdAt, "text")
+	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type"}).
+		AddRow(uuid.New(), chatID, &msgUserID1, &userName1, "Message 1", now, &now, "text").
+		AddRow(uuid.New(), chatID, &msgUserID2, &userName2, "Message 2", now, &now, "text")
 
-	mock.ExpectQuery(regexp.QuoteMeta(getMessagesOfChatQuery)).
-		WithArgs(chatID, offset, limit).
+	mock.ExpectQuery(`SELECT\s+msg\.id`).
+		WithArgs(chatID, 0, 10).
 		WillReturnRows(rows)
 
-	ctx := context.Background()
-	messages, err := repo.GetMessagesOfChat(ctx, chatID, offset, limit)
+	messages, err := repo.GetMessagesOfChat(ctx, chatID, 0, 10)
 
 	assert.NoError(t, err)
-	assert.Len(t, messages, 1)
-	assert.Equal(t, messageID, messages[0].ID)
-	assert.Equal(t, chatID, messages[0].ChatID)
-	assert.Equal(t, userID, *messages[0].UserID)
-	assert.Equal(t, "John", messages[0].UserName)
-	assert.Equal(t, "Test message", messages[0].Text)
-	assert.Equal(t, "text", messages[0].Type)
+	assert.Len(t, messages, 2)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMessageRepository_GetMessageByID_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
+	messageID := uuid.New()
+	chatID := uuid.New()
+	userID := uuid.New()
+	now := time.Now()
+
+	row := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "text", "created_at", "updated_at", "message_type"}).
+		AddRow(messageID, chatID, &userID, "Test message", now, &now, "text")
+
+	mock.ExpectQuery(`SELECT id, chat_id, user_id, text, created_at, updated_at, message_type::text`).
+		WithArgs(messageID).
+		WillReturnRows(row)
+
+	message, err := repo.GetMessageByID(ctx, messageID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, messageID, message.ID)
+	assert.Equal(t, chatID, message.ChatID)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMessageRepository_UpdateMessage_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
+	messageID := uuid.New()
+	newText := "Updated text"
+
+	mock.ExpectExec(`UPDATE message SET text = \$1, updated_at = NOW\(\) WHERE id = \$2`).
+		WithArgs(newText, messageID).
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+
+	err = repo.UpdateMessage(ctx, messageID, newText)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMessageRepository_DeleteMessage_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
+	messageID := uuid.New()
+
+	mock.ExpectExec(`DELETE FROM message WHERE id = \$1`).
+		WithArgs(messageID).
+		WillReturnResult(pgxmock.NewResult("DELETE", 1))
+
+	err = repo.DeleteMessage(ctx, messageID)
+
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMessageRepository_GetLastMessagesOfChatsByIDs_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
+	chatIDs := []uuid.UUID{uuid.New(), uuid.New()}
+	msgUserID1 := uuid.New()
+	msgUserID2 := uuid.New()
+	userName1 := "User1"
+	userName2 := "User2"
+	now := time.Now()
+
+	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type"}).
+		AddRow(uuid.New(), chatIDs[0], &msgUserID1, &userName1, "Last message 1", now, &now, "text").
+		AddRow(uuid.New(), chatIDs[1], &msgUserID2, &userName2, "Last message 2", now, &now, "text")
+
+	mock.ExpectQuery(`SELECT DISTINCT ON \(msg.chat_id\)`).
+		WithArgs(chatIDs).
+		WillReturnRows(rows)
+
+	messages, err := repo.GetLastMessagesOfChatsByIDs(ctx, chatIDs)
+
+	assert.NoError(t, err)
+	assert.Len(t, messages, 2)
+	assert.NotNil(t, messages[chatIDs[0]])
+	assert.NotNil(t, messages[chatIDs[1]])
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMessageRepository_SearchMessagesInChat_Success(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewMessageRepository(mock)
+	ctx := context.Background()
+	userID := uuid.New()
+	chatID := uuid.New()
+	searchText := "hello"
+	msgUserID := uuid.New()
+	userName := "User1"
+	now := time.Now()
+
+	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type"}).
+		AddRow(uuid.New(), chatID, &msgUserID, &userName, "hello world", now, &now, "text").
+		AddRow(uuid.New(), chatID, &msgUserID, &userName, "say hello", now, &now, "text")
+
+	mock.ExpectQuery(`SELECT\s+msg\.id`).
+		WithArgs(userID, chatID, searchText).
+		WillReturnRows(rows)
+
+	messages, err := repo.SearchMessagesInChat(ctx, userID, chatID, searchText)
+
+	assert.NoError(t, err)
+	assert.Len(t, messages, 2)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

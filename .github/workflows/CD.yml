@@ -1,12 +1,17 @@
 name: CD
-on:
-  push:
+on: 
+  push: 
     branches:
       - main
+      - develop
+  workflow_dispatch:
 
 env:
   DOCKER_HUB_LOGIN: "lzimin05"
   IMAGE_NAME: "100gramm_backend_app"
+  IMAGE_NAME_AUTH: "100gramm_back_auth_service"
+  IMAGE_NAME_USER: "100gramm_back_user_service"
+  IMAGE_NAME_CHATS: "100gramm_back_chats_service"
 
 jobs:
   build:
@@ -34,6 +39,37 @@ jobs:
           build-args: |
             IMAGE_NAME=${{ env.IMAGE_NAME }}
             REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
+              - name: Сборка и отправка образа в DockerHub
+      - name: Сборка и отправка образа в DockerHub auth-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_HUB_LOGIN }}/${{ env.IMAGE_NAME_AUTH }}
+          file: ./deploy/auth/Dockerfile
+          build-args: |
+            IMAGE_NAME=${{ env.IMAGE_NAME_AUTH }}
+            REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
+      - name: Сборка и отправка образа в DockerHub user-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_HUB_LOGIN }}/${{ env.IMAGE_NAME_USER }}
+          file: ./deploy/user/Dockerfile
+          build-args: |
+            IMAGE_NAME=${{ env.IMAGE_NAME_USER }}
+            REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
+      - name: Сборка и отправка образа в DockerHub chats-service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.DOCKER_HUB_LOGIN }}/${{ env.IMAGE_NAME_CHATS }}
+          file: ./deploy/chats/Dockerfile
+          build-args: |
+            IMAGE_NAME=${{ env.IMAGE_NAME_CHATS }}
+            REGISTRY=${{ env.DOCKER_HUB_LOGIN }}
   deploy:
     name: deploy
     runs-on: ubuntu-latest
@@ -47,19 +83,24 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.VM_KEY }}
-          source: "docker-compose.yml"
+          source: "docker-compose.yml,./deploy/grafana/,./deploy/prometheus/"
           target: "/home/ubuntu/app"
+          overwrite: true
       - name: deploy
         uses: appleboy/ssh-action@v1.2.2
         with: 
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.VM_KEY }}
-          envs: DOCKER_HUB_LOGIN, IMAGE_NAME
+          envs: DOCKER_HUB_LOGIN, IMAGE_NAME, IMAGE_NAME_AUTH, IMAGE_NAME_USER, IMAGE_NAME_CHATS
           script: |
             echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u $DOCKER_HUB_LOGIN --password-stdin
+            cd app 
             docker compose down
             docker system prune -af
             docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME:latest
-            cd app && docker compose up -d
+            docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_AUTH:latest
+            docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_USER:latest
+            docker pull $DOCKER_HUB_LOGIN/$IMAGE_NAME_CHATS:latest
+            docker compose up -d
         

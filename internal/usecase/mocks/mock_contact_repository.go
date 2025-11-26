@@ -50,6 +50,21 @@ func (mr *MockContactRepositoryMockRecorder) CreateContact(ctx, user_id, contact
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateContact", reflect.TypeOf((*MockContactRepository)(nil).CreateContact), ctx, user_id, contact_user_id)
 }
 
+// GetAllContacts mocks base method.
+func (m *MockContactRepository) GetAllContacts(ctx context.Context) ([]*models.Contact, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllContacts", ctx)
+	ret0, _ := ret[0].([]*models.Contact)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllContacts indicates an expected call of GetAllContacts.
+func (mr *MockContactRepositoryMockRecorder) GetAllContacts(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllContacts", reflect.TypeOf((*MockContactRepository)(nil).GetAllContacts), ctx)
+}
+
 // GetContactsByUserID mocks base method.
 func (m *MockContactRepository) GetContactsByUserID(ctx context.Context, user_id uuid.UUID) ([]*models.Contact, error) {
 	m.ctrl.T.Helper()

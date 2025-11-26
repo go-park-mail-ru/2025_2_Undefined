@@ -1,12 +1,141 @@
 services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: deploy/auth/Dockerfile
+    container_name: gramm_auth_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      AUTH_REDIS_HOST: ${AUTH_REDIS_HOST}
+      AUTH_REDIS_PORT: ${AUTH_REDIS_PORT}
+      AUTH_REDIS_PASSWORD: ${AUTH_REDIS_PASSWORD}
+      AUTH_REDIS_DB: ${AUTH_REDIS_DB:-0}
+      SESSION_TOKEN_LIFESPAN: ${SESSION_TOKEN_LIFESPAN}
+      CSRF_SECRET: ${CSRF_SECRET}
+      CSRF_TIMEOUT: ${CSRF_TIMEOUT}
+    ports:
+      - "${AUTH_GRPC_PORT}:${AUTH_GRPC_PORT}"
+      - "${AUTH_METRICS_PORT:-9101}:2112"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      auth_redis:
+        condition: service_healthy
+    networks:
+      gramm-network:
+        aliases:
+          - auth-service
+    image: lzimin05/100gramm_back_auth_service
+
+  user-service:
+    build:
+      context: .
+      dockerfile: deploy/user/Dockerfile
+    container_name: gramm_user_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_HOST: ${MINIO_HOST:-minio}
+      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-https://elasticsearch:9200}
+      ELASTICSEARCH_CONTACTS_INDEX: ${ELASTICSEARCH_CONTACTS_INDEX:-contacts}
+      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-admin}
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD}
+    ports:
+      - "${USER_GRPC_PORT}:${USER_GRPC_PORT}"
+      - "${USER_METRICS_PORT:-9102}:2112"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      gramm-network:
+        aliases:
+          - user-service
+    image: lzimin05/100gramm_back_user_service
+
+  chats-service:
+    build:
+      context: .
+      dockerfile: deploy/chats/Dockerfile
+    container_name: gramm_chats_service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_HOST: ${MINIO_HOST:-minio}
+      MINIO_PUBLIC_HOST: ${MINIO_PUBLIC_HOST}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "${CHATS_GRPC_PORT}:${CHATS_GRPC_PORT}"
+      - "${CHATS_METRICS_PORT:-9103}:2112"
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      gramm-network:
+        aliases:
+          - chats-service
+    image: lzimin05/100gramm_back_chats_service
+    
   app:
     build: .
     container_name: gramm_app
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+      - "${APP_METRICS_PORT:-2112}:2112"
+    environment:
+      AUTH_SERVICE_ADDR: ${AUTH_SERVICE_ADDR}
+      USER_SERVICE_ADDR: ${USER_SERVICE_ADDR}
+      CHATS_SERVICE_ADDR: ${CHATS_SERVICE_ADDR}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SESSION_SIGNATURE: ${SESSION_SIGNATURE}
+      CSRF_SECRET: ${CSRF_SECRET}
+      CSRF_TIMEOUT: ${CSRF_TIMEOUT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
     depends_on:
       db:
         condition: service_healthy
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      chats-service:
+        condition: service_started
     networks:
       - gramm-network
     image: lzimin05/100gramm_backend_app
@@ -64,6 +193,85 @@ services:
     networks:
       - gramm-network
 
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:-opensearchproject/opensearch:2.11.0}
+    container_name: gramm_elasticsearch
+    environment:
+      - discovery.type=${ELASTICSEARCH_DISCOVERY_TYPE:-single-node}
+      - plugins.security.disabled=${ELASTICSEARCH_SECURITY_DISABLED:-false}
+      - OPENSEARCH_JAVA_OPTS=${ELASTICSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
+      - DISABLE_INSTALL_DEMO_CONFIG=${ELASTICSEARCH_DISABLE_DEMO_CONFIG:-false}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${ELASTICSEARCH_ADMIN_PASSWORD}
+      - bootstrap.memory_lock=true
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/opensearch/data
+    networks:
+      - gramm-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -k -u admin:${ELASTICSEARCH_ADMIN_PASSWORD} https://localhost:9200/_cluster/health || exit 1"]
+      interval: ${ELASTICSEARCH_HEALTHCHECK_INTERVAL:-10s}
+      timeout: ${ELASTICSEARCH_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${ELASTICSEARCH_HEALTHCHECK_RETRIES:-5}
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gramm_prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - gramm-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gramm_grafana
+    ports:
+      - "${GRAFANA_PORT}:${GRAFANA_PORT}"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin} 
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+      - GF_SERVER_HTTP_PORT=${GRAFANA_PORT}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - gramm-network
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: gramm_node_exporter
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - gramm-network
+    restart: unless-stopped
+
 networks:
   gramm-network:
     driver: bridge
@@ -72,3 +280,6 @@ volumes:
   postgres_data:
   auth_redis_data:
   minio_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:

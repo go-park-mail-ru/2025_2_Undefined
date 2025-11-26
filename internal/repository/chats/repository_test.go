@@ -3,19 +3,23 @@ package repository
 import (
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/golang/mock/gomock"
+	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewChatsRepository(t *testing.T) {
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
-	}
-	defer db.Close()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	repo := NewChatsRepository(db)
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("failed to create pgxmock pool: %v", err)
+	}
+	defer mock.Close()
+
+	repo := NewChatsRepository(mock)
 
 	assert.NotNil(t, repo)
-	assert.Equal(t, db, repo.db)
+	assert.NotNil(t, repo.db)
 }

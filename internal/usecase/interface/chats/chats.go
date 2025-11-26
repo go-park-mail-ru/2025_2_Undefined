@@ -18,4 +18,7 @@ type ChatsRepository interface {
 	CheckUserHasRole(ctx context.Context, userID, chatID uuid.UUID, role string) (bool, error)
 	DeleteChat(ctx context.Context, userID, chatID uuid.UUID) error
 	UpdateChat(ctx context.Context, userID, chatID uuid.UUID, name, description string) error
+	GetChatAvatars(ctx context.Context, userId uuid.UUID, chatIDs []uuid.UUID) (map[string]uuid.UUID, error)
+	UpdateChatAvatar(ctx context.Context, chatID uuid.UUID, attachmentID uuid.UUID, fileSize int64) error
+	SearchChats(ctx context.Context, userID uuid.UUID, name string) ([]modelsChats.Chat, error)
 }

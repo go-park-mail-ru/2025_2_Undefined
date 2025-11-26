@@ -53,7 +53,7 @@ func (uc *AuthUsecase) Register(ctx context.Context, req *AuthDTO.RegisterReques
 	if existing != nil {
 		errorsValidation = append(errorsValidation, errs.ValidationError{
 			Field:   "phone_number",
-			Message: "a user with such a phone already exists",
+			Message: errs.ValidateUserAlreadyExists,
 		})
 	}
 

@@ -36,6 +36,21 @@ func (m *MockUserRepository) EXPECT() *MockUserRepositoryMockRecorder {
 	return m.recorder
 }
 
+// GetUserAvatars mocks base method.
+func (m *MockUserRepository) GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]uuid.UUID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserAvatars", ctx, userIDs)
+	ret0, _ := ret[0].(map[string]uuid.UUID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserAvatars indicates an expected call of GetUserAvatars.
+func (mr *MockUserRepositoryMockRecorder) GetUserAvatars(ctx, userIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAvatars", reflect.TypeOf((*MockUserRepository)(nil).GetUserAvatars), ctx, userIDs)
+}
+
 // GetUserByID mocks base method.
 func (m *MockUserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	m.ctrl.T.Helper()

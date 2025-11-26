@@ -122,6 +122,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/chats/avatars/query": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает аватарки для списка чатов по их ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Получить аватарки чатов",
+                "parameters": [
+                    {
+                        "description": "Список ID чатов",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Аватарки чатов",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/chats/dialog/{otherUserId}": {
             "get": {
                 "security": [
@@ -171,6 +222,58 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Пользователь не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/search": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Позволяет искать чаты по части или полному имени",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Поиск чатов по имени",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Имя или часть имени чата для поиска",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список найденных чатов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ChatViewInformationDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -371,6 +474,85 @@ const docTemplate = `{
                 }
             }
         },
+        "/chats/{chatId}/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Загружает новый аватар для чата (только админ)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chats"
+                ],
+                "summary": "Загрузить аватарку чата",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF Token",
+                        "name": "X-CSRF-Token",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID чата",
+                        "name": "chatId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Файл аватара",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "URL загруженного аватара",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет прав для изменения чата",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "404": {
+                        "description": "Чат не найден",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/chats/{chatId}/members": {
             "patch": {
                 "security": [
@@ -427,6 +609,71 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/chats/{chat_id}/messages/search": {
+            "get": {
+                "security": [
+                    {
+                        "Cookie": []
+                    }
+                ],
+                "description": "Выполняет поиск сообщений в указанном чате по текстовому запросу.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "messages"
+                ],
+                "summary": "Поиск сообщений в чате",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID чата",
+                        "name": "chat_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Текстовый запрос для поиска сообщений",
+                        "name": "text",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список найденных сообщений",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.MessageDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос (например, отсутствует текстовый запрос)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Пользователь не авторизован",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Ошибка сервера при поиске сообщений",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -542,9 +789,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/contacts/search": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает список контактов текущего пользователя, отфильтрованных по поисковому запросу (имя или username)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "contacts"
+                ],
+                "summary": "Поиск контактов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Поисковый запрос",
+                        "name": "query",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список найденных контактов",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.GetContactsDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
-                "description": "Аутентифицирует пользователя по номеру телефона и паролю, создает сессию",
+                "description": "Аутентифицирует пользователя по номеру телефона и паролю через gRPC микросервис, создает сессию",
                 "consumes": [
                     "application/json"
                 ],
@@ -595,7 +900,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Аннулирует текущую сессию и удаляет cookie",
+                "description": "Аннулирует текущую сессию через gRPC микросервис и удаляет cookie",
                 "consumes": [
                     "application/json"
                 ],
@@ -662,7 +967,12 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Частичное обновление информации пользователя. Можно обновить только нужные поля.",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Обновляет имя, username или bio текущего пользователя",
                 "consumes": [
                     "application/json"
                 ],
@@ -672,7 +982,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Обновить информацию пользователя",
+                "summary": "Обновить информацию о пользователе",
                 "parameters": [
                     {
                         "type": "string",
@@ -683,7 +993,7 @@ const docTemplate = `{
                     },
                     {
                         "description": "Данные для обновления",
-                        "name": "request",
+                        "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -693,28 +1003,16 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Информация пользователя обновилось"
+                        "description": "Информация успешно обновлена"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверный формат запроса",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -729,7 +1027,7 @@ const docTemplate = `{
                         "Cookie": []
                     }
                 ],
-                "description": "Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.\nПосле установки соединения клиент может отправлять сообщения в формате CreateMessageDTO\nи получать уведомления о новых сообщениях в формате MessageDTO.\n\n**Протокол WebSocket:**\n\n**Отправка сообщения (клиент → сервер):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Получение сообщения (сервер → клиент):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"sender_name\": \"Имя отправителя\",\n\"sender_avatar\": \"https://example.com/avatar.jpg\",\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Обработка ошибок:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"error\": \"Описание ошибки\"\n}\n` + "`" + `` + "`" + `` + "`" + `",
+                "description": "Устанавливает WebSocket соединение для отправки и получения сообщений в реальном времени.\n\n**Протокол WebSocket:**\n\n**1. Создание нового сообщения (клиент → сервер):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"new_message\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"value\": {\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\"\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**2. Редактирование сообщения (клиент → сервер):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"edit_message\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"value\": {\n\"id\": \"456e4567-e89b-12d3-a456-426614174001\",\n\"text\": \"Обновленный текст\",\n\"updated_at\": \"2025-01-15T10:35:00Z\" // По желанию\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**3. Удаление сообщения (клиент → сервер):**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"delete_message\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"value\": {\n\"id\": \"456e4567-e89b-12d3-a456-426614174001\"\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Получение событий (сервер → клиент):**\n\n**Новое сообщение:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"new_message\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"value\": {\n\"id\": \"789e4567-e89b-12d3-a456-426614174002\",\n\"sender_id\": \"321e4567-e89b-12d3-a456-426614174003\",\n\"sender_name\": \"Иван Иванов\",\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"type\": \"user\"\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Редактирование сообщения:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"edit_message\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"value\": {\n\"id\": \"456e4567-e89b-12d3-a456-426614174001\",\n\"text\": \"Обновленный текст\",\n\"updated_at\": \"2025-01-15T10:35:00Z\"\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Удаление сообщения:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"delete_message\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"value\": {\n\"id\": \"456e4567-e89b-12d3-a456-426614174001\"\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Создан новый чат:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"type\": \"chat_created\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"type\": \"dialog | group | channel\",\n\"value\": {\n\"id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"name\": \"Название чата\",\n\"last_message\": {\n\"id\": \"789e4567-e89b-12d3-a456-426614174002\",\n\"sender_id\": \"321e4567-e89b-12d3-a456-426614174003\",\n\"sender_name\": \"Иван Иванов\",\n\"text\": \"Текст сообщения\",\n\"created_at\": \"2025-01-15T10:30:00Z\",\n\"chat_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n\"type\": \"user\"\n}\n}\n}\n` + "`" + `` + "`" + `` + "`" + `\n\n**Обработка ошибок:**\n` + "`" + `` + "`" + `` + "`" + `json\n{\n\"error\": \"Описание ошибки\"\n}\n` + "`" + `` + "`" + `` + "`" + `",
                 "consumes": [
                     "application/json"
                 ],
@@ -761,7 +1059,7 @@ const docTemplate = `{
         },
         "/register": {
             "post": {
-                "description": "Регистрирует нового пользователя в системе и создает сессию",
+                "description": "Регистрирует нового пользователя в системе через gRPC микросервис и создает сессию",
                 "consumes": [
                     "application/json"
                 ],
@@ -814,7 +1112,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "удалить сессию пользователя",
                 "parameters": [
@@ -869,7 +1167,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "Получить список сессий пользователя",
                 "responses": {
@@ -910,7 +1208,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "auth"
                 ],
                 "summary": "удалить сессии пользователя, кроме текущей",
                 "parameters": [
@@ -948,7 +1246,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Позволяет текущему авторизованному пользователю загрузить или обновить свой аватар",
+                "description": "Загружает новый аватар для текущего пользователя",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -986,19 +1284,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Ошибка загрузки файла",
+                        "description": "Неверный формат запроса",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "401": {
                         "description": "Неавторизованный доступ",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1033,7 +1325,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Запрос с номером телефона",
+                        "description": "Номер телефона",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1050,19 +1342,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверный формат номера телефона",
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
                     },
                     "404": {
                         "description": "Пользователь не найден",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1077,7 +1369,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Возвращает полные данные о пользователе по указанному имени пользователя",
+                "description": "Возвращает полные данные о пользователе по указанному username",
                 "consumes": [
                     "application/json"
                 ],
@@ -1087,7 +1379,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Получить информацию о пользователе по имени пользователя",
+                "summary": "Получить информацию о пользователе по username",
                 "parameters": [
                     {
                         "type": "string",
@@ -1097,7 +1389,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Запрос с именем пользователя",
+                        "description": "Username пользователя",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1114,7 +1406,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверный формат имени пользователя",
+                        "description": "Неверный формат запроса",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1124,9 +1422,54 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
+                    }
+                }
+            }
+        },
+        "/users/avatars/query": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает аватарки для списка пользователей по их ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Получить аватарки пользователей",
+                "parameters": [
+                    {
+                        "description": "Список ID пользователей",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Аватарки пользователей",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetAvatarsResponse"
+                        }
                     },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера",
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorDTO"
                         }
@@ -1189,9 +1532,6 @@ const docTemplate = `{
         "dto.ChatDetailedInformationDTO": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "can_chat": {
                     "type": "boolean"
                 },
@@ -1245,9 +1585,6 @@ const docTemplate = `{
         "dto.ChatViewInformationDTO": {
             "type": "object",
             "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "string",
                     "format": "uuid"
@@ -1276,6 +1613,32 @@ const docTemplate = `{
             "properties": {
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.GetAvatarsRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "dto.GetAvatarsResponse": {
+            "type": "object",
+            "properties": {
+                "avatars": {
+                    "description": "map[id]url",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1347,8 +1710,9 @@ const docTemplate = `{
                     "type": "string",
                     "format": "date-time"
                 },
-                "sender_avatar_url": {
-                    "type": "string"
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
                 },
                 "sender_id": {
                     "type": "string",
@@ -1363,6 +1727,10 @@ const docTemplate = `{
                 "type": {
                     "description": "Тип сообщения - системное или пользовательское",
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
                 }
             }
         },
@@ -1431,9 +1799,6 @@ const docTemplate = `{
                 "account_type": {
                     "type": "string"
                 },
-                "avatar_url": {
-                    "type": "string"
-                },
                 "bio": {
                     "type": "string"
                 },
@@ -1463,9 +1828,6 @@ const docTemplate = `{
             "properties": {
                 "role": {
                     "description": "Роль пользователя в чате - админ(писать и добавлять участников), участник(писать), зритель (только просмотр)",
-                    "type": "string"
-                },
-                "user_avatar": {
                     "type": "string"
                 },
                 "user_id": {

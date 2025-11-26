@@ -92,3 +92,120 @@ func TestSendErrorWithAutoStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestSendError(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  int
+		message string
+	}{
+		{
+			name:    "Bad request error",
+			status:  http.StatusBadRequest,
+			message: "invalid input",
+		},
+		{
+			name:    "Internal server error",
+			status:  http.StatusInternalServerError,
+			message: "server error",
+		},
+		{
+			name:    "Not found error",
+			status:  http.StatusNotFound,
+			message: "resource not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			ctx := context.Background()
+
+			SendError(ctx, "TestOp", w, tt.status, tt.message)
+
+			assert.Equal(t, tt.status, w.Code)
+			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+			assert.Contains(t, w.Body.String(), tt.message)
+		})
+	}
+}
+
+func TestSendJSONResponse(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		body     interface{}
+		wantBody bool
+	}{
+		{
+			name:     "Success with body",
+			status:   http.StatusOK,
+			body:     map[string]string{"message": "success"},
+			wantBody: true,
+		},
+		{
+			name:     "Success without body",
+			status:   http.StatusNoContent,
+			body:     nil,
+			wantBody: false,
+		},
+		{
+			name:     "Created with body",
+			status:   http.StatusCreated,
+			body:     map[string]int{"id": 123},
+			wantBody: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			ctx := context.Background()
+
+			SendJSONResponse(ctx, "TestOp", w, tt.status, tt.body)
+
+			assert.Equal(t, tt.status, w.Code)
+			if tt.wantBody {
+				assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+				assert.NotEmpty(t, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestSendJSONError(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		message    string
+	}{
+		{
+			name:       "Bad request",
+			statusCode: http.StatusBadRequest,
+			message:    "invalid request",
+		},
+		{
+			name:       "Unauthorized",
+			statusCode: http.StatusUnauthorized,
+			message:    "not authorized",
+		},
+		{
+			name:       "Not found",
+			statusCode: http.StatusNotFound,
+			message:    "not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			ctx := context.Background()
+
+			SendJSONError(ctx, w, tt.statusCode, tt.message)
+
+			assert.Equal(t, tt.statusCode, w.Code)
+			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+			assert.Contains(t, w.Body.String(), tt.message)
+		})
+	}
+}

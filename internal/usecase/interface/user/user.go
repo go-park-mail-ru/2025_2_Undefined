@@ -14,4 +14,5 @@ type UserRepository interface {
 	GetUserByUsername(ctx context.Context, username string) (*UserModels.User, error)
 	UpdateUserAvatar(ctx context.Context, userID uuid.UUID, avatarID uuid.UUID, file_size int64) error
 	UpdateUserInfo(ctx context.Context, userID uuid.UUID, name *string, username *string, bio *string) error
+	GetUserAvatars(ctx context.Context, userIDs []uuid.UUID) (map[string]uuid.UUID, error)
 }

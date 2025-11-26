@@ -2,15 +2,16 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
 
 	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/contact"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/pgxinterface"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -23,13 +24,24 @@ const (
 		SELECT user_id, contact_user_id, created_at, updated_at
 		FROM contact
 		WHERE user_id = $1`
+
+	getAllContactsQuery = `
+		SELECT user_id, contact_user_id, created_at, updated_at
+		FROM contact`
 )
 
 type ContactRepository struct {
-	db *sql.DB
+	db pgxinterface.PgxPool
 }
 
-func New(db *sql.DB) *ContactRepository {
+func New(db pgxinterface.PgxPool) *ContactRepository {
+	return &ContactRepository{
+		db: db,
+	}
+}
+
+// NewWithPool создает репозиторий с конкретным типом *pgxpool.Pool
+func NewWithPool(db *pgxpool.Pool) *ContactRepository {
 	return &ContactRepository{
 		db: db,
 	}
@@ -50,15 +62,15 @@ func (r *ContactRepository) CreateContact(ctx context.Context, user_id uuid.UUID
 
 	logger.Debugf("starting: %s", query)
 
-	err := r.db.QueryRow(createContactQuery,
+	err := r.db.QueryRow(ctx, createContactQuery,
 		user_id, contact_user_id, time.Now(), time.Now()).
 		Scan(&user_id)
 	if err != nil {
 		queryStatus = "fail"
 
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			switch pqErr.Code {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
 			case errs.PostgresErrorUniqueViolationCode:
 				logger.WithError(err).Errorf("db query: %s: duplicate key violation: status: %s", query, queryStatus)
 				return errs.ErrIsDuplicateKey
@@ -87,7 +99,7 @@ func (r *ContactRepository) GetContactsByUserID(ctx context.Context, user_id uui
 
 	logger.Debugf("starting: %s", query)
 
-	rows, err := r.db.Query(getContactsByUserIDQuery, user_id)
+	rows, err := r.db.Query(ctx, getContactsByUserIDQuery, user_id)
 	if err != nil {
 		queryStatus = "fail"
 		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
@@ -113,5 +125,48 @@ func (r *ContactRepository) GetContactsByUserID(ctx context.Context, user_id uui
 		return nil, err
 	}
 
+	return contacts, nil
+}
+
+func (r *ContactRepository) GetAllContacts(ctx context.Context) ([]*models.Contact, error) {
+	const op = "ContactRepository.GetAllContacts"
+	const query = "SELECT all contacts"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	queryStatus := "success"
+	defer func() {
+		logger.Debugf("db query: %s: status: %s", query, queryStatus)
+	}()
+
+	logger.Debugf("starting: %s", query)
+
+	rows, err := r.db.Query(ctx, getAllContactsQuery)
+	if err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: execution error: status: %s", query, queryStatus)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contacts []*models.Contact
+	for rows.Next() {
+		var contact models.Contact
+		err := rows.Scan(&contact.UserID, &contact.ContactUserID, &contact.CreatedAt, &contact.UpdatedAt)
+		if err != nil {
+			queryStatus = "fail"
+			logger.WithError(err).Errorf("db query: %s: scan row error: status: %s", query, queryStatus)
+			return nil, err
+		}
+		contacts = append(contacts, &contact)
+	}
+
+	if err = rows.Err(); err != nil {
+		queryStatus = "fail"
+		logger.WithError(err).Errorf("db query: %s: rows iteration error: status: %s", query, queryStatus)
+		return nil, err
+	}
+
+	logger.Infof("retrieved %d contacts for reindexing", len(contacts))
 	return contacts, nil
 }

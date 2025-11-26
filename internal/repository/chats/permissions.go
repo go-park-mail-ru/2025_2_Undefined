@@ -14,7 +14,7 @@ func (r *ChatsRepository) CheckUserHasRole(ctx context.Context, userId, chatId u
 	logger.Debug("Starting database operation: check user role in chat")
 
 	var hasRole bool
-	err := r.db.QueryRow(checkUserRoleQuery, userId, chatId, role).Scan(&hasRole)
+	err := r.db.QueryRow(ctx, checkUserRoleQuery, userId, chatId, role).Scan(&hasRole)
 	if err != nil {
 		logger.WithError(err).Error("Database operation failed: check user role query")
 		return false, err

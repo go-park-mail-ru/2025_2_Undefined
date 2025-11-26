@@ -2,23 +2,22 @@ package repository
 
 import (
 	"context"
-	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/google/uuid"
+	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestChatsRepository_CreateChat_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	chatID := uuid.New()
 	userID1 := uuid.New()
@@ -42,20 +41,20 @@ func TestChatsRepository_CreateChat_Success(t *testing.T) {
 	mock.ExpectBegin()
 
 	// Вставка чата
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO chat (id, chat_type, name, description) 
-        VALUES ($1, $2::chat_type_enum, $3, $4)`)).
+	mock.ExpectExec(`INSERT INTO chat (id, chat_type, name, description) 
+        VALUES ($1, $2::chat_type_enum, $3, $4)`).
 		WithArgs(chatID, "group", "Test Group", "Test Description").
-		WillReturnResult(sqlmock.NewResult(1, 1))
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 	// Вставка участников чата
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES ($1, $2, $3::chat_member_role_enum), ($4, $5, $6::chat_member_role_enum)`)).
+	mock.ExpectExec(`INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES ($1, $2, $3::chat_member_role_enum), ($4, $5, $6::chat_member_role_enum)`).
 		WithArgs(userID1, chatID, "admin", userID2, chatID, "member").
-		WillReturnResult(sqlmock.NewResult(2, 2))
+		WillReturnResult(pgxmock.NewResult("INSERT", 2))
 
 	// Вставка системных сообщений
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO message (chat_id, user_id, text, message_type) VALUES ($1, $2, $3, $4::message_type_enum), ($5, $6, $7, $8::message_type_enum)`)).
-		WithArgs(chatID, userID1, "Пользователь User1 вступил в чат", "system", chatID, userID2, "Пользователь User2 вступил в чат", "system").
-		WillReturnResult(sqlmock.NewResult(2, 2))
+	mock.ExpectExec(`INSERT INTO message (chat_id, user_id, text, message_type) VALUES ($1, $2, $3, $4::message_type_enum), ($5, $6, $7, $8::message_type_enum), ($9, $10, $11, $12::message_type_enum)`).
+		WithArgs(chatID, nil, "Чат создан", "system", chatID, userID1, "Пользователь User1 вступил в чат", "system", chatID, userID2, "Пользователь User2 вступил в чат", "system").
+		WillReturnResult(pgxmock.NewResult("INSERT", 3))
 
 	// Коммит транзакции
 	mock.ExpectCommit()
@@ -68,13 +67,13 @@ func TestChatsRepository_CreateChat_Success(t *testing.T) {
 }
 
 func TestChatsRepository_CreateChat_InvalidInput(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	chat := modelsChats.Chat{
 		ID:   uuid.New(),
@@ -95,13 +94,13 @@ func TestChatsRepository_CreateChat_InvalidInput(t *testing.T) {
 }
 
 func TestChatsRepository_InsertUsersToChat_Success(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	mock, err := pgxmock.NewPool(pgxmock.QueryMatcherOption(pgxmock.QueryMatcherEqual))
 	if err != nil {
-		t.Fatalf("failed to open sqlmock database: %v", err)
+		t.Fatalf("failed to create pgxmock pool: %v", err)
 	}
-	defer db.Close()
+	defer mock.Close()
 
-	repo := NewChatsRepository(db)
+	repo := NewChatsRepository(mock)
 
 	chatID := uuid.New()
 	userID1 := uuid.New()
@@ -116,9 +115,9 @@ func TestChatsRepository_InsertUsersToChat_Success(t *testing.T) {
 	mock.ExpectBegin()
 
 	// Ожидаем вставку участников чата
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES ($1, $2, $3::chat_member_role_enum), ($4, $5, $6::chat_member_role_enum)`)).
+	mock.ExpectExec(`INSERT INTO chat_member (user_id, chat_id, chat_member_role) VALUES ($1, $2, $3::chat_member_role_enum), ($4, $5, $6::chat_member_role_enum)`).
 		WithArgs(userID1, chatID, "admin", userID2, chatID, "member").
-		WillReturnResult(sqlmock.NewResult(2, 2))
+		WillReturnResult(pgxmock.NewResult("INSERT", 2))
 
 	// Ожидаем коммит транзакции
 	mock.ExpectCommit()
