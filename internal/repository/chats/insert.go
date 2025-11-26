@@ -53,20 +53,19 @@ func (r *ChatsRepository) CreateChat(ctx context.Context, chat modelsChats.Chat,
 	values := []interface{}{}
 	placeholders := []string{}
 
-	if chat.Type != modelsChats.ChatTypeGroup {
-		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
-			len(values)+1, len(values)+2, len(values)+3, len(values)+4))
+	placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
+		len(values)+1, len(values)+2, len(values)+3, len(values)+4))
 
-		var text string
-		switch chat.Type {
-		case modelsChats.ChatTypeChannel:
-			text = "Канал создан"
-		default:
-			text = "Чат создан"
-		}
-
-		values = append(values, chat.ID, nil, text, "system")
+	var text string
+	if chat.Type == modelsChats.ChatTypeChannel {
+		text = "Канал создан"
 	} else {
+		text = "Чат создан"
+	}
+
+	values = append(values, chat.ID, nil, text, "system")
+
+	if chat.Type == modelsChats.ChatTypeGroup {
 		for i, userName := range usersNames {
 			placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d::message_type_enum)",
 				len(values)+1, len(values)+2, len(values)+3, len(values)+4))

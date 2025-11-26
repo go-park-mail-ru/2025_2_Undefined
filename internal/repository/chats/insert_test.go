@@ -52,9 +52,9 @@ func TestChatsRepository_CreateChat_Success(t *testing.T) {
 		WillReturnResult(pgxmock.NewResult("INSERT", 2))
 
 	// Вставка системных сообщений
-	mock.ExpectExec(`INSERT INTO message (chat_id, user_id, text, message_type) VALUES ($1, $2, $3, $4::message_type_enum), ($5, $6, $7, $8::message_type_enum)`).
-		WithArgs(chatID, userID1, "Пользователь User1 вступил в чат", "system", chatID, userID2, "Пользователь User2 вступил в чат", "system").
-		WillReturnResult(pgxmock.NewResult("INSERT", 2))
+	mock.ExpectExec(`INSERT INTO message (chat_id, user_id, text, message_type) VALUES ($1, $2, $3, $4::message_type_enum), ($5, $6, $7, $8::message_type_enum), ($9, $10, $11, $12::message_type_enum)`).
+		WithArgs(chatID, nil, "Чат создан", "system", chatID, userID1, "Пользователь User1 вступил в чат", "system", chatID, userID2, "Пользователь User2 вступил в чат", "system").
+		WillReturnResult(pgxmock.NewResult("INSERT", 3))
 
 	// Коммит транзакции
 	mock.ExpectCommit()
