@@ -616,6 +616,17 @@ func ProtoSearchMessagesResToDTO(res *gen.SearchMessagesRes) []dtoMessage.Messag
 	return messages
 }
 
+func ProtoGetChatMessagesResToDTO(res *gen.GetChatMessagesRes) []dtoMessage.MessageDTO {
+	if res == nil || res.GetMessages() == nil {
+		return []dtoMessage.MessageDTO{}
+	}
+	messages := make([]dtoMessage.MessageDTO, len(res.GetMessages()))
+	for i, msg := range res.GetMessages() {
+		messages[i] = ProtoMessageToDTO(msg)
+	}
+	return messages
+}
+
 func DTOMessagesToProtoMessage(messages []dtoMessage.MessageDTO) []*gen.Message {
 	result := make([]*gen.Message, len(messages))
 	for i, msgDTO := range messages {

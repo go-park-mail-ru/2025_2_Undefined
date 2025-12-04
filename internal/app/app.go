@@ -142,6 +142,7 @@ func NewApp(conf *config.Config) (*App, error) {
 	messageRouter := protectedRouter.PathPrefix("").Subrouter()
 	{
 		messageRouter.HandleFunc("/message/ws", chatsHandler.HandleMessages)
+		messageRouter.HandleFunc("/chats/{chat_id}/messages", chatsHandler.GetChatMessages).Methods(http.MethodGet)
 		messageRouter.HandleFunc("/chats/{chat_id}/messages/search", chatsHandler.SearchMessages).Methods(http.MethodGet)
 	}
 

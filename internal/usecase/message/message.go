@@ -348,6 +348,33 @@ func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatI
 	return messagesDTO, nil
 }
 
+func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID, chatID uuid.UUID, offset, limit int) ([]dtoMessage.MessageDTO, error) {
+	const op = "MessageUsecase.GetChatMessages"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	messages, err := uc.messageRepository.GetMessagesOfChat(ctx, chatID, offset, limit)
+	if err != nil {
+		logger.WithError(err).Error("failed to get chat messages")
+		return nil, err
+	}
+
+	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
+	for _, msg := range messages {
+		messagesDTO = append(messagesDTO, dtoMessage.MessageDTO{
+			ID:         msg.ID,
+			SenderID:   msg.UserID,
+			SenderName: msg.UserName,
+			Text:       msg.Text,
+			CreatedAt:  msg.CreatedAt,
+			UpdatedAt:  msg.UpdatedAt,
+			ChatID:     msg.ChatID,
+			Type:       msg.Type,
+		})
+	}
+
+	return messagesDTO, nil
+}
+
 func (uc *MessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
 	chat, err := uc.chatsRepository.GetChat(ctx, chatID)
 	if err != nil {

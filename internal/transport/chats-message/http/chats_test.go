@@ -154,10 +154,15 @@ func TestGRPCGetInformationAboutChat_Success(t *testing.T) {
 		Type: "private",
 	}
 
+	offset := int32(0)
+	limit := int32(20)
+
 	mockClient.EXPECT().
 		GetChat(gomock.Any(), &gen.GetChatReq{
 			ChatId: chatID.String(),
 			UserId: userID.String(),
+			Offset: &offset,
+			Limit:  &limit,
 		}).
 		Return(expectedResponse, nil)
 

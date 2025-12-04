@@ -47,6 +47,19 @@ message GetChatsRes {
 message GetChatReq {
     string user_id = 1;
     string chat_id = 2;
+    optional int32 offset = 3;
+    optional int32 limit = 4;
+}
+
+message GetChatMessagesReq {
+    string user_id = 1;
+    string chat_id = 2;
+    optional int32 offset = 3;
+    optional int32 limit = 4;
+}
+
+message GetChatMessagesRes {
+    repeated Message messages = 1;
 }
 
 message GetUsersDialogReq{
@@ -169,6 +182,7 @@ message SearchMessagesRes{
 service ChatService {
     rpc GetChats(GetChatsReq) returns (GetChatsRes);
     rpc GetChat(GetChatReq) returns (ChatDetailedInformation);
+    rpc GetChatMessages(GetChatMessagesReq) returns (GetChatMessagesRes);
     rpc GetUsersDialog(GetUsersDialogReq) returns (IdRes);
     rpc CreateChat(CreateChatReq) returns (IdRes);
     rpc UpdateChat(UpdateChatReq) returns (google.protobuf.Empty);

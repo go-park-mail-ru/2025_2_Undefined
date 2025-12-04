@@ -101,7 +101,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 	return result, nil
 }
 
-func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, chatID uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
+func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, chatID uuid.UUID, offset, limit int) (*dtoChats.ChatDetailedInformationDTO, error) {
 	const op = "ChatsUsecase.GetInformationAboutChat"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
@@ -112,7 +112,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 		return nil, err
 	}
 
-	messages, err := uc.messageRepo.GetMessagesOfChat(ctx, chatID, 0, 40)
+	messages, err := uc.messageRepo.GetMessagesOfChat(ctx, chatID, offset, limit)
 	if err != nil {
 		return nil, err
 	}
