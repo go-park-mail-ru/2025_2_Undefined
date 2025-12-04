@@ -148,6 +148,10 @@ func (uc *MessageUsecase) SubscribeConnectionToChats(ctx context.Context, connec
 	uc.connectionContext[connectionID] = ctx
 	uc.mu.Unlock()
 
+	// Регистрируем пользователя в userConnections, даже если у него нет чатов
+	// Это необходимо для корректной работы AddChatToUserSubscription при создании нового чата
+	uc.listenerMap.RegisterUserConnection(userID, connectionID, resultChan)
+
 	for _, chatViewDto := range chatsViewDTO {
 		chatChan := uc.listenerMap.SubscribeConnectionToChat(connectionID, chatViewDto.ID, userID)
 		// Fan-in :)

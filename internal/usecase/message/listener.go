@@ -101,6 +101,9 @@ func (lm *ListenerMap) AddChatToUserSubscription(userID, chatID uuid.UUID) map[u
 			lm.data[chatID][connectionID] = ch
 		}
 
+		// Обновляем userConnections с новым каналом для этого чата
+		lm.userConnections[userID][connectionID] = ch
+
 		result[connectionID] = ch
 	}
 
@@ -117,6 +120,19 @@ func (lm *ListenerMap) GetOutgoingChannel(connectionID uuid.UUID) chan dtoMessag
 	}
 
 	return ch
+}
+
+// RegisterUserConnection регистрирует соединение для пользователя, даже если у него нет чатов
+// Это необходимо для корректной работы AddChatToUserSubscription при создании нового чата
+func (lm *ListenerMap) RegisterUserConnection(userID, connectionID uuid.UUID, outgoingChan chan dtoMessage.WebSocketMessageDTO) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+
+	if lm.userConnections[userID] == nil {
+		lm.userConnections[userID] = make(map[uuid.UUID]chan dtoMessage.WebSocketMessageDTO)
+	}
+	// Добавляем placeholder канал для соединения, чтобы AddChatToUserSubscription мог найти это соединение
+	lm.userConnections[userID][connectionID] = outgoingChan
 }
 
 func (lm *ListenerMap) CloseAll() {

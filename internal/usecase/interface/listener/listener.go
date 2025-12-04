@@ -10,6 +10,7 @@ type ListenerMapInterface interface {
 	GetChatListeners(chatId uuid.UUID) map[uuid.UUID]chan dto.WebSocketMessageDTO
 	AddChatToUserSubscription(userID, chatID uuid.UUID) map[uuid.UUID]chan dto.WebSocketMessageDTO
 	GetOutgoingChannel(connectionID uuid.UUID) chan dto.WebSocketMessageDTO
+	RegisterUserConnection(userID, connectionID uuid.UUID, outgoingChan chan dto.WebSocketMessageDTO)
 	CloseAll()
 	CleanInactiveChats() int
 	CleanInactiveReaders() int

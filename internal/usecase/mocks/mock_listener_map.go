@@ -117,6 +117,18 @@ func (mr *MockListenerMapInterfaceMockRecorder) GetOutgoingChannel(connectionID 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOutgoingChannel", reflect.TypeOf((*MockListenerMapInterface)(nil).GetOutgoingChannel), connectionID)
 }
 
+// RegisterUserConnection mocks base method.
+func (m *MockListenerMapInterface) RegisterUserConnection(userID, connectionID uuid.UUID, outgoingChan chan dto.WebSocketMessageDTO) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegisterUserConnection", userID, connectionID, outgoingChan)
+}
+
+// RegisterUserConnection indicates an expected call of RegisterUserConnection.
+func (mr *MockListenerMapInterfaceMockRecorder) RegisterUserConnection(userID, connectionID, outgoingChan interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterUserConnection", reflect.TypeOf((*MockListenerMapInterface)(nil).RegisterUserConnection), userID, connectionID, outgoingChan)
+}
+
 // SubscribeConnectionToChat mocks base method.
 func (m *MockListenerMapInterface) SubscribeConnectionToChat(connectionID, chatID, userID uuid.UUID) <-chan dto.WebSocketMessageDTO {
 	m.ctrl.T.Helper()

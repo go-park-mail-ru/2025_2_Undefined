@@ -162,6 +162,7 @@ func TestMessageUsecase_SubscribeConnectionToChats_Success(t *testing.T) {
 	uc.mu.Unlock()
 
 	mockListenerMap.EXPECT().GetOutgoingChannel(connectionID).Return(resultChan)
+	mockListenerMap.EXPECT().RegisterUserConnection(userID, connectionID, resultChan)
 	mockListenerMap.EXPECT().SubscribeConnectionToChat(connectionID, chatID, userID).Return(chatChan)
 
 	outChan := uc.SubscribeConnectionToChats(ctx, connectionID, userID, chatsViewDTO)
