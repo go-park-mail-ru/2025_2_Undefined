@@ -33,7 +33,7 @@ const (
 		FROM chat
 		LEFT JOIN chat_member cm1 ON cm1.chat_id = chat.id
 		LEFT JOIN chat_member cm2 ON cm2.chat_id = chat.id
-		WHERE cm1.user_id = $1 AND cm2.user_id = $2`
+		WHERE cm1.user_id = $1 AND cm2.user_id = $2 AND chat.chat_type = 'dialog'`
 
 	checkUserRoleQuery = `
 		SELECT EXISTS(

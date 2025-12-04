@@ -292,3 +292,37 @@ func TestMessageUsecase_ListenerMap_CleanInactiveReaders_NoReaders(t *testing.T)
 	cleaned := lm.CleanInactiveReaders()
 	assert.Equal(t, 0, cleaned)
 }
+
+func TestMessageUsecase_ListenerMap_RegisterUserConnection_ThenAddChat(t *testing.T) {
+	lm := NewListenerMap()
+	userID := uuid.New()
+	connectionID := uuid.New()
+	chatID := uuid.New()
+
+	// Создаем outgoing канал
+	outgoingChan := make(chan dtoMessage.WebSocketMessageDTO, MessagesBufferForAllUserChats)
+
+	// Регистрируем пользователя без чатов
+	lm.RegisterUserConnection(userID, connectionID, outgoingChan)
+
+	// Проверяем, что userConnections инициализирован
+	assert.NotNil(t, lm.userConnections[userID])
+	assert.Contains(t, lm.userConnections[userID], connectionID)
+
+	// Добавляем чат к подпискам пользователя
+	result := lm.AddChatToUserSubscription(userID, chatID)
+
+	// Проверяем, что канал был создан и возвращен
+	assert.Len(t, result, 1)
+	assert.Contains(t, result, connectionID)
+	assert.NotNil(t, result[connectionID])
+
+	// Проверяем, что чат добавлен в data
+	assert.NotNil(t, lm.data[chatID])
+	assert.Contains(t, lm.data[chatID], connectionID)
+
+	// Проверяем, что GetChatListeners теперь возвращает этот канал
+	listeners := lm.GetChatListeners(chatID)
+	assert.Len(t, listeners, 1)
+	assert.Contains(t, listeners, connectionID)
+}
