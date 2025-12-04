@@ -93,6 +93,21 @@ func (mr *MockMessageUsecaseMockRecorder) EditMessage(ctx, message, userID inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EditMessage", reflect.TypeOf((*MockMessageUsecase)(nil).EditMessage), ctx, message, userID)
 }
 
+// GetChatMessages mocks base method.
+func (m *MockMessageUsecase) GetChatMessages(ctx context.Context, userID, chatID uuid.UUID, offset, limit int) ([]dto0.MessageDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChatMessages", ctx, userID, chatID, offset, limit)
+	ret0, _ := ret[0].([]dto0.MessageDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetChatMessages indicates an expected call of GetChatMessages.
+func (mr *MockMessageUsecaseMockRecorder) GetChatMessages(ctx, userID, chatID, offset, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChatMessages", reflect.TypeOf((*MockMessageUsecase)(nil).GetChatMessages), ctx, userID, chatID, offset, limit)
+}
+
 // GetMessagesBySearch mocks base method.
 func (m *MockMessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dto0.MessageDTO, error) {
 	m.ctrl.T.Helper()

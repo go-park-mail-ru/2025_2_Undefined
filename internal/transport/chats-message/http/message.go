@@ -15,7 +15,6 @@ import (
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -174,13 +173,13 @@ func (h *ChatsGRPCProxyHandler) HandleMessages(w http.ResponseWriter, r *http.Re
 	const op = "ChatsGRPCProxyHandler.HandleMessages"
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer conn.Close()
@@ -345,7 +344,7 @@ func (h *ChatsGRPCProxyHandler) SearchMessages(w http.ResponseWriter, r *http.Re
 
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -357,11 +356,11 @@ func (h *ChatsGRPCProxyHandler) SearchMessages(w http.ResponseWriter, r *http.Re
 
 	protoRes, err := h.messageClient.SearchMessages(r.Context(), protoReq)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to search messages")
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to search messages")
 		return
 	}
 
 	dtoRes := mappers.ProtoSearchMessagesResToDTO(protoRes)
 
-	response.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoRes)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoRes)
 }

@@ -32,8 +32,8 @@ func (m *MockChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.Chat
 	return args.Get(0).(uuid.UUID), args.Error(1)
 }
 
-func (m *MockChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
-	args := m.Called(ctx, userId, chatId)
+func (m *MockChatsUsecase) GetInformationAboutChat(ctx context.Context, userId, chatId uuid.UUID, offset, limit int) (*dtoChats.ChatDetailedInformationDTO, error) {
+	args := m.Called(ctx, userId, chatId, offset, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -115,6 +115,11 @@ func (m *MockMessageUsecase) GetMessagesBySearch(ctx context.Context, userID uui
 	return args.Get(0).([]dtoMessage.MessageDTO), args.Error(1)
 }
 
+func (m *MockMessageUsecase) GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, offset, limit int) ([]dtoMessage.MessageDTO, error) {
+	args := m.Called(ctx, userID, chatID, offset, limit)
+	return args.Get(0).([]dtoMessage.MessageDTO), args.Error(1)
+}
+
 func (m *MockMessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error {
 	return nil
 }
@@ -186,7 +191,7 @@ func TestGetChat_Success(t *testing.T) {
 	ctx := setupContext()
 
 	expectedChat := &dtoChats.ChatDetailedInformationDTO{ID: chatID}
-	mockChatsUC.On("GetInformationAboutChat", ctx, userID, chatID).Return(expectedChat, nil)
+	mockChatsUC.On("GetInformationAboutChat", ctx, userID, chatID, 0, 20).Return(expectedChat, nil)
 
 	req := &gen.GetChatReq{UserId: userID.String(), ChatId: chatID.String()}
 	resp, err := handler.GetChat(ctx, req)

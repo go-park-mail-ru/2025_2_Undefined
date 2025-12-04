@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
@@ -16,6 +17,7 @@ import (
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 type ChatsGRPCProxyHandler struct {
@@ -106,12 +108,14 @@ func (h *ChatsGRPCProxyHandler) PostChats(w http.ResponseWriter, r *http.Request
 
 // GetInformationAboutChat получает детальную информацию о чате
 // @Summary      Получить информацию о чате
-// @Description  Возвращает детальную информацию о конкретном чате, включая сообщения и участников
+// @Description  Возвращает детальную информацию о конкретном чате, включая сообщения и участников. Поддерживает пагинацию сообщений через параметры offset и limit.
 // @Tags         chats
 // @Accept       json
 // @Produce      json
 // @Security     ApiKeyAuth
-// @Param        chatId  path      string  true  "ID чата"  format(uuid)
+// @Param        chatId  path      string  true   "ID чата"  format(uuid)
+// @Param        offset  query     int     false  "Смещение для пагинации сообщений" default(0)
+// @Param        limit   query     int     false  "Количество сообщений на странице" default(20)
 // @Success      200     {object}  dto.ChatDetailedInformationDTO  "Детальная информация о чате"
 // @Failure      400     {object}  dto.ErrorDTO                    "Некорректный запрос"
 // @Failure      401     {object}  dto.ErrorDTO                    "Неавторизованный доступ"
@@ -138,9 +142,28 @@ func (h *ChatsGRPCProxyHandler) GetInformationAboutChat(w http.ResponseWriter, r
 		return
 	}
 
+	// Извлекаем offset и limit из query параметров
+	queryValues := r.URL.Query()
+	offset := int32(0)
+	limit := int32(20)
+
+	if offsetStr := queryValues.Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32); err == nil {
+			offset = int32(parsedOffset)
+		}
+	}
+
+	if limitStr := queryValues.Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil {
+			limit = int32(parsedLimit)
+		}
+	}
+
 	request := &gen.GetChatReq{
 		ChatId: chatUUID.String(),
 		UserId: userID.String(),
+		Offset: &offset,
+		Limit:  &limit,
 	}
 
 	informationDTO, err := h.chatsClient.GetChat(r.Context(), request)
@@ -570,4 +593,71 @@ func (h *ChatsGRPCProxyHandler) SearchChats(w http.ResponseWriter, r *http.Reque
 
 	dtoChats := mappers.ProtoSearchChatsResToDTO(response)
 	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoChats)
+}
+
+// GetChatMessages получает сообщения чата с пагинацией
+// @Summary      Получить сообщения чата
+// @Description  Возвращает список сообщений указанного чата с поддержкой пагинации через параметры offset и limit
+// @Tags         messages
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Param        chat_id  path      string  true   "ID чата"  format(uuid)
+// @Param        offset   query     int     false  "Смещение для пагинации" default(0)
+// @Param        limit    query     int     false  "Количество сообщений на странице" default(20)
+// @Success      200      {array}   dto.MessageDTO  "Список сообщений"
+// @Failure      400      {object}  dto.ErrorDTO    "Некорректный запрос"
+// @Failure      401      {object}  dto.ErrorDTO    "Неавторизованный доступ"
+// @Failure      500      {object}  dto.ErrorDTO    "Ошибка сервера"
+// @Router       /chats/{chat_id}/messages [get]
+func (h *ChatsGRPCProxyHandler) GetChatMessages(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.GetChatMessages"
+
+	vars := mux.Vars(r)
+	chatIDStr := vars["chat_id"]
+
+	chatID, err := uuid.Parse(chatIDStr)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "bad format chat_id")
+		return
+	}
+
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	// Извлекаем offset и limit из query параметров
+	queryValues := r.URL.Query()
+	offset := int32(0)
+	limit := int32(20)
+
+	if offsetStr := queryValues.Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32); err == nil {
+			offset = int32(parsedOffset)
+		}
+	}
+
+	if limitStr := queryValues.Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil {
+			limit = int32(parsedLimit)
+		}
+	}
+
+	request := &gen.GetChatMessagesReq{
+		UserId: userID.String(),
+		ChatId: chatID.String(),
+		Offset: &offset,
+		Limit:  &limit,
+	}
+
+	response, err := h.chatsClient.GetChatMessages(r.Context(), request)
+	if err != nil {
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+
+	dtoMessages := mappers.ProtoGetChatMessagesResToDTO(response)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoMessages)
 }
