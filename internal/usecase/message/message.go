@@ -32,7 +32,7 @@ const (
 type MessageUsecase struct {
 	fileStorage       interfaceFileStorage.FileStorage
 	messageRepository interfaceMessageUsecase.MessageRepository
-	userRepository    interfaceUserUsecase.UserRepository
+	userClient        interfaceUserUsecase.UserClient
 	chatsRepository   interfaceChatsUsecase.ChatsRepository
 
 	listenerMap                    interfaceListenerMap.ListenerMapInterface
@@ -46,12 +46,12 @@ type MessageUsecase struct {
 	cancel context.CancelFunc
 }
 
-func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageRepository, userRepository interfaceUserUsecase.UserRepository, chatsRepository interfaceChatsUsecase.ChatsRepository, fileStorage interfaceFileStorage.FileStorage, listenerMap interfaceListenerMap.ListenerMapInterface) *MessageUsecase {
+func NewMessageUsecase(messageRepository interfaceMessageUsecase.MessageRepository, userClient interfaceUserUsecase.UserClient, chatsRepository interfaceChatsUsecase.ChatsRepository, fileStorage interfaceFileStorage.FileStorage, listenerMap interfaceListenerMap.ListenerMapInterface) *MessageUsecase {
 	ctx, cancel := context.WithCancel(context.Background())
 	uc := &MessageUsecase{
 		listenerMap:            listenerMap,
 		messageRepository:      messageRepository,
-		userRepository:         userRepository,
+		userClient:             userClient,
 		chatsRepository:        chatsRepository,
 		fileStorage:            fileStorage,
 		distributeChannel:      make(chan dtoMessage.WebSocketMessageDTO, MessagesGLobalBuffer),
@@ -90,7 +90,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		return errs.ErrNoRights
 	}
 
-	user, err := uc.userRepository.GetUserByID(ctx, userId)
+	user, err := uc.userClient.GetUserByID(ctx, userId)
 	if err != nil {
 		logger.WithError(err).Warningf("could not get user %s", userId)
 		return err
@@ -387,7 +387,7 @@ func (uc *MessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uuid.U
 			usersIDs[i] = user.UserId
 		}
 
-		usersNames, err := uc.userRepository.GetUsersNames(ctx, usersIDs)
+		usersNames, err := uc.userClient.GetUsersNames(ctx, usersIDs)
 		if err != nil {
 			return err
 		}

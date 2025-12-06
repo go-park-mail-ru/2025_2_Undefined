@@ -22,15 +22,15 @@ import (
 type ChatsUsecase struct {
 	chatsRepo   interfaceChatsRepository.ChatsRepository
 	messageRepo interfaceMessageRepository.MessageRepository
-	usersRepo   interfaceUserRepository.UserRepository
+	usersClient interfaceUserRepository.UserClient
 	fileStorage interfaceFileStorage.FileStorage
 }
 
-func NewChatsUsecase(chatsRepo interfaceChatsRepository.ChatsRepository, usersRepo interfaceUserRepository.UserRepository, messageRepo interfaceMessageRepository.MessageRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
+func NewChatsUsecase(chatsRepo interfaceChatsRepository.ChatsRepository, usersClient interfaceUserRepository.UserClient, messageRepo interfaceMessageRepository.MessageRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
 	return &ChatsUsecase{
 		chatsRepo:   chatsRepo,
 		messageRepo: messageRepo,
-		usersRepo:   usersRepo,
+		usersClient: usersClient,
 		fileStorage: fileStorage,
 	}
 }
@@ -230,7 +230,7 @@ func (uc *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCre
 		usersIds[i] = memberDTO.UserId
 	}
 
-	usersNames, err := uc.usersRepo.GetUsersNames(ctx, usersIds)
+	usersNames, err := uc.usersClient.GetUsersNames(ctx, usersIds)
 	if err != nil {
 		return uuid.Nil, err
 	}
