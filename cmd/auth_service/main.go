@@ -12,10 +12,10 @@ import (
 	authRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/auth"
 	redisClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis"
 	redisSession "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/redis/session"
-	userRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	grpcHandler "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/auth/grpc"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/auth"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
+	userClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/grpc/client"
 	authUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/auth"
 	sessionUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/session"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -43,11 +43,18 @@ func main() {
 		logger.WithError(err).Fatal("failed to connect to redis")
 	}
 
+	userServiceAddr := conf.GRPCConfig.UserServiceAddr
+	userServiceClient, err := userClient.NewUserServiceClient(userServiceAddr)
+	if err != nil {
+		logger.WithError(err).Fatal("failed to connect to user service")
+		return
+	}
+	defer userServiceClient.Close()
+
 	authRepository := authRepo.New(db)
-	userRepository := userRepo.New(db)
 	sessionRepository := redisSession.New(redisClient.Client, conf.SessionConfig.LifeSpan)
 
-	authUsecaseInstance := authUsecase.New(authRepository, userRepository, sessionRepository)
+	authUsecaseInstance := authUsecase.New(authRepository, userServiceClient, sessionRepository)
 	sessionUsecaseInstance := sessionUsecase.New(sessionRepository)
 
 	authGRPCHandler := grpcHandler.NewAuthGRPCHandler(authUsecaseInstance, sessionUsecaseInstance, conf.CSRFConfig)
