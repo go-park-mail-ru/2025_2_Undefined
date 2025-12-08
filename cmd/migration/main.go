@@ -24,7 +24,8 @@ func main() {
 		logger.WithError(err).Fatal("Error loading configuration")
 	}
 
-	dsn := repository.GetConnectionString(cfg.DBConfig)
+	// Use migration config (superuser) for migrations
+	dsn := repository.GetConnectionString(cfg.DBMigrationConfig)
 
 	m, err := migrate.New(
 		cfg.MigrationsConfig.Path,

@@ -5,8 +5,8 @@ services:
       dockerfile: deploy/auth/Dockerfile
     container_name: gramm_auth_service
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -39,8 +39,8 @@ services:
       dockerfile: deploy/user/Dockerfile
     container_name: gramm_user_service
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: ${POSTGRES_HOST:-db}
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -79,8 +79,8 @@ services:
       dockerfile: deploy/chats/Dockerfile
     container_name: gramm_chats_service
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: ${POSTGRES_HOST:-db}
       POSTGRES_PORT: ${POSTGRES_PORT}
@@ -106,6 +106,27 @@ services:
         aliases:
           - chats-service
     image: lzimin05/100gramm_back_chats_service
+
+  migrate:
+    build: .
+    container_name: gramm_migrate
+    environment:
+      POSTGRES_MIGRATION_USER: ${POSTGRES_MIGRATION_USER}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
+    volumes:
+      - ./.env:/app/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - gramm-network
+    command: ./migrate up
+    profiles:
+      - tools
     
   app:
     build: .
@@ -121,12 +142,11 @@ services:
       SESSION_SIGNATURE: ${SESSION_SIGNATURE}
       CSRF_SECRET: ${CSRF_SECRET}
       CSRF_TIMEOUT: ${CSRF_TIMEOUT}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: ${POSTGRES_HOST:-db}
       POSTGRES_PORT: ${POSTGRES_PORT}
-      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
     depends_on:
       db:
         condition: service_healthy
@@ -147,15 +167,17 @@ services:
     image: postgres:15
     container_name: gramm_db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB}
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     ports:
       - "5433:${POSTGRES_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
