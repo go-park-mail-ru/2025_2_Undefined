@@ -150,3 +150,18 @@ func (mr *MockMessageUsecaseMockRecorder) SubscribeUsersOnChat(ctx, chatID, memb
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeUsersOnChat", reflect.TypeOf((*MockMessageUsecase)(nil).SubscribeUsersOnChat), ctx, chatID, members)
 }
+
+// UploadAttachment mocks base method.
+func (m *MockMessageUsecase) UploadAttachment(ctx context.Context, userID, chatID uuid.UUID, contentType string, fileData []byte, filename string, duration *int) (*dto0.AttachmentDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadAttachment", ctx, userID, chatID, contentType, fileData, filename, duration)
+	ret0, _ := ret[0].(*dto0.AttachmentDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UploadAttachment indicates an expected call of UploadAttachment.
+func (mr *MockMessageUsecaseMockRecorder) UploadAttachment(ctx, userID, chatID, contentType, fileData, filename, duration interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadAttachment", reflect.TypeOf((*MockMessageUsecase)(nil).UploadAttachment), ctx, userID, chatID, contentType, fileData, filename, duration)
+}

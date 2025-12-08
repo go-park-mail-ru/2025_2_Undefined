@@ -23,6 +23,7 @@ var (
 	ErrInternalServerError   = errors.New("internal server error")
 	ErrContactAlreadyExists  = errors.New("contact already exists")
 	ErrContactNotFound       = errors.New("contact not found")
+	ErrInvalidInput          = errors.New("invalid input")
 )
 
 var (

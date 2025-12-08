@@ -20,4 +20,5 @@ type UserRepository interface {
 type UserClient interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 	GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error)
+	GetUserByPhone(ctx context.Context, phone string) (*UserModels.User, error)
 }

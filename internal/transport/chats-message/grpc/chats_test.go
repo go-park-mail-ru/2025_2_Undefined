@@ -124,6 +124,14 @@ func (m *MockMessageUsecase) AddMessageJoinUsers(ctx context.Context, chatID uui
 	return nil
 }
 
+func (m *MockMessageUsecase) UploadAttachment(ctx context.Context, userID, chatID uuid.UUID, contentType string, fileData []byte, filename string, duration *int) (*dtoMessage.AttachmentDTO, error) {
+	args := m.Called(ctx, userID, chatID, contentType, fileData, filename, duration)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*dtoMessage.AttachmentDTO), args.Error(1)
+}
+
 func setupContext() context.Context {
 	ctx := context.Background()
 	_ = domains.GetLogger(ctx)

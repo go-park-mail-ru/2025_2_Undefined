@@ -8,7 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	models "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/attachment"
+	models0 "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
 )
@@ -36,6 +37,21 @@ func (m *MockMessageRepository) EXPECT() *MockMessageRepositoryMockRecorder {
 	return m.recorder
 }
 
+// CheckAttachmentOwnership mocks base method.
+func (m *MockMessageRepository) CheckAttachmentOwnership(ctx context.Context, attachmentID, userID uuid.UUID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckAttachmentOwnership", ctx, attachmentID, userID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CheckAttachmentOwnership indicates an expected call of CheckAttachmentOwnership.
+func (mr *MockMessageRepositoryMockRecorder) CheckAttachmentOwnership(ctx, attachmentID, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckAttachmentOwnership", reflect.TypeOf((*MockMessageRepository)(nil).CheckAttachmentOwnership), ctx, attachmentID, userID)
+}
+
 // DeleteMessage mocks base method.
 func (m *MockMessageRepository) DeleteMessage(ctx context.Context, messageID uuid.UUID) error {
 	m.ctrl.T.Helper()
@@ -50,11 +66,26 @@ func (mr *MockMessageRepositoryMockRecorder) DeleteMessage(ctx, messageID interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMessage", reflect.TypeOf((*MockMessageRepository)(nil).DeleteMessage), ctx, messageID)
 }
 
+// GetAttachmentByID mocks base method.
+func (m *MockMessageRepository) GetAttachmentByID(ctx context.Context, attachmentID uuid.UUID) (*models.Attachment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAttachmentByID", ctx, attachmentID)
+	ret0, _ := ret[0].(*models.Attachment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAttachmentByID indicates an expected call of GetAttachmentByID.
+func (mr *MockMessageRepositoryMockRecorder) GetAttachmentByID(ctx, attachmentID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAttachmentByID", reflect.TypeOf((*MockMessageRepository)(nil).GetAttachmentByID), ctx, attachmentID)
+}
+
 // GetLastMessagesOfChats mocks base method.
-func (m *MockMessageRepository) GetLastMessagesOfChats(ctx context.Context, userID uuid.UUID) ([]models.Message, error) {
+func (m *MockMessageRepository) GetLastMessagesOfChats(ctx context.Context, userID uuid.UUID) ([]models0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastMessagesOfChats", ctx, userID)
-	ret0, _ := ret[0].([]models.Message)
+	ret0, _ := ret[0].([]models0.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -66,10 +97,10 @@ func (mr *MockMessageRepositoryMockRecorder) GetLastMessagesOfChats(ctx, userID 
 }
 
 // GetLastMessagesOfChatsByIDs mocks base method.
-func (m *MockMessageRepository) GetLastMessagesOfChatsByIDs(ctx context.Context, chatIDs []uuid.UUID) (map[uuid.UUID]models.Message, error) {
+func (m *MockMessageRepository) GetLastMessagesOfChatsByIDs(ctx context.Context, chatIDs []uuid.UUID) (map[uuid.UUID]models0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastMessagesOfChatsByIDs", ctx, chatIDs)
-	ret0, _ := ret[0].(map[uuid.UUID]models.Message)
+	ret0, _ := ret[0].(map[uuid.UUID]models0.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -80,11 +111,26 @@ func (mr *MockMessageRepositoryMockRecorder) GetLastMessagesOfChatsByIDs(ctx, ch
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastMessagesOfChatsByIDs", reflect.TypeOf((*MockMessageRepository)(nil).GetLastMessagesOfChatsByIDs), ctx, chatIDs)
 }
 
+// GetMessageAttachments mocks base method.
+func (m *MockMessageRepository) GetMessageAttachments(ctx context.Context, messageID uuid.UUID) (*models.Attachment, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessageAttachments", ctx, messageID)
+	ret0, _ := ret[0].(*models.Attachment)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMessageAttachments indicates an expected call of GetMessageAttachments.
+func (mr *MockMessageRepositoryMockRecorder) GetMessageAttachments(ctx, messageID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageAttachments", reflect.TypeOf((*MockMessageRepository)(nil).GetMessageAttachments), ctx, messageID)
+}
+
 // GetMessageByID mocks base method.
-func (m *MockMessageRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (models.Message, error) {
+func (m *MockMessageRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (models0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMessageByID", ctx, messageID)
-	ret0, _ := ret[0].(models.Message)
+	ret0, _ := ret[0].(models0.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -96,10 +142,10 @@ func (mr *MockMessageRepositoryMockRecorder) GetMessageByID(ctx, messageID inter
 }
 
 // GetMessagesOfChat mocks base method.
-func (m *MockMessageRepository) GetMessagesOfChat(ctx context.Context, chatID uuid.UUID, offset, limit int) ([]models.Message, error) {
+func (m *MockMessageRepository) GetMessagesOfChat(ctx context.Context, chatID uuid.UUID, offset, limit int) ([]models0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMessagesOfChat", ctx, chatID, offset, limit)
-	ret0, _ := ret[0].([]models.Message)
+	ret0, _ := ret[0].([]models0.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -110,8 +156,22 @@ func (mr *MockMessageRepositoryMockRecorder) GetMessagesOfChat(ctx, chatID, offs
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessagesOfChat", reflect.TypeOf((*MockMessageRepository)(nil).GetMessagesOfChat), ctx, chatID, offset, limit)
 }
 
+// InsertAttachment mocks base method.
+func (m *MockMessageRepository) InsertAttachment(ctx context.Context, attachment models.CreateAttachment, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertAttachment", ctx, attachment, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InsertAttachment indicates an expected call of InsertAttachment.
+func (mr *MockMessageRepositoryMockRecorder) InsertAttachment(ctx, attachment, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertAttachment", reflect.TypeOf((*MockMessageRepository)(nil).InsertAttachment), ctx, attachment, userID)
+}
+
 // InsertMessage mocks base method.
-func (m *MockMessageRepository) InsertMessage(ctx context.Context, msg models.CreateMessage) (uuid.UUID, error) {
+func (m *MockMessageRepository) InsertMessage(ctx context.Context, msg models0.CreateMessage) (uuid.UUID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertMessage", ctx, msg)
 	ret0, _ := ret[0].(uuid.UUID)
@@ -125,11 +185,54 @@ func (mr *MockMessageRepositoryMockRecorder) InsertMessage(ctx, msg interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertMessage", reflect.TypeOf((*MockMessageRepository)(nil).InsertMessage), ctx, msg)
 }
 
+// InsertMessageWithAttachment mocks base method.
+func (m *MockMessageRepository) InsertMessageWithAttachment(ctx context.Context, msg models0.CreateMessage) (uuid.UUID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertMessageWithAttachment", ctx, msg)
+	ret0, _ := ret[0].(uuid.UUID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InsertMessageWithAttachment indicates an expected call of InsertMessageWithAttachment.
+func (mr *MockMessageRepositoryMockRecorder) InsertMessageWithAttachment(ctx, msg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertMessageWithAttachment", reflect.TypeOf((*MockMessageRepository)(nil).InsertMessageWithAttachment), ctx, msg)
+}
+
+// LinkAttachmentToMessage mocks base method.
+func (m *MockMessageRepository) LinkAttachmentToMessage(ctx context.Context, messageID, attachmentID, userID uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LinkAttachmentToMessage", ctx, messageID, attachmentID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// LinkAttachmentToMessage indicates an expected call of LinkAttachmentToMessage.
+func (mr *MockMessageRepositoryMockRecorder) LinkAttachmentToMessage(ctx, messageID, attachmentID, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LinkAttachmentToMessage", reflect.TypeOf((*MockMessageRepository)(nil).LinkAttachmentToMessage), ctx, messageID, attachmentID, userID)
+}
+
+// UpdateAttachmentType mocks base method.
+func (m *MockMessageRepository) UpdateAttachmentType(ctx context.Context, attachmentID uuid.UUID, attachmentType string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateAttachmentType", ctx, attachmentID, attachmentType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateAttachmentType indicates an expected call of UpdateAttachmentType.
+func (mr *MockMessageRepositoryMockRecorder) UpdateAttachmentType(ctx, attachmentID, attachmentType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAttachmentType", reflect.TypeOf((*MockMessageRepository)(nil).UpdateAttachmentType), ctx, attachmentID, attachmentType)
+}
+
 // SearchMessagesInChat mocks base method.
-func (m *MockMessageRepository) SearchMessagesInChat(ctx context.Context, userID, chatID uuid.UUID, text string) ([]models.Message, error) {
+func (m *MockMessageRepository) SearchMessagesInChat(ctx context.Context, userID, chatID uuid.UUID, text string) ([]models0.Message, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchMessagesInChat", ctx, userID, chatID, text)
-	ret0, _ := ret[0].([]models.Message)
+	ret0, _ := ret[0].([]models0.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

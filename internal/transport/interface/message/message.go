@@ -17,4 +17,5 @@ type MessageUsecase interface {
 	GetMessagesBySearch(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error)
 	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, offset, limit int) ([]dtoMessage.MessageDTO, error)
 	AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error
+	UploadAttachment(ctx context.Context, userID, chatID uuid.UUID, contentType string, fileData []byte, filename string, duration *int) (*dtoMessage.AttachmentDTO, error)
 }

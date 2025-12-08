@@ -123,6 +123,19 @@ message MessageEventRes {
 message CreateMessage {
     string chat_id = 1;
     string text = 2;
+    optional CreateAttachment attachment = 3;
+}
+
+message CreateAttachment{
+    string type = 1;
+    string attachment_id = 2; 
+    optional int32 duration = 3; 
+}
+
+message Attachment {
+    string type = 1;
+    string file_url = 2; 
+    optional int32 duration = 3; 
 }
 
 message Message {
@@ -133,6 +146,7 @@ message Message {
     string text = 5;
     string created_at = 6;
     string type = 7;
+    optional Attachment attachment = 8;
 }
 
 message EditMessage {
@@ -206,8 +220,25 @@ message UploadChatAvatarRes {
     string avatar_url = 1;
 }
 
+message UploadAttachmentReq {
+    string user_id = 1;
+    string chat_id = 2;
+    bytes data = 3; // Файл для voice/video_note/document
+    string filename = 4; // Имя файла для voice/video_note/document
+    string content_type = 5;
+    optional int32 duration = 6; // Для voice/video_note
+}
+
+message UploadAttachmentRes {
+    string attachment_id = 1;
+    string file_url = 2;
+    string type = 3; // image, document, audio, video, sticker, voice, video_note
+    optional int32 duration = 4; // Для voice/video_note/audio
+}
+
 service MessageService {
     rpc StreamMessagesForUser(StreamMessagesForUserReq) returns (stream MessageEventRes);
     rpc HandleSendMessage(MessageEventReq) returns (google.protobuf.Empty);
     rpc SearchMessages(SearchMessagesReq) returns (SearchMessagesRes);
+    rpc UploadAttachment(UploadAttachmentReq) returns (UploadAttachmentRes);
 }

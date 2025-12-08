@@ -2,15 +2,18 @@ package message
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	modelsAttachment "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/attachment"
 	modelsChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	interfaceChatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/chats"
@@ -100,6 +103,12 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		msg.CreatedAt = time.Now()
 	}
 
+	// Валидация: сообщения со стикерами, кружками или голосывами не должны содержать текст
+	if msg.Attachment != nil && msg.Text != "" && (msg.Attachment.Type == modelsAttachment.AttachmentTypeSticker || msg.Attachment.Type == modelsAttachment.AttachmentTypeVoice || msg.Attachment.Type == modelsAttachment.AttachmentTypeVideoNote) {
+		logger.Warningf("message with attachment cannot have text")
+		return errs.ErrInvalidInput
+	}
+
 	msgCreateModel := modelsMessage.CreateMessage{
 		ChatID:    msg.ChatId,
 		Text:      msg.Text,
@@ -108,9 +117,121 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		UserID:    &user.ID,
 	}
 
-	msgID, err := uc.messageRepository.InsertMessage(ctx, msgCreateModel)
-	if err != nil {
-		return err
+	var msgID uuid.UUID
+	var attachmentDTO *dtoMessage.AttachmentDTO
+
+	// Обработка вложений
+	if msg.Attachment != nil {
+		// Валидация типа вложения
+		if msg.Attachment.Type == "" {
+			logger.Warning("attachment type is required")
+			return errors.New("attachment type is required")
+		}
+
+		// Проверка, что тип валидный
+		validTypes := map[string]bool{
+			modelsAttachment.AttachmentTypeSticker:   true,
+			modelsAttachment.AttachmentTypeVoice:     true,
+			modelsAttachment.AttachmentTypeVideoNote: true,
+			modelsAttachment.AttachmentTypeImage:     true,
+			modelsAttachment.AttachmentTypeDocument:  true,
+			modelsAttachment.AttachmentTypeAudio:     true,
+			modelsAttachment.AttachmentTypeVideo:     true,
+		}
+
+		if !validTypes[msg.Attachment.Type] {
+			logger.Warningf("invalid attachment type: %s", msg.Attachment.Type)
+			return errors.New("invalid attachment type")
+		}
+
+		if msg.Attachment.Type == modelsAttachment.AttachmentTypeSticker {
+			attachmentID := uuid.New()
+			msgCreateModel.Attachment = &modelsAttachment.CreateAttachment{
+				ID:                 attachmentID,
+				Type:               &msg.Attachment.Type,
+				FileName:           msg.Attachment.AttachmentID, // ID стикера храним в file_name
+				FileSize:           0,
+				ContentDisposition: "sticker",
+				Duration:           nil,
+			}
+
+			msgID, err = uc.messageRepository.InsertMessageWithAttachment(ctx, msgCreateModel)
+			if err != nil {
+				logger.WithError(err).Error("could not insert message with sticker")
+				return err
+			}
+
+			attachmentDTO = &dtoMessage.AttachmentDTO{
+				ID:       &attachmentID,
+				Type:     &msg.Attachment.Type,
+				FileURL:  msg.Attachment.AttachmentID,
+				Duration: nil,
+			}
+		} else {
+			// В msg.Attachment.FileURL приходит attachment_id (в виде строки)
+			attachmentID, err := uuid.Parse(msg.Attachment.AttachmentID)
+			if err != nil {
+				logger.WithError(err).Warningf("invalid attachment_id: %s", msg.Attachment.AttachmentID)
+				return errors.New("invalid attachment_id")
+			}
+
+			// Проверяем, что вложение принадлежит текущему пользователю
+			isOwner, err := uc.messageRepository.CheckAttachmentOwnership(ctx, attachmentID, userId)
+			if err != nil {
+				logger.WithError(err).Errorf("could not check attachment %s ownership", attachmentID)
+				return err
+			}
+
+			if !isOwner {
+				logger.Warningf("user %s does not own attachment %s", userId, attachmentID)
+				return errs.ErrNoRights
+			}
+
+			// Получаем информацию о вложении
+			attachment, err := uc.messageRepository.GetAttachmentByID(ctx, attachmentID)
+			if err != nil {
+				logger.WithError(err).Errorf("could not get attachment %s", attachmentID)
+				return err
+			}
+
+			// Обновляем тип вложения из сообщения
+			err = uc.messageRepository.UpdateAttachmentType(ctx, attachmentID, msg.Attachment.Type)
+			if err != nil {
+				logger.WithError(err).Errorf("could not update attachment %s type", attachmentID)
+				return err
+			}
+
+			// Создаём обычное сообщение
+			msgID, err = uc.messageRepository.InsertMessage(ctx, msgCreateModel)
+			if err != nil {
+				logger.WithError(err).Error("could not insert message")
+				return err
+			}
+
+			err = uc.messageRepository.LinkAttachmentToMessage(ctx, msgID, attachmentID, userId)
+			if err != nil {
+				logger.WithError(err).Error("could not link attachment to message")
+				return err
+			}
+
+			attachmentURL, err := uc.fileStorage.GetOne(ctx, &attachment.ID)
+			if err != nil {
+				logger.Warningf("could not get url of file with id %s", attachment.ID.String())
+			}
+
+			attachmentDTO = &dtoMessage.AttachmentDTO{
+				ID:       &attachment.ID,
+				Type:     &msg.Attachment.Type,
+				FileURL:  attachmentURL,
+				Duration: attachment.Duration,
+			}
+		}
+	} else {
+		// Обычное текстовое сообщение
+		msgID, err = uc.messageRepository.InsertMessage(ctx, msgCreateModel)
+		if err != nil {
+			return err
+		}
 	}
 
 	msgDTO := dtoMessage.MessageDTO{
@@ -122,6 +243,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 		UpdatedAt:  nil,
 		ChatID:     msg.ChatId,
 		Type:       modelsMessage.MessageTypeUser,
+		Attachment: attachmentDTO,
 	}
 
 	err = uc.sendWebsocketMessage(dtoMessage.WebSocketMessageDTO{
@@ -321,6 +443,38 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, msg dtoMessage.Dele
 	return nil
 }
 
+// convertMessageToDTO преобразует модель Message в MessageDTO с вложениями
+func (uc *MessageUsecase) convertMessageToDTO(ctx context.Context, msg modelsMessage.Message) dtoMessage.MessageDTO {
+	var attachmentDTO *dtoMessage.AttachmentDTO
+
+	if msg.Attachment != nil {
+		attachmentURL, err := uc.fileStorage.GetOne(ctx, &msg.Attachment.ID)
+		if err != nil {
+			domains.GetLogger(ctx).WithError(err).Warningf("could not get url of file with id %s", msg.Attachment.ID.String())
+			attachmentURL = "" // fallback
+		}
+
+		attachmentDTO = &dtoMessage.AttachmentDTO{
+			ID:       &msg.Attachment.ID,
+			Type:     msg.Attachment.Type,
+			FileURL:  attachmentURL,
+			Duration: msg.Attachment.Duration,
+		}
+	}
+
+	return dtoMessage.MessageDTO{
+		ID:         msg.ID,
+		SenderID:   msg.UserID,
+		SenderName: msg.UserName,
+		Text:       msg.Text,
+		CreatedAt:  msg.CreatedAt,
+		UpdatedAt:  msg.UpdatedAt,
+		ChatID:     msg.ChatID,
+		Type:       msg.Type,
+		Attachment: attachmentDTO,
+	}
+}
+
 func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error) {
 	const op = "MessageUsecase.GetMessagesBySearch"
 	logger := domains.GetLogger(ctx).WithField("operation", op)
@@ -333,16 +487,7 @@ func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatI
 
 	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
 	for _, msg := range messages {
-		messagesDTO = append(messagesDTO, dtoMessage.MessageDTO{
-			ID:         msg.ID,
-			SenderID:   msg.UserID,
-			SenderName: msg.UserName,
-			Text:       msg.Text,
-			CreatedAt:  msg.CreatedAt,
-			UpdatedAt:  msg.UpdatedAt,
-			ChatID:     msg.ChatID,
-			Type:       msg.Type,
-		})
+		messagesDTO = append(messagesDTO, uc.convertMessageToDTO(ctx, msg))
 	}
 
 	return messagesDTO, nil
@@ -360,16 +505,7 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID, chatID uu
 
 	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
 	for _, msg := range messages {
-		messagesDTO = append(messagesDTO, dtoMessage.MessageDTO{
-			ID:         msg.ID,
-			SenderID:   msg.UserID,
-			SenderName: msg.UserName,
-			Text:       msg.Text,
-			CreatedAt:  msg.CreatedAt,
-			UpdatedAt:  msg.UpdatedAt,
-			ChatID:     msg.ChatID,
-			Type:       msg.Type,
-		})
+		messagesDTO = append(messagesDTO, uc.convertMessageToDTO(ctx, msg))
 	}
 
 	return messagesDTO, nil
@@ -433,4 +569,57 @@ func (uc *MessageUsecase) sendWebsocketMessage(msg dtoMessage.WebSocketMessageDT
 	case <-time.After(10 * time.Second):
 		return errs.ErrServiceIsOverloaded
 	}
+}
+
+func (uc *MessageUsecase) UploadAttachment(ctx context.Context, userID, chatID uuid.UUID, contentType string, fileData []byte, filename string, duration *int) (*dtoMessage.AttachmentDTO, error) {
+	const op = "MessageUsecase.UploadAttachment"
+
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	// Проверяем права пользователя
+	ok, err := uc.chatsRepository.CheckUserHasRole(ctx, userID, chatID, modelsChats.RoleViewer)
+	if err != nil {
+		logger.WithError(err).Errorf("could not check user %s role in chat %s", userID, chatID)
+		return nil, err
+	}
+
+	if ok {
+		logger.Warningf("not enough rights to upload attachment to chat %s by user %s", chatID, userID)
+		return nil, errs.ErrNoRights
+	}
+
+	attachmentID := uuid.New()
+
+	fileURL, err := uc.fileStorage.CreateOne(ctx, minio.FileData{
+		Name:        filename,
+		Data:        fileData,
+		ContentType: contentType,
+	}, attachmentID)
+	if err != nil {
+		logger.WithError(err).Error("could not upload file to storage")
+		return nil, err
+	}
+
+	attachment := modelsAttachment.CreateAttachment{
+		ID:                 attachmentID,
+		Type:               nil,
+		FileName:           filename,
+		FileSize:           int64(len(fileData)),
+		ContentDisposition: contentType,
+		Duration:           duration,
+	}
+
+	err = uc.messageRepository.InsertAttachment(ctx, attachment, userID)
+	if err != nil {
+		logger.WithError(err).Error("could not insert attachment to database")
+		// TODO: удалить файл из MinIO при ошибке БД (cleanup)
+		return nil, err
+	}
+
+	return &dtoMessage.AttachmentDTO{
+		ID:       &attachmentID,
+		Type:     nil,
+		FileURL:  fileURL,
+		Duration: duration,
+	}, nil
 }

@@ -47,6 +47,14 @@ func (m *MockMessageClient) SearchMessages(ctx context.Context, in *gen.SearchMe
 	return args.Get(0).(*gen.SearchMessagesRes), args.Error(1)
 }
 
+func (m *MockMessageClient) UploadAttachment(ctx context.Context, in *gen.UploadAttachmentReq, opts ...grpc.CallOption) (*gen.UploadAttachmentRes, error) {
+	args := m.Called(ctx, in, opts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*gen.UploadAttachmentRes), args.Error(1)
+}
+
 func setupMessageContext(userID uuid.UUID) context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, domains.UserIDKey{}, userID.String())

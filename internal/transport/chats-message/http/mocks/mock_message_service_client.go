@@ -57,26 +57,6 @@ func (mr *MockMessageServiceClientMockRecorder) HandleSendMessage(arg0, arg1 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleSendMessage", reflect.TypeOf((*MockMessageServiceClient)(nil).HandleSendMessage), varargs...)
 }
 
-// StreamMessagesForUser mocks base method.
-func (m *MockMessageServiceClient) StreamMessagesForUser(arg0 context.Context, arg1 *chats.StreamMessagesForUserReq, arg2 ...grpc.CallOption) (grpc.ServerStreamingClient[chats.MessageEventRes], error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "StreamMessagesForUser", varargs...)
-	ret0, _ := ret[0].(grpc.ServerStreamingClient[chats.MessageEventRes])
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// StreamMessagesForUser indicates an expected call of StreamMessagesForUser.
-func (mr *MockMessageServiceClientMockRecorder) StreamMessagesForUser(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StreamMessagesForUser", reflect.TypeOf((*MockMessageServiceClient)(nil).StreamMessagesForUser), varargs...)
-}
-
 // SearchMessages mocks base method.
 func (m *MockMessageServiceClient) SearchMessages(arg0 context.Context, arg1 *chats.SearchMessagesReq, arg2 ...grpc.CallOption) (*chats.SearchMessagesRes, error) {
 	m.ctrl.T.Helper()
@@ -88,4 +68,51 @@ func (m *MockMessageServiceClient) SearchMessages(arg0 context.Context, arg1 *ch
 	ret0, _ := ret[0].(*chats.SearchMessagesRes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
+}
+
+// SearchMessages indicates an expected call of SearchMessages.
+func (mr *MockMessageServiceClientMockRecorder) SearchMessages(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMessages", reflect.TypeOf((*MockMessageServiceClient)(nil).SearchMessages), varargs...)
+}
+
+// StreamMessagesForUser mocks base method.
+func (m *MockMessageServiceClient) StreamMessagesForUser(arg0 context.Context, arg1 *chats.StreamMessagesForUserReq, arg2 ...grpc.CallOption) (chats.MessageService_StreamMessagesForUserClient, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "StreamMessagesForUser", varargs...)
+	ret0, _ := ret[0].(chats.MessageService_StreamMessagesForUserClient)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StreamMessagesForUser indicates an expected call of StreamMessagesForUser.
+func (mr *MockMessageServiceClientMockRecorder) StreamMessagesForUser(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StreamMessagesForUser", reflect.TypeOf((*MockMessageServiceClient)(nil).StreamMessagesForUser), varargs...)
+}
+
+// UploadAttachment mocks base method.
+func (m *MockMessageServiceClient) UploadAttachment(arg0 context.Context, arg1 *chats.UploadAttachmentReq, arg2 ...grpc.CallOption) (*chats.UploadAttachmentRes, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UploadAttachment", varargs...)
+	ret0, _ := ret[0].(*chats.UploadAttachmentRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UploadAttachment indicates an expected call of UploadAttachment.
+func (mr *MockMessageServiceClientMockRecorder) UploadAttachment(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadAttachment", reflect.TypeOf((*MockMessageServiceClient)(nil).UploadAttachment), varargs...)
 }

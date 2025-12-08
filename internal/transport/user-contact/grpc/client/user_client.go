@@ -60,12 +60,13 @@ func (c *UserServiceClient) GetUserByID(ctx context.Context, id uuid.UUID) (*Use
 	}
 
 	user := &UserModels.User{
-		ID:          userID,
-		Name:        resp.User.Name,
-		Username:    resp.User.Username,
-		PhoneNumber: resp.User.PhoneNumber,
-		Bio:         &resp.User.Bio,
-		AccountType: resp.User.AccountType,
+		ID:           userID,
+		Name:         resp.User.Name,
+		Username:     resp.User.Username,
+		PhoneNumber:  resp.User.PhoneNumber,
+		Bio:          &resp.User.Bio,
+		AccountType:  resp.User.AccountType,
+		PasswordHash: resp.User.PasswordHash,
 	}
 
 	return user, nil
@@ -115,12 +116,13 @@ func (c *UserServiceClient) GetUserByPhone(ctx context.Context, phone string) (*
 	}
 
 	user := &UserModels.User{
-		ID:          userID,
-		Name:        resp.User.Name,
-		Username:    resp.User.Username,
-		PhoneNumber: resp.User.PhoneNumber,
-		Bio:         &resp.User.Bio,
-		AccountType: resp.User.AccountType,
+		ID:           userID,
+		Name:         resp.User.Name,
+		Username:     resp.User.Username,
+		PhoneNumber:  resp.User.PhoneNumber,
+		Bio:          &resp.User.Bio,
+		AccountType:  resp.User.AccountType,
+		PasswordHash: resp.User.PasswordHash,
 	}
 
 	return user, nil
