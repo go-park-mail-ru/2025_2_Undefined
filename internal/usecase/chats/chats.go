@@ -83,6 +83,23 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
+			var attachmentDTO *dtoMessage.AttachmentDTO
+
+			if lastMsg.Attachment != nil {
+				attachmentURL, err := uc.fileStorage.GetOne(ctx, &lastMsg.Attachment.ID)
+				if err != nil {
+					logger.WithError(err).Warningf("could not get url of file with id %s", lastMsg.Attachment.ID.String())
+					attachmentURL = "" // fallback
+				}
+
+				attachmentDTO = &dtoMessage.AttachmentDTO{
+					ID:       &lastMsg.Attachment.ID,
+					Type:     lastMsg.Attachment.Type,
+					FileURL:  attachmentURL,
+					Duration: lastMsg.Attachment.Duration,
+				}
+			}
+
 			chatDTO.LastMessage = dtoMessage.MessageDTO{
 				ID:         lastMsg.ID,
 				SenderID:   lastMsg.UserID,
@@ -92,6 +109,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 				UpdatedAt:  lastMsg.UpdatedAt,
 				ChatID:     lastMsg.ChatID,
 				Type:       lastMsg.Type,
+				Attachment: attachmentDTO,
 			}
 		}
 
@@ -141,6 +159,23 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
+		var attachmentDTO *dtoMessage.AttachmentDTO
+
+		if message.Attachment != nil {
+			attachmentURL, err := uc.fileStorage.GetOne(ctx, &message.Attachment.ID)
+			if err != nil {
+				logger.WithError(err).Warningf("could not get url of file with id %s", message.Attachment.ID.String())
+				attachmentURL = "" // fallback
+			}
+
+			attachmentDTO = &dtoMessage.AttachmentDTO{
+				ID:       &message.Attachment.ID,
+				Type:     message.Attachment.Type,
+				FileURL:  attachmentURL,
+				Duration: message.Attachment.Duration,
+			}
+		}
+
 		messagesDTO[i] = dtoMessage.MessageDTO{
 			ID:         message.ID,
 			SenderID:   message.UserID,
@@ -150,6 +185,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 			UpdatedAt:  message.UpdatedAt,
 			ChatID:     message.ChatID,
 			Type:       message.Type,
+			Attachment: attachmentDTO,
 		}
 	}
 
