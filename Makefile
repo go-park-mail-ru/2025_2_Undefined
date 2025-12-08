@@ -69,13 +69,29 @@ deps:
 	go mod download
 	go mod tidy
 
+setup-db-only:
+	@echo "Запуск только БД..."
+	@docker compose up -d db
+	@echo "Ожидание запуска БД..."
+	@sleep 5
+	@echo "Запуск миграций как суперпользователь..."
+	@docker compose run --rm migrate
+	@echo "Создание сервисного пользователя app_user..."
+	@./db/setup_user.sh
+	@echo "БД готова к работе!"
+
 start:
-	make swagger
-	docker compose up --build
+	@make setup-db-only
+	@make swagger
+	@echo "Запуск всех сервисов..."
+	@docker compose up --build
 
 start-background:
-	make swagger
-	docker compose up --build -d
+	@make setup-db-only
+	@make swagger
+	@echo "Запуск всех сервисов в фоновом режиме..."
+	@docker compose up --build -d
+	@echo "Все сервисы запущены"
 
 logs:
 	docker-compose logs -f

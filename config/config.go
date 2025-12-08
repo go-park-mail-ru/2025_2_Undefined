@@ -14,6 +14,7 @@ import (
 
 type Config struct {
 	DBConfig            *DBConfig
+	DBMigrationConfig   *DBConfig
 	ServerConfig        *ServerConfig
 	SessionConfig       *SessionConfig
 	CSRFConfig          *CSRFConfig
@@ -143,8 +144,11 @@ func NewConfig() (*Config, error) {
 
 	metricsConfig := newMetricsConfig()
 
+	dbMigrationConfig, _ := newDBMigrationConfig()
+
 	return &Config{
 		DBConfig:            dbConfig,
+		DBMigrationConfig:   dbMigrationConfig,
 		ServerConfig:        serverConfig,
 		SessionConfig:       sessionConfig,
 		CSRFConfig:          csrfConfig,
@@ -158,14 +162,42 @@ func NewConfig() (*Config, error) {
 }
 
 func newDBConfig() (*DBConfig, error) {
-	user, userExists := os.LookupEnv("POSTGRES_USER")
-	password, passwordExists := os.LookupEnv("POSTGRES_PASSWORD")
+	user, userExists := os.LookupEnv("POSTGRES_APP_USER")
+	password, passwordExists := os.LookupEnv("POSTGRES_APP_PASSWORD")
 	dbname, dbExists := os.LookupEnv("POSTGRES_DB")
 	host, hostExists := os.LookupEnv("POSTGRES_HOST")
 	portStr, portExists := os.LookupEnv("POSTGRES_PORT")
 
 	if !userExists || !passwordExists || !dbExists || !hostExists || !portExists {
 		return nil, errors.New("incomplete database configuration")
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, errors.New("invalid POSTGRES_PORT value")
+	}
+
+	return &DBConfig{
+		User:            user,
+		Password:        password,
+		DB:              dbname,
+		Port:            port,
+		Host:            host,
+		MaxOpenConns:    100,
+		MaxIdleConns:    90,
+		ConnMaxLifetime: 5 * time.Minute,
+	}, nil
+}
+
+func newDBMigrationConfig() (*DBConfig, error) {
+	user, userExists := os.LookupEnv("POSTGRES_MIGRATION_USER")
+	password, passwordExists := os.LookupEnv("POSTGRES_MIGRATION_PASSWORD")
+	dbname, dbExists := os.LookupEnv("POSTGRES_DB")
+	host, hostExists := os.LookupEnv("POSTGRES_HOST")
+	portStr, portExists := os.LookupEnv("POSTGRES_PORT")
+
+	if !userExists || !passwordExists || !dbExists || !hostExists || !portExists {
+		return nil, errors.New("incomplete migration database configuration")
 	}
 
 	port, err := strconv.Atoi(portStr)
