@@ -106,7 +106,7 @@ func (uc *MessageUsecase) AddMessage(ctx context.Context, msg dtoMessage.CreateM
 	// Валидация: сообщения со стикерами, кружками или голосывами не должны содержать текст
 	if msg.Attachment != nil && msg.Text != "" && (msg.Attachment.Type == modelsAttachment.AttachmentTypeSticker || msg.Attachment.Type == modelsAttachment.AttachmentTypeVoice || msg.Attachment.Type == modelsAttachment.AttachmentTypeVideoNote) {
 		logger.Warningf("message with attachment cannot have text")
-		return errs.ErrInvalidInput
+		return fmt.Errorf("message with %s attachment can not has text", msg.Attachment.Type)
 	}
 
 	msgCreateModel := modelsMessage.CreateMessage{

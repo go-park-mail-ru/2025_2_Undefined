@@ -513,14 +513,9 @@ func ProtoCreateMessageToDTO(msg *gen.CreateMessage) (dtoMessage.WebSocketMessag
 
 	var attachment *dtoMessage.CreateAttachmentDTO
 	if msg.Attachment != nil {
-		attachmentID, err := uuid.Parse(msg.Attachment.GetAttachmentId())
-		if err != nil {
-			return dtoMessage.WebSocketMessageDTO{}, status.Errorf(codes.InvalidArgument, "invalid attachment_id: %v", err)
-		}
-
 		attachment = &dtoMessage.CreateAttachmentDTO{
 			Type:         msg.Attachment.GetType(),
-			AttachmentID: attachmentID.String(),
+			AttachmentID: msg.Attachment.GetAttachmentId(),
 			Duration:     intPtrFromProto(msg.Attachment.Duration),
 		}
 	}
