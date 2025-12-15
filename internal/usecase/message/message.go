@@ -21,6 +21,7 @@ import (
 	interfaceMessageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/message"
 	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/utils"
 	"github.com/google/uuid"
 )
 
@@ -443,38 +444,6 @@ func (uc *MessageUsecase) DeleteMessage(ctx context.Context, msg dtoMessage.Dele
 	return nil
 }
 
-// convertMessageToDTO преобразует модель Message в MessageDTO с вложениями
-func (uc *MessageUsecase) convertMessageToDTO(ctx context.Context, msg modelsMessage.Message) dtoMessage.MessageDTO {
-	var attachmentDTO *dtoMessage.AttachmentDTO
-
-	if msg.Attachment != nil {
-		attachmentURL, err := uc.fileStorage.GetOne(ctx, &msg.Attachment.ID)
-		if err != nil {
-			domains.GetLogger(ctx).WithError(err).Warningf("could not get url of file with id %s", msg.Attachment.ID.String())
-			attachmentURL = "" // fallback
-		}
-
-		attachmentDTO = &dtoMessage.AttachmentDTO{
-			ID:       &msg.Attachment.ID,
-			Type:     msg.Attachment.Type,
-			FileURL:  attachmentURL,
-			Duration: msg.Attachment.Duration,
-		}
-	}
-
-	return dtoMessage.MessageDTO{
-		ID:         msg.ID,
-		SenderID:   msg.UserID,
-		SenderName: msg.UserName,
-		Text:       msg.Text,
-		CreatedAt:  msg.CreatedAt,
-		UpdatedAt:  msg.UpdatedAt,
-		ChatID:     msg.ChatID,
-		Type:       msg.Type,
-		Attachment: attachmentDTO,
-	}
-}
-
 func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error) {
 	const op = "MessageUsecase.GetMessagesBySearch"
 	logger := domains.GetLogger(ctx).WithField("operation", op)
@@ -487,7 +456,7 @@ func (uc *MessageUsecase) GetMessagesBySearch(ctx context.Context, userID, chatI
 
 	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
 	for _, msg := range messages {
-		messagesDTO = append(messagesDTO, uc.convertMessageToDTO(ctx, msg))
+		messagesDTO = append(messagesDTO, utils.ConvertMessageToDTO(ctx, msg, uc.fileStorage))
 	}
 
 	return messagesDTO, nil
@@ -505,7 +474,7 @@ func (uc *MessageUsecase) GetChatMessages(ctx context.Context, userID, chatID uu
 
 	messagesDTO := make([]dtoMessage.MessageDTO, 0, len(messages))
 	for _, msg := range messages {
-		messagesDTO = append(messagesDTO, uc.convertMessageToDTO(ctx, msg))
+		messagesDTO = append(messagesDTO, utils.ConvertMessageToDTO(ctx, msg, uc.fileStorage))
 	}
 
 	return messagesDTO, nil

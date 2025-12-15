@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
@@ -14,9 +15,8 @@ import (
 	interfaceMessageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/message"
 	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/utils"
 	"github.com/google/uuid"
-
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 )
 
 type ChatsUsecase struct {
@@ -83,34 +83,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
-			var attachmentDTO *dtoMessage.AttachmentDTO
-
-			if lastMsg.Attachment != nil {
-				attachmentURL, err := uc.fileStorage.GetOne(ctx, &lastMsg.Attachment.ID)
-				if err != nil {
-					logger.WithError(err).Warningf("could not get url of file with id %s", lastMsg.Attachment.ID.String())
-					attachmentURL = "" // fallback
-				}
-
-				attachmentDTO = &dtoMessage.AttachmentDTO{
-					ID:       &lastMsg.Attachment.ID,
-					Type:     lastMsg.Attachment.Type,
-					FileURL:  attachmentURL,
-					Duration: lastMsg.Attachment.Duration,
-				}
-			}
-
-			chatDTO.LastMessage = dtoMessage.MessageDTO{
-				ID:         lastMsg.ID,
-				SenderID:   lastMsg.UserID,
-				SenderName: lastMsg.UserName,
-				Text:       lastMsg.Text,
-				CreatedAt:  lastMsg.CreatedAt,
-				UpdatedAt:  lastMsg.UpdatedAt,
-				ChatID:     lastMsg.ChatID,
-				Type:       lastMsg.Type,
-				Attachment: attachmentDTO,
-			}
+			chatDTO.LastMessage = utils.ConvertMessageToDTO(ctx, lastMsg, uc.fileStorage)
 		}
 
 		result = append(result, chatDTO)
@@ -159,34 +132,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
-		var attachmentDTO *dtoMessage.AttachmentDTO
-
-		if message.Attachment != nil {
-			attachmentURL, err := uc.fileStorage.GetOne(ctx, &message.Attachment.ID)
-			if err != nil {
-				logger.WithError(err).Warningf("could not get url of file with id %s", message.Attachment.ID.String())
-				attachmentURL = "" // fallback
-			}
-
-			attachmentDTO = &dtoMessage.AttachmentDTO{
-				ID:       &message.Attachment.ID,
-				Type:     message.Attachment.Type,
-				FileURL:  attachmentURL,
-				Duration: message.Attachment.Duration,
-			}
-		}
-
-		messagesDTO[i] = dtoMessage.MessageDTO{
-			ID:         message.ID,
-			SenderID:   message.UserID,
-			SenderName: message.UserName,
-			Text:       message.Text,
-			CreatedAt:  message.CreatedAt,
-			UpdatedAt:  message.UpdatedAt,
-			ChatID:     message.ChatID,
-			Type:       message.Type,
-			Attachment: attachmentDTO,
-		}
+		messagesDTO[i] = utils.ConvertMessageToDTO(ctx, message, uc.fileStorage)
 	}
 
 	usersDTO := make([]dtoChats.UserInfoChatDTO, len(users))
