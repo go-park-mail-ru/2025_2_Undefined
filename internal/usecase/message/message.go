@@ -590,8 +590,15 @@ func (uc *MessageUsecase) UploadAttachment(ctx context.Context, userID, chatID u
 
 	attachmentID := uuid.New()
 
+	// Truncate filename to 255 characters to comply with database constraint
+	truncatedFilename := filename
+	if len(filename) > 255 {
+		truncatedFilename = filename[:255]
+		logger.Warningf("filename truncated from %d to 255 characters", len(filename))
+	}
+
 	fileURL, err := uc.fileStorage.CreateOne(ctx, minio.FileData{
-		Name:        filename,
+		Name:        truncatedFilename,
 		Data:        fileData,
 		ContentType: contentType,
 	}, attachmentID)
@@ -603,7 +610,7 @@ func (uc *MessageUsecase) UploadAttachment(ctx context.Context, userID, chatID u
 	attachment := modelsAttachment.CreateAttachment{
 		ID:                 attachmentID,
 		Type:               nil,
-		FileName:           filename,
+		FileName:           truncatedFilename,
 		FileSize:           int64(len(fileData)),
 		ContentDisposition: contentType,
 		Duration:           duration,

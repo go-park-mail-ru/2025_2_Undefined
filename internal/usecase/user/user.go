@@ -107,8 +107,15 @@ func (uc *UserUsecase) UploadUserAvatar(ctx context.Context, userID uuid.UUID, d
 
 	avatarID := uuid.New()
 
+	// Truncate filename to 255 characters to comply with database constraint
+	truncatedFilename := filename
+	if len(filename) > 255 {
+		truncatedFilename = filename[:255]
+		logger.Warningf("filename truncated from %d to 255 characters", len(filename))
+	}
+
 	file := minio.FileData{
-		Name:        filename,
+		Name:        truncatedFilename,
 		Data:        data,
 		ContentType: contentType,
 	}
