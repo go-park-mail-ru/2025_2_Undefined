@@ -101,8 +101,8 @@ func TestMessageRepository_GetLastMessagesOfChats_Success(t *testing.T) {
 	now := time.Now()
 
 	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type", "attachment_id", "attachment_type", "file_name", "file_size", "content_disposition", "duration"}).
-		AddRow(uuid.New(), uuid.New(), &msgUserID1, &userName1, "Hello", now, &now, "text", nil, nil, nil, nil, nil, nil).
-		AddRow(uuid.New(), uuid.New(), &msgUserID2, &userName2, "Hi", now, &now, "text", nil, nil, nil, nil, nil, nil)
+		AddRow(uuid.New(), uuid.New(), &msgUserID1, &userName1, "Hello", now, now, "text", nil, nil, nil, nil, nil, nil).
+		AddRow(uuid.New(), uuid.New(), &msgUserID2, &userName2, "Hi", now, now, "text", nil, nil, nil, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT DISTINCT ON \(msg.chat_id\)`).
 		WithArgs(userID).
@@ -132,8 +132,8 @@ func TestMessageRepository_GetMessagesOfChat_Success(t *testing.T) {
 	now := time.Now()
 
 	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type", "attachment_id", "attachment_type", "file_name", "file_size", "content_disposition", "duration"}).
-		AddRow(uuid.New(), chatID, &msgUserID1, &userName1, "Message 1", now, &now, "text", nil, nil, nil, nil, nil, nil).
-		AddRow(uuid.New(), chatID, &msgUserID2, &userName2, "Message 2", now, &now, "text", nil, nil, nil, nil, nil, nil)
+		AddRow(uuid.New(), chatID, &msgUserID1, &userName1, "Message 1", now, now, "text", nil, nil, nil, nil, nil, nil).
+		AddRow(uuid.New(), chatID, &msgUserID2, &userName2, "Message 2", now, now, "text", nil, nil, nil, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT\s+msg\.id`).
 		WithArgs(chatID, 0, 10).
@@ -161,7 +161,7 @@ func TestMessageRepository_GetMessageByID_Success(t *testing.T) {
 	now := time.Now()
 
 	row := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "text", "created_at", "updated_at", "message_type"}).
-		AddRow(messageID, chatID, &userID, "Test message", now, &now, "text")
+		AddRow(messageID, chatID, &userID, "Test message", now, now, "text")
 
 	mock.ExpectQuery(`SELECT id, chat_id, user_id, text, created_at, updated_at, message_type::text`).
 		WithArgs(messageID).
@@ -235,8 +235,8 @@ func TestMessageRepository_GetLastMessagesOfChatsByIDs_Success(t *testing.T) {
 	now := time.Now()
 
 	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type", "attachment_id", "attachment_type", "file_name", "file_size", "content_disposition", "duration"}).
-		AddRow(uuid.New(), chatIDs[0], &msgUserID1, &userName1, "Last message 1", now, &now, "text", nil, nil, nil, nil, nil, nil).
-		AddRow(uuid.New(), chatIDs[1], &msgUserID2, &userName2, "Last message 2", now, &now, "text", nil, nil, nil, nil, nil, nil)
+		AddRow(uuid.New(), chatIDs[0], &msgUserID1, &userName1, "Last message 1", now, now, "text", nil, nil, nil, nil, nil, nil).
+		AddRow(uuid.New(), chatIDs[1], &msgUserID2, &userName2, "Last message 2", now, now, "text", nil, nil, nil, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT DISTINCT ON \(msg.chat_id\)`).
 		WithArgs(chatIDs).
@@ -268,8 +268,8 @@ func TestMessageRepository_SearchMessagesInChat_Success(t *testing.T) {
 	now := time.Now()
 
 	rows := pgxmock.NewRows([]string{"id", "chat_id", "user_id", "name", "text", "created_at", "updated_at", "message_type", "attachment_id", "attachment_type", "file_name", "file_size", "content_disposition", "duration"}).
-		AddRow(uuid.New(), chatID, &msgUserID, &userName, "hello world", now, &now, "text", nil, nil, nil, nil, nil, nil).
-		AddRow(uuid.New(), chatID, &msgUserID, &userName, "say hello", now, &now, "text", nil, nil, nil, nil, nil, nil)
+		AddRow(uuid.New(), chatID, &msgUserID, &userName, "hello world", now, now, "text", nil, nil, nil, nil, nil, nil).
+		AddRow(uuid.New(), chatID, &msgUserID, &userName, "say hello", now, now, "text", nil, nil, nil, nil, nil, nil)
 
 	mock.ExpectQuery(`SELECT\s+msg\.id`).
 		WithArgs(userID, chatID, searchText).
