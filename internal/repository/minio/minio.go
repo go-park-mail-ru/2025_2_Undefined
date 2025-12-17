@@ -82,10 +82,9 @@ func (m *MinioProvider) getURL(objectID uuid.UUID) string {
 		host = m.config.Host
 	}
 
-	publicURL := fmt.Sprintf("%s://%s:%s/%s/%s",
+	publicURL := fmt.Sprintf("%s://%s/%s/%s",
 		protocol,
 		host,
-		m.config.PORT,
 		m.bucketName,
 		objectID.String())
 
