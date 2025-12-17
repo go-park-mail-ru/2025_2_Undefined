@@ -19,7 +19,7 @@ type AuthRepository interface {
 	CreateUser(ctx context.Context, name string, phone string, password_hash string) (*UserModels.User, error)
 }
 
-type UserRepository interface {
+type UserClient interface {
 	GetUserByPhone(ctx context.Context, phone string) (*UserModels.User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (*UserModels.User, error)
 }
@@ -31,11 +31,11 @@ type SessionRepository interface {
 
 type AuthUsecase struct {
 	authrepo    AuthRepository
-	userrepo    UserRepository
+	userrepo    UserClient
 	sessionrepo SessionRepository
 }
 
-func New(authrepo AuthRepository, userrepo UserRepository, sessionrepo SessionRepository) *AuthUsecase {
+func New(authrepo AuthRepository, userrepo UserClient, sessionrepo SessionRepository) *AuthUsecase {
 	return &AuthUsecase{
 		authrepo:    authrepo,
 		userrepo:    userrepo,

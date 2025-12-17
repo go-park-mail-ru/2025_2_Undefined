@@ -12,10 +12,10 @@ import (
 	chatsRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/chats"
 	messageRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/message"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
-	userRepo "github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/user"
 	grpcHandler "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/chats-message/grpc"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/middleware"
+	userClient "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/user-contact/grpc/client"
 	chatsUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/chats"
 	messageUsecase "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/message"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -46,13 +46,20 @@ func main() {
 		return
 	}
 
+	userServiceAddr := conf.GRPCConfig.UserServiceAddr
+	userServiceClient, err := userClient.NewUserServiceClient(userServiceAddr)
+	if err != nil {
+		logger.WithError(err).Fatal("failed to connect to user service")
+		return
+	}
+	defer userServiceClient.Close()
+
 	chatsRepository := chatsRepo.NewChatsRepository(db)
 	messageRepository := messageRepo.NewMessageRepository(db)
-	userRepository := userRepo.New(db)
 	listenerMap := messageUsecase.NewListenerMap()
 
-	chatsUsecaseInstance := chatsUsecase.NewChatsUsecase(chatsRepository, userRepository, messageRepository, minioClient)
-	messageUsecaseInstance := messageUsecase.NewMessageUsecase(messageRepository, userRepository, chatsRepository, minioClient, listenerMap)
+	chatsUsecaseInstance := chatsUsecase.NewChatsUsecase(chatsRepository, userServiceClient, messageRepository, minioClient)
+	messageUsecaseInstance := messageUsecase.NewMessageUsecase(messageRepository, userServiceClient, chatsRepository, minioClient, listenerMap)
 
 	chatsGRPCHandler := grpcHandler.NewChatsGRPCHandler(chatsUsecaseInstance, messageUsecaseInstance)
 	messageGRPCHandler := grpcHandler.NewMessageGRPCHandler(messageUsecaseInstance, chatsUsecaseInstance)

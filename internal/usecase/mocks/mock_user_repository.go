@@ -138,3 +138,71 @@ func (mr *MockUserRepositoryMockRecorder) UpdateUserInfo(ctx, userID, name, user
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserInfo", reflect.TypeOf((*MockUserRepository)(nil).UpdateUserInfo), ctx, userID, name, username, bio)
 }
+
+// MockUserClient is a mock of UserClient interface.
+type MockUserClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockUserClientMockRecorder
+}
+
+// MockUserClientMockRecorder is the mock recorder for MockUserClient.
+type MockUserClientMockRecorder struct {
+	mock *MockUserClient
+}
+
+// NewMockUserClient creates a new mock instance.
+func NewMockUserClient(ctrl *gomock.Controller) *MockUserClient {
+	mock := &MockUserClient{ctrl: ctrl}
+	mock.recorder = &MockUserClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserClient) EXPECT() *MockUserClientMockRecorder {
+	return m.recorder
+}
+
+// GetUserByID mocks base method.
+func (m *MockUserClient) GetUserByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByID", ctx, id)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByID indicates an expected call of GetUserByID.
+func (mr *MockUserClientMockRecorder) GetUserByID(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByID", reflect.TypeOf((*MockUserClient)(nil).GetUserByID), ctx, id)
+}
+
+// GetUserByPhone mocks base method.
+func (m *MockUserClient) GetUserByPhone(ctx context.Context, phone string) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByPhone", ctx, phone)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByPhone indicates an expected call of GetUserByPhone.
+func (mr *MockUserClientMockRecorder) GetUserByPhone(ctx, phone interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByPhone", reflect.TypeOf((*MockUserClient)(nil).GetUserByPhone), ctx, phone)
+}
+
+// GetUsersNames mocks base method.
+func (m *MockUserClient) GetUsersNames(ctx context.Context, usersIds []uuid.UUID) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsersNames", ctx, usersIds)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUsersNames indicates an expected call of GetUsersNames.
+func (mr *MockUserClientMockRecorder) GetUsersNames(ctx, usersIds interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersNames", reflect.TypeOf((*MockUserClient)(nil).GetUsersNames), ctx, usersIds)
+}

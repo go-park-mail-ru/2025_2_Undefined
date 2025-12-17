@@ -108,7 +108,7 @@ func TestGetInformationAboutChat_Success(t *testing.T) {
 		Return("", nil).
 		AnyTimes()
 
-	info, err := service.GetInformationAboutChat(context.Background(), userId, chatId)
+	info, err := service.GetInformationAboutChat(context.Background(), userId, chatId, 0, 20)
 
 	assert.NoError(t, err)
 	assert.Equal(t, chatId, info.ID)
@@ -132,7 +132,7 @@ func TestGetInformationAboutChat_Error(t *testing.T) {
 		GetChat(gomock.Any(), chatId).
 		Return(nil, errors.New("not found"))
 
-	info, err := service.GetInformationAboutChat(context.Background(), userId, chatId)
+	info, err := service.GetInformationAboutChat(context.Background(), userId, chatId, 0, 20)
 
 	assert.Error(t, err)
 	assert.Nil(t, info)

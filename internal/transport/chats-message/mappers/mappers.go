@@ -50,17 +50,50 @@ func parseOptionalUUID(s *string) *uuid.UUID {
 	return &id
 }
 
+func intPtrFromProto(val *int32) *int {
+	if val == nil {
+		return nil
+	}
+	v := int(*val)
+	return &v
+}
+
+func intPtrToProto(val *int) *int32 {
+	if val == nil {
+		return nil
+	}
+	v := int32(*val)
+	return &v
+}
+
+func stringPtrToString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 func ProtoMessageToDTO(msg *gen.Message) dtoMessage.MessageDTO {
 	msgID, _ := uuid.Parse(msg.GetId())
 	chatID, _ := uuid.Parse(msg.GetChatId())
 	senderID := parseOptionalUUID(msg.SenderId)
 	createdAt, _ := time.Parse(time.RFC3339, msg.GetCreatedAt())
+	updatedAt, _ := time.Parse(time.RFC3339, msg.GetUpdatedAt())
 
 	var senderName *string
 	if msg.GetSenderName() == "" {
 		senderName = nil
 	} else {
 		senderName = &msg.SenderName
+	}
+
+	var attachment *dtoMessage.AttachmentDTO
+	if msg.Attachment != nil {
+		attachment = &dtoMessage.AttachmentDTO{
+			Type:     stringToPtr(msg.Attachment.GetType()),
+			FileURL:  msg.Attachment.GetFileUrl(),
+			Duration: intPtrFromProto(msg.Attachment.Duration),
+		}
 	}
 
 	return dtoMessage.MessageDTO{
@@ -70,8 +103,9 @@ func ProtoMessageToDTO(msg *gen.Message) dtoMessage.MessageDTO {
 		SenderName: senderName,
 		Text:       msg.GetText(),
 		CreatedAt:  createdAt,
-		UpdatedAt:  nil, // Protobuf Message не имеет updated_at
+		UpdatedAt:  updatedAt,
 		Type:       msg.GetType(),
+		Attachment: attachment,
 	}
 }
 
@@ -87,6 +121,15 @@ func DTOMessageToProto(msgDTO dtoMessage.MessageDTO) *gen.Message {
 		}
 	}
 
+	var protoAttachment *gen.Attachment
+	if msgDTO.Attachment != nil {
+		protoAttachment = &gen.Attachment{
+			Type:     stringPtrToString(msgDTO.Attachment.Type),
+			FileUrl:  msgDTO.Attachment.FileURL,
+			Duration: intPtrToProto(msgDTO.Attachment.Duration),
+		}
+	}
+
 	return &gen.Message{
 		Id:         msgDTO.ID.String(),
 		ChatId:     msgDTO.ChatID.String(),
@@ -94,7 +137,9 @@ func DTOMessageToProto(msgDTO dtoMessage.MessageDTO) *gen.Message {
 		SenderName: senderName,
 		Text:       msgDTO.Text,
 		CreatedAt:  msgDTO.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  msgDTO.UpdatedAt.Format(time.RFC3339),
 		Type:       msgDTO.Type,
+		Attachment: protoAttachment,
 	}
 }
 
@@ -374,12 +419,22 @@ func DTOWebSocketMessageToProto(userID uuid.UUID, wsMsg dtoMessage.WebSocketMess
 			return nil
 		}
 
+		var attachment *gen.CreateAttachment
+		if createMsg.Attachment != nil {
+			attachment = &gen.CreateAttachment{
+				Type:         createMsg.Attachment.Type,
+				AttachmentId: createMsg.Attachment.AttachmentID,
+				Duration:     intPtrToProto(createMsg.Attachment.Duration),
+			}
+		}
+
 		return &gen.MessageEventReq{
 			UserId: userIDStr,
 			Event: &gen.MessageEventReq_NewChatMessage{
 				NewChatMessage: &gen.CreateMessage{
-					ChatId: createMsg.ChatId.String(),
-					Text:   createMsg.Text,
+					ChatId:     createMsg.ChatId.String(),
+					Text:       createMsg.Text,
+					Attachment: attachment,
 				},
 			},
 		}
@@ -458,13 +513,23 @@ func ProtoCreateMessageToDTO(msg *gen.CreateMessage) (dtoMessage.WebSocketMessag
 		return dtoMessage.WebSocketMessageDTO{}, err
 	}
 
+	var attachment *dtoMessage.CreateAttachmentDTO
+	if msg.Attachment != nil {
+		attachment = &dtoMessage.CreateAttachmentDTO{
+			Type:         msg.Attachment.GetType(),
+			AttachmentID: msg.Attachment.GetAttachmentId(),
+			Duration:     intPtrFromProto(msg.Attachment.Duration),
+		}
+	}
+
 	return dtoMessage.WebSocketMessageDTO{
 		Type:   dtoMessage.WebSocketMessageTypeNewChatMessage,
 		ChatID: chatID,
 		Value: dtoMessage.CreateMessageDTO{
-			Text:      msg.GetText(),
-			CreatedAt: time.Now(),
-			ChatId:    chatID,
+			Text:       msg.GetText(),
+			CreatedAt:  time.Now(),
+			ChatId:     chatID,
+			Attachment: attachment,
 		},
 	}, nil
 }
@@ -616,10 +681,36 @@ func ProtoSearchMessagesResToDTO(res *gen.SearchMessagesRes) []dtoMessage.Messag
 	return messages
 }
 
+func ProtoGetChatMessagesResToDTO(res *gen.GetChatMessagesRes) []dtoMessage.MessageDTO {
+	if res == nil || res.GetMessages() == nil {
+		return []dtoMessage.MessageDTO{}
+	}
+	messages := make([]dtoMessage.MessageDTO, len(res.GetMessages()))
+	for i, msg := range res.GetMessages() {
+		messages[i] = ProtoMessageToDTO(msg)
+	}
+	return messages
+}
+
 func DTOMessagesToProtoMessage(messages []dtoMessage.MessageDTO) []*gen.Message {
 	result := make([]*gen.Message, len(messages))
 	for i, msgDTO := range messages {
 		result[i] = DTOMessageToProto(msgDTO)
 	}
 	return result
+}
+
+func ProtoUploadAttachmentResToDTO(res *gen.UploadAttachmentRes) *dtoMessage.AttachmentDTO {
+	attachmentID, _ := uuid.Parse(res.GetAttachmentId())
+	var duration *int
+	if res.Duration != nil {
+		d := int(*res.Duration)
+		duration = &d
+	}
+	return &dtoMessage.AttachmentDTO{
+		ID:       &attachmentID,
+		Type:     stringToPtr(res.GetType()),
+		FileURL:  res.GetFileUrl(),
+		Duration: duration,
+	}
 }

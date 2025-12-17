@@ -47,7 +47,7 @@ func TestMessageUsecase_NewMessageUsecase(t *testing.T) {
 	assert.NotNil(t, uc.connectionContext)
 	assert.NotNil(t, uc.connectionContextCount)
 	assert.Equal(t, mockMessageRepo, uc.messageRepository)
-	assert.Equal(t, mockUserRepo, uc.userRepository)
+	assert.Equal(t, mockUserRepo, uc.userClient)
 	assert.Equal(t, mockChatsRepo, uc.chatsRepository)
 	assert.Equal(t, mockFileStorage, uc.fileStorage)
 	assert.Equal(t, mockListenerMap, uc.listenerMap)
@@ -162,6 +162,7 @@ func TestMessageUsecase_SubscribeConnectionToChats_Success(t *testing.T) {
 	uc.mu.Unlock()
 
 	mockListenerMap.EXPECT().GetOutgoingChannel(connectionID).Return(resultChan)
+	mockListenerMap.EXPECT().RegisterUserConnection(userID, connectionID, resultChan)
 	mockListenerMap.EXPECT().SubscribeConnectionToChat(connectionID, chatID, userID).Return(chatChan)
 
 	outChan := uc.SubscribeConnectionToChats(ctx, connectionID, userID, chatsViewDTO)

@@ -174,3 +174,51 @@ func (h *MessageGRPCHandler) SearchMessages(ctx context.Context, in *gen.SearchM
 		Messages: protoMessages,
 	}, nil
 }
+
+func (h *MessageGRPCHandler) UploadAttachment(ctx context.Context, in *gen.UploadAttachmentReq) (*gen.UploadAttachmentRes, error) {
+	const op = "MessageGRPCHandler.UploadAttachment"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	userID, err := uuid.Parse(in.GetUserId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing userId: %s", in.GetUserId())
+		return nil, status.Error(codes.InvalidArgument, "wrong user id format")
+	}
+
+	chatID, err := uuid.Parse(in.GetChatId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing chatId: %s", in.GetChatId())
+		return nil, status.Error(codes.InvalidArgument, "wrong chat id format")
+	}
+
+	var duration *int
+	if in.Duration != nil {
+		d := int(*in.Duration)
+		duration = &d
+	}
+
+	attachmentDTO, err := h.messageUsecase.UploadAttachment(ctx, userID, chatID,
+		in.GetContentType(), in.GetData(), in.GetFilename(), duration)
+	if err != nil {
+		logger.WithError(err).Error("Failed to upload attachment")
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	var durationPtr *int32
+	if attachmentDTO.Duration != nil {
+		d := int32(*attachmentDTO.Duration)
+		durationPtr = &d
+	}
+
+	var attachmentType string
+	if attachmentDTO.Type != nil {
+		attachmentType = *attachmentDTO.Type
+	}
+
+	return &gen.UploadAttachmentRes{
+		AttachmentId: attachmentDTO.ID.String(),
+		FileUrl:      attachmentDTO.FileURL,
+		Type:         attachmentType,
+		Duration:     durationPtr,
+	}, nil
+}

@@ -47,6 +47,19 @@ message GetChatsRes {
 message GetChatReq {
     string user_id = 1;
     string chat_id = 2;
+    optional int32 offset = 3;
+    optional int32 limit = 4;
+}
+
+message GetChatMessagesReq {
+    string user_id = 1;
+    string chat_id = 2;
+    optional int32 offset = 3;
+    optional int32 limit = 4;
+}
+
+message GetChatMessagesRes {
+    repeated Message messages = 1;
 }
 
 message GetUsersDialogReq{
@@ -110,6 +123,19 @@ message MessageEventRes {
 message CreateMessage {
     string chat_id = 1;
     string text = 2;
+    optional CreateAttachment attachment = 3;
+}
+
+message CreateAttachment{
+    string type = 1;
+    string attachment_id = 2; 
+    optional int32 duration = 3; 
+}
+
+message Attachment {
+    string type = 1;
+    string file_url = 2; 
+    optional int32 duration = 3; 
 }
 
 message Message {
@@ -119,7 +145,9 @@ message Message {
     string sender_name = 4;
     string text = 5;
     string created_at = 6;
-    string type = 7;
+    string updated_at = 7;
+    string type = 8;
+    optional Attachment attachment = 9;
 }
 
 message EditMessage {
@@ -169,6 +197,7 @@ message SearchMessagesRes{
 service ChatService {
     rpc GetChats(GetChatsReq) returns (GetChatsRes);
     rpc GetChat(GetChatReq) returns (ChatDetailedInformation);
+    rpc GetChatMessages(GetChatMessagesReq) returns (GetChatMessagesRes);
     rpc GetUsersDialog(GetUsersDialogReq) returns (IdRes);
     rpc CreateChat(CreateChatReq) returns (IdRes);
     rpc UpdateChat(UpdateChatReq) returns (google.protobuf.Empty);
@@ -192,8 +221,25 @@ message UploadChatAvatarRes {
     string avatar_url = 1;
 }
 
+message UploadAttachmentReq {
+    string user_id = 1;
+    string chat_id = 2;
+    bytes data = 3; // Файл для voice/video_note/document
+    string filename = 4; // Имя файла для voice/video_note/document
+    string content_type = 5;
+    optional int32 duration = 6; // Для voice/video_note
+}
+
+message UploadAttachmentRes {
+    string attachment_id = 1;
+    string file_url = 2;
+    string type = 3; // image, document, audio, video, sticker, voice, video_note
+    optional int32 duration = 4; // Для voice/video_note/audio
+}
+
 service MessageService {
     rpc StreamMessagesForUser(StreamMessagesForUserReq) returns (stream MessageEventRes);
     rpc HandleSendMessage(MessageEventReq) returns (google.protobuf.Empty);
     rpc SearchMessages(SearchMessagesReq) returns (SearchMessagesRes);
+    rpc UploadAttachment(UploadAttachmentReq) returns (UploadAttachmentRes);
 }

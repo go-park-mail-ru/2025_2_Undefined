@@ -170,8 +170,8 @@ func validateCreateMessage(msg *gen.CreateMessage) error {
 	}
 
 	text := msg.GetText()
-	if strings.TrimSpace(text) == "" {
-		return errors.New("text is required and cannot be empty")
+	if strings.TrimSpace(text) == "" && msg.GetAttachment() == nil {
+		return errors.New("text is required and cannot be empty if there no attachment")
 	}
 
 	return nil

@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/domains"
 	"github.com/go-park-mail-ru/2025_2_Undefined/internal/models/errs"
 	modelsMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/models/message"
+	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 	dtoChats "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/chats"
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	dtoUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/utils"
@@ -14,23 +15,22 @@ import (
 	interfaceMessageRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/message"
 	interfaceFileStorage "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/storage"
 	interfaceUserRepository "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/interface/user"
+	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/usecase/utils"
 	"github.com/google/uuid"
-
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/repository/minio"
 )
 
 type ChatsUsecase struct {
 	chatsRepo   interfaceChatsRepository.ChatsRepository
 	messageRepo interfaceMessageRepository.MessageRepository
-	usersRepo   interfaceUserRepository.UserRepository
+	usersClient interfaceUserRepository.UserClient
 	fileStorage interfaceFileStorage.FileStorage
 }
 
-func NewChatsUsecase(chatsRepo interfaceChatsRepository.ChatsRepository, usersRepo interfaceUserRepository.UserRepository, messageRepo interfaceMessageRepository.MessageRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
+func NewChatsUsecase(chatsRepo interfaceChatsRepository.ChatsRepository, usersClient interfaceUserRepository.UserClient, messageRepo interfaceMessageRepository.MessageRepository, fileStorage interfaceFileStorage.FileStorage) *ChatsUsecase {
 	return &ChatsUsecase{
 		chatsRepo:   chatsRepo,
 		messageRepo: messageRepo,
-		usersRepo:   usersRepo,
+		usersClient: usersClient,
 		fileStorage: fileStorage,
 	}
 }
@@ -83,16 +83,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 		}
 
 		if lastMsg, exists := messageMap[chat.ID]; exists {
-			chatDTO.LastMessage = dtoMessage.MessageDTO{
-				ID:         lastMsg.ID,
-				SenderID:   lastMsg.UserID,
-				SenderName: lastMsg.UserName,
-				Text:       lastMsg.Text,
-				CreatedAt:  lastMsg.CreatedAt,
-				UpdatedAt:  lastMsg.UpdatedAt,
-				ChatID:     lastMsg.ChatID,
-				Type:       lastMsg.Type,
-			}
+			chatDTO.LastMessage = utils.ConvertMessageToDTO(ctx, lastMsg, uc.fileStorage)
 		}
 
 		result = append(result, chatDTO)
@@ -101,7 +92,7 @@ func (uc *ChatsUsecase) GetChats(ctx context.Context, userId uuid.UUID) ([]dtoCh
 	return result, nil
 }
 
-func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, chatID uuid.UUID) (*dtoChats.ChatDetailedInformationDTO, error) {
+func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, chatID uuid.UUID, offset, limit int) (*dtoChats.ChatDetailedInformationDTO, error) {
 	const op = "ChatsUsecase.GetInformationAboutChat"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op)
@@ -112,7 +103,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 		return nil, err
 	}
 
-	messages, err := uc.messageRepo.GetMessagesOfChat(ctx, chatID, 0, 40)
+	messages, err := uc.messageRepo.GetMessagesOfChat(ctx, chatID, offset, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -141,16 +132,7 @@ func (uc *ChatsUsecase) GetInformationAboutChat(ctx context.Context, userID, cha
 
 	messagesDTO := make([]dtoMessage.MessageDTO, len(messages))
 	for i, message := range messages {
-		messagesDTO[i] = dtoMessage.MessageDTO{
-			ID:         message.ID,
-			SenderID:   message.UserID,
-			SenderName: message.UserName,
-			Text:       message.Text,
-			CreatedAt:  message.CreatedAt,
-			UpdatedAt:  message.UpdatedAt,
-			ChatID:     message.ChatID,
-			Type:       message.Type,
-		}
+		messagesDTO[i] = utils.ConvertMessageToDTO(ctx, message, uc.fileStorage)
 	}
 
 	usersDTO := make([]dtoChats.UserInfoChatDTO, len(users))
@@ -230,7 +212,7 @@ func (uc *ChatsUsecase) CreateChat(ctx context.Context, chatDTO dtoChats.ChatCre
 		usersIds[i] = memberDTO.UserId
 	}
 
-	usersNames, err := uc.usersRepo.GetUsersNames(ctx, usersIds)
+	usersNames, err := uc.usersClient.GetUsersNames(ctx, usersIds)
 	if err != nil {
 		return uuid.Nil, err
 	}

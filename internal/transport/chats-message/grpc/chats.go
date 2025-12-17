@@ -101,7 +101,17 @@ func (h *ChatsGRPCHandler) GetChat(ctx context.Context, in *gen.GetChatReq) (*ge
 		return nil, status.Error(codes.InvalidArgument, "wrong user id format")
 	}
 
-	chatDTO, err := h.chatsUsecase.GetInformationAboutChat(ctx, userID, chatID)
+	// Получаем offset и limit из запроса (по умолчанию 0 и 20 соответственно)
+	offset := 0
+	limit := 20
+	if in.Offset != nil {
+		offset = int(in.GetOffset())
+	}
+	if in.Limit != nil {
+		limit = int(in.GetLimit())
+	}
+
+	chatDTO, err := h.chatsUsecase.GetInformationAboutChat(ctx, userID, chatID, offset, limit)
 	if err != nil {
 		logger.WithError(err).Errorf("error getting chat %s: %v", in.GetChatId(), err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -336,6 +346,44 @@ func (h *ChatsGRPCHandler) SearchChats(ctx context.Context, in *gen.SearchChatsR
 
 	response := &gen.GetChatsRes{
 		Chats: mappers.DTOChatsViewToProto(chatsDTO),
+	}
+
+	return response, nil
+}
+
+func (h *ChatsGRPCHandler) GetChatMessages(ctx context.Context, in *gen.GetChatMessagesReq) (*gen.GetChatMessagesRes, error) {
+	const op = "ChatsGRPCHandler.GetChatMessages"
+	logger := domains.GetLogger(ctx).WithField("operation", op)
+
+	userID, err := uuid.Parse(in.GetUserId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing userId: %s", in.GetUserId())
+		return nil, status.Error(codes.InvalidArgument, "wrong user id format")
+	}
+
+	chatID, err := uuid.Parse(in.GetChatId())
+	if err != nil {
+		logger.WithError(err).Errorf("error parsing chatId: %s", in.GetChatId())
+		return nil, status.Error(codes.InvalidArgument, "wrong chat id format")
+	}
+
+	offset := 0
+	limit := 20
+	if in.Offset != nil {
+		offset = int(in.GetOffset())
+	}
+	if in.Limit != nil {
+		limit = int(in.GetLimit())
+	}
+
+	messagesDTO, err := h.messageUsecase.GetChatMessages(ctx, userID, chatID, offset, limit)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get chat messages")
+		return nil, status.Error(codes.Internal, "can't get chat messages")
+	}
+
+	response := &gen.GetChatMessagesRes{
+		Messages: mappers.DTOMessagesToProto(messagesDTO),
 	}
 
 	return response, nil

@@ -1,12 +1,14 @@
 package chats
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,7 +17,6 @@ import (
 	dtoMessage "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/dto/message"
 	gen "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/generated/chats"
 	contextUtils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/context"
-	"github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	utils "github.com/go-park-mail-ru/2025_2_Undefined/internal/transport/utils/response"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -66,6 +67,26 @@ var upgrader = websocket.Upgrader{
 // @Description    }
 // @Description  }
 // @Description  ```
+// @Description
+// @Description  **1.1. Создание сообщения с вложением (клиент → сервер):**
+// @Description  Для отправки файлов сначала загрузите файл через POST /messages/attachment, получите attachment_id, затем:
+// @Description  ```json
+// @Description  {
+// @Description    "type": "new_message",
+// @Description    "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description    "value": {
+// @Description      "text": "Текст к вложению (опционально)",
+// @Description      "created_at": "2025-01-15T10:30:00Z",
+// @Description      "chat_id": "123e4567-e89b-12d3-a456-426614174000",
+// @Description      "attachment": {
+// @Description        "attachment_id": "550e8400-e29b-41d4-a716-446655440000",
+// @Description        "type": "image", // "image", "document", "audio", "video", "sticker", "voice", "video_note"
+// @Description        "duration": 45 // для audio/voice/video_note - длительность в секундах (опционально)
+// @Description      }
+// @Description    }
+// @Description  }
+// @Description  ```
+// @Description  Для стикеров используйте sticker_id вместо attachment_id. Поля attachment_id, type и file_url возвращаются из POST /messages/attachment.
 // @Description
 // @Description  **2. Редактирование сообщения (клиент → сервер):**
 // @Description  ```json
@@ -174,13 +195,13 @@ func (h *ChatsGRPCProxyHandler) HandleMessages(w http.ResponseWriter, r *http.Re
 	const op = "ChatsGRPCProxyHandler.HandleMessages"
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	defer conn.Close()
@@ -345,7 +366,7 @@ func (h *ChatsGRPCProxyHandler) SearchMessages(w http.ResponseWriter, r *http.Re
 
 	userID, err := contextUtils.GetUserIDFromContext(r)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -357,11 +378,96 @@ func (h *ChatsGRPCProxyHandler) SearchMessages(w http.ResponseWriter, r *http.Re
 
 	protoRes, err := h.messageClient.SearchMessages(r.Context(), protoReq)
 	if err != nil {
-		response.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to search messages")
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to search messages")
 		return
 	}
 
 	dtoRes := mappers.ProtoSearchMessagesResToDTO(protoRes)
 
-	response.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoRes)
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dtoRes)
+}
+
+// UploadAttachment загружает файл
+// @Summary      Загрузить файл
+// @Description  Загружает файл для последующей отправки в сообщении. Тип вложения (image, document, audio, video) определяется автоматически по Content-Type файла.
+// @Tags         messages
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param X-CSRF-Token header string true "CSRF Token"
+// @Security     ApiKeyAuth
+// @Param        chat_id formData string true "ID чата"
+// @Param        file formData file true "Файл вложения"
+// @Param        duration formData int false "Длительность в секундах (для audio/voice/video_note)"
+// @Success      200  {object}  dto.AttachmentDTO  "Информация о загруженном вложении с автоматически определенным типом"
+// @Failure      400  {object}  dto.ErrorDTO       "Неверный формат запроса"
+// @Failure      401  {object}  dto.ErrorDTO       "Неавторизованный доступ"
+// @Router       /message/attachment [post]
+func (h *ChatsGRPCProxyHandler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
+	const op = "ChatsGRPCProxyHandler.UploadAttachment"
+	logger := domains.GetLogger(r.Context()).WithField("op", op)
+
+	userID, err := contextUtils.GetUserIDFromContext(r)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	if err := r.ParseMultipartForm(20 << 20); err != nil { // 20 MB
+		logger.WithError(err).Error("failed to parse multipart form")
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "failed to parse form")
+		return
+	}
+
+	chatIDStr := r.FormValue("chat_id")
+	durationStr := r.FormValue("duration")
+
+	chatID, err := uuid.Parse(chatIDStr)
+	if err != nil {
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "chat_id is required in valid format")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		logger.WithError(err).Error("failed to get file")
+		utils.SendError(r.Context(), op, w, http.StatusBadRequest, "file is required")
+		return
+	}
+	defer file.Close()
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, file); err != nil {
+		logger.WithError(err).Error("failed to read file")
+		utils.SendError(r.Context(), op, w, http.StatusInternalServerError, "failed to read file")
+		return
+	}
+
+	var durationPtr *int32
+	if durationStr != "" {
+		d, err := strconv.ParseInt(durationStr, 10, 32)
+		if err == nil {
+			d32 := int32(d)
+			durationPtr = &d32
+		}
+	}
+
+	grpcReq := &gen.UploadAttachmentReq{
+		UserId:      userID.String(),
+		ChatId:      chatID.String(),
+		Data:        buf.Bytes(),
+		Filename:    header.Filename,
+		ContentType: header.Header.Get("Content-Type"),
+		Duration:    durationPtr,
+	}
+
+	response, err := h.messageClient.UploadAttachment(r.Context(), grpcReq)
+	if err != nil {
+		logger.WithError(err).Error("failed to upload attachment via grpc")
+		utils.HandleGRPCError(r.Context(), w, err, op)
+		return
+	}
+
+	dto := mappers.ProtoUploadAttachmentResToDTO(response)
+
+	utils.SendJSONResponse(r.Context(), op, w, http.StatusOK, dto)
 }

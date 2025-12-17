@@ -83,14 +83,15 @@ func (h *UserGRPCHandler) GetUserByPhone(ctx context.Context, req *gen.GetUserBy
 
 	return &gen.GetUserByPhoneRes{
 		User: &gen.User{
-			Id:          user.ID.String(),
-			PhoneNumber: user.PhoneNumber,
-			Name:        user.Name,
-			Username:    user.Username,
-			Bio:         bio,
-			AccountType: user.AccountType,
-			CreatedAt:   user.CreatedAt.Format(time.RFC3339),
-			UpdatedAt:   user.UpdatedAt.Format(time.RFC3339),
+			Id:           user.ID.String(),
+			PhoneNumber:  user.PhoneNumber,
+			Name:         user.Name,
+			Username:     user.Username,
+			Bio:          bio,
+			AccountType:  user.AccountType,
+			CreatedAt:    user.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:    user.UpdatedAt.Format(time.RFC3339),
+			PasswordHash: user.PasswordHash,
 		},
 	}, nil
 }

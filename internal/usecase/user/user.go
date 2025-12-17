@@ -61,14 +61,15 @@ func (uc *UserUsecase) GetUserByPhone(ctx context.Context, phone string) (*UserD
 	}
 
 	userdto := &UserDto.User{
-		ID:          user.ID,
-		PhoneNumber: user.PhoneNumber,
-		Name:        user.Name,
-		Username:    user.Username,
-		Bio:         user.Bio,
-		AccountType: user.AccountType,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		ID:           user.ID,
+		PhoneNumber:  user.PhoneNumber,
+		PasswordHash: user.PasswordHash,
+		Name:         user.Name,
+		Username:     user.Username,
+		Bio:          user.Bio,
+		AccountType:  user.AccountType,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
 	}
 
 	return userdto, nil

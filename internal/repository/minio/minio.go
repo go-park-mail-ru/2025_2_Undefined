@@ -24,7 +24,7 @@ func NewMinioProvider(cfg config.MinioConfig) (*MinioProvider, error) {
 	endpoint := fmt.Sprintf("%s:%s", cfg.Host, cfg.PORT)
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.RootUser, cfg.RootPassword, ""),
-		Secure: cfg.UseSSL,
+		Secure: false,
 	})
 
 	if err != nil {
@@ -70,6 +70,27 @@ func NewMinioProvider(cfg config.MinioConfig) (*MinioProvider, error) {
 	}, nil
 }
 
+func (m *MinioProvider) getURL(objectID uuid.UUID) string {
+	// Возвращаем прямую публичную URL для объекта
+	protocol := "http"
+	if m.config.UseSSL {
+		protocol = "https"
+	}
+
+	host := m.config.PublicHost
+	if host == "" {
+		host = m.config.Host
+	}
+
+	publicURL := fmt.Sprintf("%s://%s/%s/%s",
+		protocol,
+		host,
+		m.bucketName,
+		objectID.String())
+
+	return publicURL
+}
+
 func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID uuid.UUID) (string, error) {
 	const op = "MinioProvider.CreateOne"
 	const query = "PUT object"
@@ -77,7 +98,7 @@ func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID u
 	logger := domains.GetLogger(ctx).WithField("operation", op).
 		WithField("object_id", objectID.String()).
 		WithField("file_name", file.Name)
-	
+
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
@@ -102,25 +123,7 @@ func (m *MinioProvider) CreateOne(ctx context.Context, file FileData, objectID u
 		return "", fmt.Errorf("error create object in minio %s: %v", file.Name, err)
 	}
 
-	// Возвращаем прямую публичную URL для объекта
-	protocol := "http"
-	if m.config.UseSSL {
-		protocol = "https"
-	}
-
-	host := m.config.PublicHost
-	if host == "" {
-		host = m.config.Host
-	}
-
-	publicURL := fmt.Sprintf("%s://%s:%s/%s/%s",
-		protocol,
-		host,
-		m.config.PORT,
-		m.bucketName,
-		objectID.String())
-
-	return publicURL, nil
+	return m.getURL(objectID), nil
 }
 
 func (m *MinioProvider) GetOne(ctx context.Context, objectID *uuid.UUID) (string, error) {
@@ -132,7 +135,7 @@ func (m *MinioProvider) GetOne(ctx context.Context, objectID *uuid.UUID) (string
 	const query = "GET object URL"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("object_id", objectID.String())
-	
+
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("minio query: %s: status: %s", query, queryStatus)
@@ -140,25 +143,7 @@ func (m *MinioProvider) GetOne(ctx context.Context, objectID *uuid.UUID) (string
 
 	logger.Debugf("starting: %s", query)
 
-	// Возвращаем прямую публичную URL для объекта
-	protocol := "http"
-	if m.config.UseSSL {
-		protocol = "https"
-	}
-
-	host := m.config.PublicHost
-	if host == "" {
-		host = m.config.Host
-	}
-
-	publicURL := fmt.Sprintf("%s://%s:%s/%s/%s",
-		protocol,
-		host,
-		m.config.PORT,
-		m.bucketName,
-		objectID.String())
-
-	return publicURL, nil
+	return m.getURL(*objectID), nil
 }
 
 func (m *MinioProvider) DeleteOne(ctx context.Context, objectID uuid.UUID) error {
@@ -166,7 +151,7 @@ func (m *MinioProvider) DeleteOne(ctx context.Context, objectID uuid.UUID) error
 	const query = "DELETE object"
 
 	logger := domains.GetLogger(ctx).WithField("operation", op).WithField("object_id", objectID.String())
-	
+
 	queryStatus := "success"
 	defer func() {
 		logger.Debugf("minio query: %s: status: %s", query, queryStatus)

@@ -15,5 +15,7 @@ type MessageUsecase interface {
 	SubscribeConnectionToChats(ctx context.Context, connectionID uuid.UUID, userID uuid.UUID, chatsDTO []dtoChats.ChatViewInformationDTO) <-chan dtoMessage.WebSocketMessageDTO
 	SubscribeUsersOnChat(ctx context.Context, chatID uuid.UUID, members []dtoChats.AddChatMemberDTO) error
 	GetMessagesBySearch(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, text string) ([]dtoMessage.MessageDTO, error)
+	GetChatMessages(ctx context.Context, userID uuid.UUID, chatID uuid.UUID, offset, limit int) ([]dtoMessage.MessageDTO, error)
 	AddMessageJoinUsers(ctx context.Context, chatID uuid.UUID, users []dtoChats.AddChatMemberDTO) error
+	UploadAttachment(ctx context.Context, userID, chatID uuid.UUID, contentType string, fileData []byte, filename string, duration *int) (*dtoMessage.AttachmentDTO, error)
 }
