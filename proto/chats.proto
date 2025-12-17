@@ -145,8 +145,9 @@ message Message {
     string sender_name = 4;
     string text = 5;
     string created_at = 6;
-    string type = 7;
-    optional Attachment attachment = 8;
+    string updated_at = 7;
+    string type = 8;
+    optional Attachment attachment = 9;
 }
 
 message EditMessage {

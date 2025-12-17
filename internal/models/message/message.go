@@ -19,7 +19,7 @@ type Message struct {
 	UserName   *string
 	Text       string
 	CreatedAt  time.Time
-	UpdatedAt  *time.Time
+	UpdatedAt  time.Time
 	Type       string
 	Attachment *modelsAttachment.Attachment
 }

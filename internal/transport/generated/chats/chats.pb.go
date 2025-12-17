@@ -1380,8 +1380,9 @@ type Message struct {
 	SenderName    string                 `protobuf:"bytes,4,opt,name=sender_name,json=senderName,proto3" json:"sender_name,omitempty"`
 	Text          string                 `protobuf:"bytes,5,opt,name=text,proto3" json:"text,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Type          string                 `protobuf:"bytes,7,opt,name=type,proto3" json:"type,omitempty"`
-	Attachment    *Attachment            `protobuf:"bytes,8,opt,name=attachment,proto3,oneof" json:"attachment,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Type          string                 `protobuf:"bytes,8,opt,name=type,proto3" json:"type,omitempty"`
+	Attachment    *Attachment            `protobuf:"bytes,9,opt,name=attachment,proto3,oneof" json:"attachment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1454,6 +1455,13 @@ func (x *Message) GetText() string {
 func (x *Message) GetCreatedAt() string {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Message) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
 	}
 	return ""
 }
@@ -2312,7 +2320,7 @@ const file_chats_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x19\n" +
 	"\bfile_url\x18\x02 \x01(\tR\afileUrl\x12\x1f\n" +
 	"\bduration\x18\x03 \x01(\x05H\x00R\bduration\x88\x01\x01B\v\n" +
-	"\t_duration\"\x91\x02\n" +
+	"\t_duration\"\xb0\x02\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\achat_id\x18\x02 \x01(\tR\x06chatId\x12 \n" +
@@ -2321,10 +2329,12 @@ const file_chats_proto_rawDesc = "" +
 	"senderName\x12\x12\n" +
 	"\x04text\x18\x05 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x12\n" +
-	"\x04type\x18\a \x01(\tR\x04type\x126\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"attachment\x18\b \x01(\v2\x11.chats.AttachmentH\x01R\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\x12\x12\n" +
+	"\x04type\x18\b \x01(\tR\x04type\x126\n" +
+	"\n" +
+	"attachment\x18\t \x01(\v2\x11.chats.AttachmentH\x01R\n" +
 	"attachment\x88\x01\x01B\f\n" +
 	"\n" +
 	"_sender_idB\r\n" +

@@ -12,7 +12,7 @@ type MessageDTO struct {
 	SenderName *string        `json:"sender_name" swaggertype:"string"`
 	Text       string         `json:"text"`
 	CreatedAt  time.Time      `json:"created_at" swaggertype:"string" format:"date-time"`
-	UpdatedAt  *time.Time     `json:"updated_at,omitempty" swaggertype:"string" format:"date-time"`
+	UpdatedAt  time.Time      `json:"updated_at,omitempty" swaggertype:"string" format:"date-time"`
 	ChatID     uuid.UUID      `json:"chat_id" swaggertype:"string" format:"uuid"`
 	Type       string         `json:"type" swaggertype:"string"` // Тип сообщения - системное или пользовательское
 	Attachment *AttachmentDTO `json:"attachment,omitempty"`
