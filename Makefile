@@ -147,3 +147,4 @@ chats_proto:
 		--go-grpc_opt=paths=source_relative \
 		--go_opt=paths=source_relative \
 		proto/chats.proto
+
