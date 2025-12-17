@@ -24,7 +24,7 @@ func NewMinioProvider(cfg config.MinioConfig) (*MinioProvider, error) {
 	endpoint := fmt.Sprintf("%s:%s", cfg.Host, cfg.PORT)
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.RootUser, cfg.RootPassword, ""),
-		Secure: cfg.UseSSL,
+		Secure: false,
 	})
 
 	if err != nil {
